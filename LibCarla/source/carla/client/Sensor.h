@@ -7,7 +7,7 @@
 #pragma once
 
 #include "carla/client/Actor.h"
-
+#include "carla/client/detail/Simulator.h" // TODO:Move to .cpp
 #include <functional>
 
 namespace carla {
@@ -30,6 +30,17 @@ namespace client {
 
     /// Return whether this Sensor instance is currently listening to new data.
     virtual bool IsListening() const = 0;
+
+	void SetFOV(float fov)
+	{
+		GetEpisode().Lock()->SetFOV(*this, fov);
+	}
+	
+	float GetFOV()
+	{
+		return GetEpisode().Lock()->GetFOV(*this);
+	}
+
   };
 
 } // namespace client

@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{EFC07C98-4070-2F0E-BE31-319DCE259DFF}",
+	"EngineAssociation": "E564AF75-E16C-4B84-93AB-560C7995A114",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -11,7 +11,8 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"Carla",
-				"CoreUObject"
+				"CoreUObject",
+				"ChaosVehicles"
 			]
 		}
 	],
@@ -70,6 +71,14 @@
 		},
 		{
 			"Name": "PerformanceMonitor",
+			"Enabled": true
+		},
+		{
+			"Name": "StreetMap",
+			"Enabled": true
+		},
+		{
+			"Name": "DataprepEditor",
 			"Enabled": true
 		}
 	],

@@ -419,6 +419,14 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     return _client.IsEnabledForROS(sensor.GetActorDescription().GetStreamToken());
   }
 
+	bool Simulator::GetFOV(const Sensor &sensor) {
+		return _client.GetFOV(sensor.GetId());
+	}
+
+	void Simulator::SetFOV(const Sensor &sensor, float fov) {
+		_client.SetFOV(sensor.GetId(), fov);
+	}
+
   void Simulator::SubscribeToGBuffer(
       Actor &actor,
       uint32_t gbuffer_id,

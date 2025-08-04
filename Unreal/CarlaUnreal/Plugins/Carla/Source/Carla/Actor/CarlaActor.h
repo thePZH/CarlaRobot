@@ -122,6 +122,16 @@ public:
   {
     return ParentId;
   }
+	
+  void SetParentActor(AActor* InActor)
+  {
+	  TheParentActor = InActor;
+  }
+	
+  AActor* GetParentActor() const
+  {
+	  return TheParentActor;
+  }
 
   void AddChildren(IdType ChildId)
   {
@@ -446,7 +456,8 @@ private:
   friend class FActorRegistry;
 
   AActor *TheActor = nullptr;
-
+  AActor *TheParentActor = nullptr;
+	
   TSharedPtr<const FActorInfo> Info = nullptr;
 
   IdType Id = 0u;

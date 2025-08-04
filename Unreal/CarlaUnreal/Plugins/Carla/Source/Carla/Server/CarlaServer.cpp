@@ -77,6 +77,8 @@
 #include <map>
 #include <tuple>
 
+#include "Sensor/RayCastLidar.h"
+
 template <typename T>
 using R = carla::rpc::Response<T>;
 
@@ -789,12 +791,12 @@ void FCarlaServer::FPimpl::BindActions()
     }
 
     FCarlaActor* ParentCarlaActor = Episode->FindCarlaActor(ParentId);
-
+    
     if (!ParentCarlaActor)
     {
       RESPOND_ERROR("unable to attach actor: parent actor not found");
     }
-
+  	CarlaActor->SetParentActor(ParentCarlaActor->GetActor());
     CarlaActor->SetParent(ParentId);
     CarlaActor->SetAttachmentType(InAttachmentType);
     ParentCarlaActor->AddChildren(CarlaActor->GetActorId());
@@ -821,13 +823,51 @@ void FCarlaServer::FPimpl::BindActions()
 
     // Only is possible to attach if the actor has been really spawned and
     // is not in dormant state
-    if(!ParentCarlaActor->IsDormant())
-    {
-      Episode->AttachActors(
-          CarlaActor->GetActor(),
-          ParentCarlaActor->GetActor(),
-          static_cast<EAttachmentType>(InAttachmentType));
-    }
+  	if (!ParentCarlaActor->IsDormant())
+  	{
+  		/////////////////////////////////////////////////////////////////////////////////////////////////
+  		// Server不应该知道任何具体类型，放到类中实现绑定，这里可以简单掉用一个处理函数（抽象接口），处理挂载问题
+  		bool bDidAttachToSocket = false;
+  		if (auto SkeletalMeshComp = ParentCarlaActor->GetActor()->FindComponentByClass<USkeletalMeshComponent>())
+  		{
+  			if (USkeletalMesh* SkMesh = SkeletalMeshComp->GetSkeletalMeshAsset())
+  			{
+  				// 区分 sensor 和 lidar
+			    if (auto lidar = Cast<ARayCastLidar>(CarlaActor->GetActor()))
+			    {
+				    if (SkMesh->FindSocket(TEXT("SlotLD")))
+				    {
+				    	CarlaActor->GetActor()->AttachToComponent(
+				    		SkeletalMeshComp,
+							FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+							FName(TEXT("SlotLD")));
+				    	bDidAttachToSocket = true;
+				    }
+			    }
+  				else
+  				{
+  					if (SkMesh->FindSocket(TEXT("SlotBL")))
+  					{
+  						CarlaActor->GetActor()->AttachToComponent(
+							SkeletalMeshComp,
+							FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+							FName(TEXT("SlotBL")));
+
+  						bDidAttachToSocket = true;
+  					}
+  				}
+  			}
+  		}
+  		/////////////////////////////////////////////////////////////////////////////////////////////////
+  		
+  		if (!bDidAttachToSocket)
+  		{
+  			Episode->AttachActors(
+				CarlaActor->GetActor(),
+				ParentCarlaActor->GetActor(),
+				static_cast<EAttachmentType>(InAttachmentType));
+  		}
+  	}
     else
     {
       Episode->PutActorToSleep(CarlaActor->GetActorId());
@@ -1042,6 +1082,48 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
     return R<void>::Success();
   };
 
+	BIND_SYNC(set_sensor_fov) << [this](cr::ActorId ActorId, float FOV) -> R<void>
+	{
+		REQUIRE_CARLA_EPISODE();
+		FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+		if (!CarlaActor)
+			return RespondError(
+				"set_sensor_fov",
+				ECarlaServerResponse::ActorNotFound,
+				" Actor Id: " + FString::FromInt(ActorId));
+
+		ASceneCaptureSensor* Camera = Cast<ASceneCaptureSensor>(CarlaActor->GetActor());
+		if (!Camera)
+			return RespondError(
+				"set_sensor_fov",
+				ECarlaServerResponse::ActorNotFound,
+				" Actor Id: " + FString::FromInt(ActorId));
+		
+		Camera->SetFOVAngle(FOV);
+		return R<void>::Success();
+	};
+
+	BIND_SYNC(get_sensor_fov) << [this](cr::ActorId ActorId) -> R<float>
+	{
+		REQUIRE_CARLA_EPISODE();
+		FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+		if (!CarlaActor)
+			return RespondError(
+				"get_fov",
+				ECarlaServerResponse::ActorNotFound,
+				" Actor Id: " + FString::FromInt(ActorId));
+
+		ASceneCaptureSensor* Camera = Cast<ASceneCaptureSensor>(CarlaActor->GetActor());
+		if (!Camera)
+			return RespondError(
+				"get_fov",
+				ECarlaServerResponse::ActorNotFound,
+				" Actor Id: " + FString::FromInt(ActorId));
+		
+		float fov = Camera->GetFOVAngle();
+		return fov;
+	};
+	
   BIND_SYNC(set_walker_state) << [this] (
       cr::ActorId ActorId,
       cr::Transform Transform,

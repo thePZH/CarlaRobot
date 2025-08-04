@@ -637,6 +637,13 @@ namespace detail {
     carla::streaming::detail::token_type thisToken(token);
     return _pimpl->CallAndWait<bool>("is_sensor_enabled_for_ros", thisToken.get_stream_id());
   }
+	float Client::GetFOV(rpc::ActorId actorid) {
+		return _pimpl->CallAndWait<float>("get_sensor_fov", actorid);
+	}
+	
+	void Client::SetFOV(rpc::ActorId actorid, float fov) {
+		_pimpl->AsyncCall("set_sensor_fov", actorid, fov);
+	}
 
   void Client::SubscribeToGBuffer(
       rpc::ActorId ActorId,

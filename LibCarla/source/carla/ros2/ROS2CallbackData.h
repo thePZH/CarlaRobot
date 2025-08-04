@@ -8,6 +8,7 @@
 
 #include <variant>
 #include <functional>
+#include "carla/ros2/types/Vector3.h"
 
 namespace carla {
 namespace ros2 {
@@ -23,12 +24,18 @@ namespace ros2 {
     bool    manual_gear_shift;
   };
 
-    struct MessageControl
+  struct RobotControl
+  {
+    geometry_msgs::msg::Vector3 linear;   // 线速度 (m/s)
+    geometry_msgs::msg::Vector3 angular;  // 角速度 (rad/s)
+  };
+  
+  struct MessageControl
   {
     const char* message;
   };
 
-  using ROS2CallbackData = std::variant<VehicleControl>;
+  using ROS2CallbackData = std::variant<VehicleControl, RobotControl>;
   using ROS2MessageCallbackData = std::variant<MessageControl>;
 
   using ActorCallback = std::function<void(void *actor, ROS2CallbackData data)>;

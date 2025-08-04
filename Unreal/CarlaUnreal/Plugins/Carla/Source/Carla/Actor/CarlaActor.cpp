@@ -16,6 +16,7 @@
 #include "Carla/Vehicle/MovementComponents/ChronoMovementComponent.h"
 #include "Carla/Traffic/TrafficLightBase.h"
 #include "Carla/Game/CarlaStatics.h"
+#include "Carla/PzhTest/WheeledRobotAnimationInstance.h"
 
 #include <util/disable-ue4-macros.h>
 #include <carla/rpc/AckermannControllerSettings.h>
@@ -39,6 +40,9 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include <util/ue-header-guard-end.h>
+
+
+#include "Animation/Skeleton.h"
 
 FCarlaActor::FCarlaActor(
     IdType ActorId,
@@ -216,6 +220,29 @@ FTransform FCarlaActor::GetActorGlobalTransform() const
     {
       Transform = LargeMap->LocalToGlobalTransform(Transform);
     }
+  	bool bIsRobotTransform = false;
+  	if (Cast<ASensor>(TheActor))
+  	{
+  		if (TheParentActor)
+  		{
+  			if (auto* carlaVehicle = Cast<ACarlaWheeledVehicle>(TheParentActor))
+  			{
+  				if (auto* skmComp = TheParentActor->GetComponentByClass<USkeletalMeshComponent>())
+  				{
+  					if (auto* animInstance = skmComp->GetAnimInstance())
+  					{
+  						if (auto anim = Cast<UWheeledRobotAnimationInstance>(animInstance))
+  						{
+  							int32 idx = skmComp->GetBoneIndex(FName(TEXT("SlotBL")));
+  							Transform = skmComp->GetBoneTransform(idx);
+  							return Transform;
+  						}
+  					}
+  				}
+  			}
+  		}
+  	}
+  	
     return Transform;
   }
 }
@@ -351,11 +378,37 @@ void FCarlaActor::SetActorGlobalTransform(
       LocalTransform =
           LargeMap->GlobalToLocalTransform(LocalTransform);
     }
-    GetActor()->SetActorTransform(
-        LocalTransform,
-        false,
-        nullptr,
-        TeleportType);
+  	ActorData->Location = FDVector(LocalTransform.GetLocation());
+  	
+  	// TODO:这部分逻辑移动到Sensor中，Sensor通过掉用小车的接口实现旋转，或者python掉用小车的旋转云台接口。
+  	// 旋转sensor实际上转的是机器人的gimbal和camera骨骼，但是为了不增加单独pythonAPI，直接在这里拦截
+  	bool bIsRobotTransform = false;
+  	if (Cast<ASensor>(TheActor))
+    {
+		if (TheParentActor)
+		{
+	   	    if (auto* carlaVehicle = Cast<ACarlaWheeledVehicle>(TheParentActor))
+		    {
+	   	    	if (auto* skmComp = TheParentActor->GetComponentByClass<USkeletalMeshComponent>())
+			    {
+				    if (auto* animInstance = skmComp->GetAnimInstance())
+			        {
+				        if (auto anim = Cast<UWheeledRobotAnimationInstance>(animInstance))
+				        {
+				        	FRotator inputRot = Transform.GetRotation().Rotator();
+							anim->CameraPitch = inputRot.Pitch;
+				        	anim->Gimbalyaw = inputRot.Yaw;
+				        	bIsRobotTransform = true;
+				        }
+			        }
+			    }
+		    }
+	    }
+    }
+    if (!bIsRobotTransform)
+    {
+    	GetActor()->SetActorTransform(LocalTransform, false, nullptr, TeleportType);
+    }
   }
 }
 

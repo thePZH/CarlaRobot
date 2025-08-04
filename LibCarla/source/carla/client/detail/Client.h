@@ -404,6 +404,10 @@ namespace detail {
 
     bool IsEnabledForROS(const streaming::Token &token);
 
+	float GetFOV(rpc::ActorId actorid);
+
+	void SetFOV(rpc::ActorId actirid, float fov);
+
     void UnSubscribeFromGBuffer(
         rpc::ActorId ActorId,
         uint32_t GBufferId);

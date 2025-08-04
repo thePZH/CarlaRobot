@@ -96,35 +96,40 @@ else
 fi
 
 # -- DOWNLOAD + BUILD UNREAL ENGINE --
-if [ ! -z $CARLA_UNREAL_ENGINE_PATH ] && [ -d $CARLA_UNREAL_ENGINE_PATH ]; then
+if [ ! -z "$CARLA_UNREAL_ENGINE_PATH" ] && [ -d "$CARLA_UNREAL_ENGINE_PATH" ]; then
     echo "Found CARLA Unreal Engine at $CARLA_UNREAL_ENGINE_PATH"
-elif [ -d ../UnrealEngine5_carla ]; then
-    echo "Found CARLA Unreal Engine at $workspace_path/UnrealEngine5_carla. Assuming already built..."
+elif [ -d "../UnrealEngine5_carla" ]; then
+    echo "Found CARLA Unreal Engine at $workspace_path/../UnrealEngine5_carla. Assuming already built..."
 else
-    echo "Could not find CARLA Unreal Engine, downloading..."
+    echo "Could not find CARLA Unreal Engine, downloading via SSH..."
     pushd ..
-    if [ -z "$GIT_LOCAL_CREDENTIALS" ]
-    then
-        UE5_URL=https://github.com/CarlaUnreal/UnrealEngine.git
-    else
-        GIT_CREDENTIALS_INFO=(${GIT_LOCAL_CREDENTIALS//@/ })
-        GIT_LOCAL_USER=${GIT_CREDENTIALS_INFO[0]}
-        GIT_LOCAL_TOKEN=${GIT_CREDENTIALS_INFO[1]}
-        UE5_URL=https://$GIT_LOCAL_USER:$GIT_LOCAL_TOKEN@github.com/CarlaUnreal/UnrealEngine.git
+    
+    # 使用SSH地址克隆
+    echo "Cloning UnrealEngine via SSH..."
+    GIT_SSH_COMMAND="ssh -i /home/pzhpc/.ssh/id_ed25519" git clone -b ue5-dev-carla git@github.com:CarlaUnreal/UnrealEngine.git UnrealEngine5_carla
+    if [ ! -d "UnrealEngine5_carla" ]; then
+        echo "Error: Failed to clone UnrealEngine repository via SSH"
+        exit 1
     fi
-    git clone -b ue5-dev-carla $UE5_URL UnrealEngine5_carla
+    
     pushd UnrealEngine5_carla
-    echo -e '\n#CARLA UnrealEngine5\nexport CARLA_UNREAL_ENGINE_PATH='$PWD >> ~/.bashrc
-    export CARLA_UNREAL_ENGINE_PATH=$PWD
+    echo "Successfully cloned UnrealEngine to $PWD"
+    
+    # 设置环境变量
+    echo -e '\n#CARLA UnrealEngine5\nexport CARLA_UNREAL_ENGINE_PATH='"$PWD" >> ~/.bashrc
+    export CARLA_UNREAL_ENGINE_PATH="$PWD"
+    echo "CARLA_UNREAL_ENGINE_PATH set to $CARLA_UNREAL_ENGINE_PATH"
+    
+    # 构建步骤
     echo "Running Unreal Engine pre-build steps..."
     bash -x Setup.sh
     bash -x GenerateProjectFiles.sh
-    echo "Building Unreal Engine 5..."
+    echo "Building Unreal Engine 5 (this will take several hours)..."
     make
+    
     popd
     popd
 fi
-
 # -- BUILD CARLA --
 echo "Configuring the CARLA CMake project..."
 cmake -G Ninja -S . -B Build \

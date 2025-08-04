@@ -26,6 +26,8 @@ void export_sensor() {
     .def("listen", &SubscribeToStream, (arg("callback")))
     .def("is_listening", &cc::Sensor::IsListening)
     .def("stop", &cc::Sensor::Stop)
+	.def("set_fov", &cc::Sensor::SetFOV, (arg("fov")))  
+	.def("get_fov", &cc::Sensor::GetFOV)
     .def(self_ns::str(self_ns::self))
   ;
 

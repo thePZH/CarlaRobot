@@ -39,6 +39,7 @@
 
 #include "subscribers/CarlaSubscriber.h"
 #include "subscribers/CarlaEgoVehicleControlSubscriber.h"
+#include "subscribers/SVWheeledRobotSubscriber.h"
 #if defined(WITH_ROS2_DEMO)
   #include "subscribers/BasicSubscriber.h"
 #endif
@@ -221,7 +222,8 @@ void ROS2::AddActorCallback(void* actor, std::string ros_name, ActorCallback cal
   _actor_callbacks.insert({actor, std::move(callback)});
 
   _controller.reset();
-  _controller = std::make_shared<CarlaEgoVehicleControlSubscriber>(actor, ros_name.c_str());
+  // _controller = std::make_shared<CarlaEgoVehicleControlSubscriber>(actor, ros_name.c_str());
+	_controller = std::make_shared<SVWheeledRobotControlSubscriber>(actor, ros_name.c_str());
   _controller->Init();
 }
 

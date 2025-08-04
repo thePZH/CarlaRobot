@@ -258,10 +258,12 @@ bool ARayCastSemanticLidar::ShootLaser(const float VerticalAngle, const float Ho
 
   const auto Range = Description.Range;
   FVector EndTrace = Range * UKismetMathLibrary::GetForwardVector(ResultRot) + LidarBodyLoc;
-  
+	// TODO：雷达半径7cm，先写死，后续支持参数
+	FVector startTrace = LidarBodyLoc + UKismetMathLibrary::GetForwardVector(ResultRot) * 7;
+	
   GetWorld()->ParallelLineTraceSingleByChannel(
     HitInfo,
-    LidarBodyLoc,
+    startTrace,
     EndTrace,
     ECC_GameTraceChannel2,
     TraceParams,

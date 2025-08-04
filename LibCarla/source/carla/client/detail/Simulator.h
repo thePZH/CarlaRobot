@@ -671,6 +671,10 @@ namespace detail {
 
     bool IsEnabledForROS(const Sensor &sensor);
 
+	bool GetFOV(const Sensor &sensor);
+
+	void SetFOV(const Sensor &sensor, float fov);
+
     void SubscribeToGBuffer(
         Actor & sensor,
         uint32_t gbuffer_id,

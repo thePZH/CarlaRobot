@@ -60,7 +60,15 @@ void ARayCastLidar::PostPhysTick(UWorld *World, ELevelTick TickType, float Delta
 {
   TRACE_CPUPROFILER_EVENT_SCOPE(ARayCastLidar::PostPhysTick);
   SimulateLidar(DeltaTime);
-
+#if WITH_EDITOR
+	for (const auto& channelhits : RecordedHits)
+	{
+		for	(const auto& hit : channelhits)
+		{
+			DrawDebugLine(GetWorld(), GetActorLocation(), hit.Location, FColor::Red, false, -1, 0, 0);	
+		}
+	}
+#endif
   auto DataStream = GetDataStream(*this);
   auto SensorTransform = DataStream.GetSensorTransform();
 
