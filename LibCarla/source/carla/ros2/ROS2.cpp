@@ -39,12 +39,13 @@
 
 #include "subscribers/CarlaSubscriber.h"
 #include "subscribers/CarlaEgoVehicleControlSubscriber.h"
-#include "subscribers/SVWheeledRobotSubscriber.h"
+#include "subscribers/SVWheeledRobotControlSubscriber.h"
 #if defined(WITH_ROS2_DEMO)
   #include "subscribers/BasicSubscriber.h"
 #endif
 
 #include <vector>
+#include <iostream>
 
 namespace carla {
 namespace ros2 {
@@ -95,6 +96,7 @@ void ROS2::SetFrame(uint64_t frame) {
       if (_controller->HasNewMessage()) {
         auto it = _actor_callbacks.find(actor);
         if (it != _actor_callbacks.end()) {
+          std::cout << "SetFrame Get, and send control msg to UE" << std::endl;
           VehicleControl control = _controller->GetMessage();
           it->second(actor, control);
         }
@@ -224,6 +226,7 @@ void ROS2::AddActorCallback(void* actor, std::string ros_name, ActorCallback cal
   _controller.reset();
   // _controller = std::make_shared<CarlaEgoVehicleControlSubscriber>(actor, ros_name.c_str());
 	_controller = std::make_shared<SVWheeledRobotControlSubscriber>(actor, ros_name.c_str());
+  std::cout << "SVWheeledRobotControlSubscriber created" << std::endl;
   _controller->Init();
 }
 

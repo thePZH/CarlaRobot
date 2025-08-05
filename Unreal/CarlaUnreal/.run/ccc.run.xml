@@ -1,0 +1,478 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ccc" type="Uproject" factoryName="rider.uproject">
+    <configuration_1 setup="1">
+      <option name="CONFIGURATION" value="Debug Client" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealClient-Linux-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_1>
+    <configuration_2 setup="1">
+      <option name="CONFIGURATION" value="Debug Client" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealClient-LinuxArm64-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_2>
+    <configuration_3 setup="1">
+      <option name="CONFIGURATION" value="Debug Editor" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/Linux/UnrealEditor-Linux-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_3>
+    <configuration_4 setup="1">
+      <option name="CONFIGURATION" value="Debug Editor" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/LinuxArm64/UnrealEditor-LinuxArm64-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_4>
+    <configuration_5 setup="1">
+      <option name="CONFIGURATION" value="Debug Server" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealServer-Linux-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_5>
+    <configuration_6 setup="1">
+      <option name="CONFIGURATION" value="Debug Server" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealServer-LinuxArm64-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_6>
+    <configuration_7 setup="1">
+      <option name="CONFIGURATION" value="DebugGame Client" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealClient-Linux-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_7>
+    <configuration_8 setup="1">
+      <option name="CONFIGURATION" value="DebugGame Client" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealClient-LinuxArm64-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_8>
+    <configuration_9 setup="1">
+      <option name="CONFIGURATION" value="DebugGame Editor" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/Linux/UnrealEditor-Linux-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="--ros2" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_9>
+    <configuration_10 setup="1">
+      <option name="CONFIGURATION" value="DebugGame Editor" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/LinuxArm64/UnrealEditor-LinuxArm64-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_10>
+    <configuration_11 setup="1">
+      <option name="CONFIGURATION" value="DebugGame Server" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealServer-Linux-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_11>
+    <configuration_12 setup="1">
+      <option name="CONFIGURATION" value="DebugGame Server" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealServer-LinuxArm64-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_12>
+    <configuration_13 setup="1">
+      <option name="CONFIGURATION" value="DebugGame" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnreal-Linux-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_13>
+    <configuration_14 setup="1">
+      <option name="CONFIGURATION" value="DebugGame" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnreal-LinuxArm64-DebugGame" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_14>
+    <configuration_15 setup="1">
+      <option name="CONFIGURATION" value="Debug" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnreal-Linux-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_15>
+    <configuration_16 setup="1">
+      <option name="CONFIGURATION" value="Debug" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnreal-LinuxArm64-Debug" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_16>
+    <configuration_17 setup="1">
+      <option name="CONFIGURATION" value="Development Client" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealClient" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_17>
+    <configuration_18 setup="1">
+      <option name="CONFIGURATION" value="Development Client" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealClient" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_18>
+    <configuration_19 setup="1">
+      <option name="CONFIGURATION" value="Development Editor" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/Linux/UnrealEditor" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_19>
+    <configuration_20 setup="1">
+      <option name="CONFIGURATION" value="Development Editor" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/LinuxArm64/UnrealEditor" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_20>
+    <configuration_21 setup="1">
+      <option name="CONFIGURATION" value="Development Server" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealServer" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_21>
+    <configuration_22 setup="1">
+      <option name="CONFIGURATION" value="Development Server" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealServer" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_22>
+    <configuration_23 setup="1">
+      <option name="CONFIGURATION" value="Development" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnreal" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_23>
+    <configuration_24 setup="1">
+      <option name="CONFIGURATION" value="Development" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnreal" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_24>
+    <configuration_25 setup="1">
+      <option name="CONFIGURATION" value="Shipping Client" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealClient-Linux-Shipping" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_25>
+    <configuration_26 setup="1">
+      <option name="CONFIGURATION" value="Shipping Client" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealClient-LinuxArm64-Shipping" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_26>
+    <configuration_27 setup="1">
+      <option name="CONFIGURATION" value="Shipping Server" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealServer-Linux-Shipping" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_27>
+    <configuration_28 setup="1">
+      <option name="CONFIGURATION" value="Shipping Server" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealServer-LinuxArm64-Shipping" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_28>
+    <configuration_29 setup="1">
+      <option name="CONFIGURATION" value="Shipping" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnreal-Linux-Shipping" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_29>
+    <configuration_30 setup="1">
+      <option name="CONFIGURATION" value="Shipping" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnreal-LinuxArm64-Shipping" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_30>
+    <configuration_31 setup="1">
+      <option name="CONFIGURATION" value="Test Client" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealClient-Linux-Test" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_31>
+    <configuration_32 setup="1">
+      <option name="CONFIGURATION" value="Test Client" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealClient-LinuxArm64-Test" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_32>
+    <configuration_33 setup="1">
+      <option name="CONFIGURATION" value="Test Server" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnrealServer-Linux-Test" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_33>
+    <configuration_34 setup="1">
+      <option name="CONFIGURATION" value="Test Server" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnrealServer-LinuxArm64-Test" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_34>
+    <configuration_35 setup="1">
+      <option name="CONFIGURATION" value="Test" />
+      <option name="PLATFORM" value="Linux" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/Linux/CarlaUnreal-Linux-Test" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_35>
+    <configuration_36 setup="1">
+      <option name="CONFIGURATION" value="Test" />
+      <option name="PLATFORM" value="LinuxArm64" />
+      <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
+      <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/Binaries/LinuxArm64/CarlaUnreal-LinuxArm64-Test" />
+      <option name="MANDATORY_PROGRAM_PARAMETERS" value="" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="TERMINAL_INTERACTION_BEHAVIOR" value="FORCE_CONSOLE" />
+      <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    </configuration_36>
+    <option name="DEFAULT_PROJECT_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    <option name="PROJECT_FILE_PATH" value="$PROJECT_DIR$/CarlaUnreal.uproject" />
+    <option name="AUTO_SELECT_PRIORITY" value="10010" />
+    <method v="2">
+      <option name="Build" />
+    </method>
+  </configuration>
+</component>

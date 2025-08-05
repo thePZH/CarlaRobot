@@ -21,9 +21,7 @@ using namespace eprosima::fastcdr::exception;
 #define carla_msgs_msg_SVWheeledRobotControl_max_key_cdr_typesize 0ULL;
 
 // 构造函数
-namespace carla_msgs {
-	namespace msg {
-		SVWheeledRobotControl::SVWheeledRobotControl()
+		carla_msgs::msg::SVWheeledRobotControl::SVWheeledRobotControl()
 		{
 			// 使用 setter 方法初始化分量
 			m_linear.x(0.0);
@@ -34,34 +32,34 @@ namespace carla_msgs {
 			m_angular.z(0.0);
 		}
 
-		SVWheeledRobotControl::~SVWheeledRobotControl()
+		carla_msgs::msg::SVWheeledRobotControl::~SVWheeledRobotControl()
 		{
 		}
 
-		SVWheeledRobotControl::SVWheeledRobotControl(const SVWheeledRobotControl& x)
+		carla_msgs::msg::SVWheeledRobotControl::SVWheeledRobotControl(const SVWheeledRobotControl& x)
 		{
 			m_header = x.m_header;
 			m_linear = x.m_linear;
 			m_angular = x.m_angular;
 		}
 
-		SVWheeledRobotControl::SVWheeledRobotControl(SVWheeledRobotControl&& x) noexcept
+		carla_msgs::msg::SVWheeledRobotControl::SVWheeledRobotControl(SVWheeledRobotControl&& x) noexcept
 		{
 			m_header = std::move(x.m_header);
 			m_linear = std::move(x.m_linear);
 			m_angular = std::move(x.m_angular);
 		}
 
-		SVWheeledRobotControl& SVWheeledRobotControl::operator=(const SVWheeledRobotControl& x)
+		carla_msgs::msg::SVWheeledRobotControl& carla_msgs::msg::SVWheeledRobotControl::operator=(const SVWheeledRobotControl& x)
 		{
 			m_header = x.m_header;
-			m_linear = x.m_linear;
-			m_angular = x.m_angular;
+			m_linear = x.linear();
+			m_angular = x.angular();
             
 			return *this;
 		}
 
-		SVWheeledRobotControl& SVWheeledRobotControl::operator=(SVWheeledRobotControl&& x) noexcept
+		carla_msgs::msg::SVWheeledRobotControl& carla_msgs::msg::SVWheeledRobotControl::operator=(SVWheeledRobotControl&& x) noexcept
 		{
 			m_header = std::move(x.m_header);
 			m_linear = std::move(x.m_linear);
@@ -70,7 +68,7 @@ namespace carla_msgs {
 			return *this;
 		}
 
-		bool SVWheeledRobotControl::operator==(const SVWheeledRobotControl& x) const
+		bool carla_msgs::msg::SVWheeledRobotControl::operator==(const SVWheeledRobotControl& x) const
 		{
 			return (m_header == x.m_header &&
 					m_linear.x() == x.m_linear.x() &&
@@ -82,76 +80,76 @@ namespace carla_msgs {
 		}
 
 
-		bool SVWheeledRobotControl::operator!=(const SVWheeledRobotControl& x) const
+		bool carla_msgs::msg::SVWheeledRobotControl::operator!=(const SVWheeledRobotControl& x) const
 		{
 			return !(*this == x);
 		}
 
 		// Header functions
-		void SVWheeledRobotControl::header(const std_msgs::msg::Header& _header)
+		void carla_msgs::msg::SVWheeledRobotControl::header(const std_msgs::msg::Header& _header)
 		{
 			m_header = _header;
 		}
 
-		void SVWheeledRobotControl::header(std_msgs::msg::Header&& _header)
+		void carla_msgs::msg::SVWheeledRobotControl::header(std_msgs::msg::Header&& _header)
 		{
 			m_header = std::move(_header);
 		}
 
 
-		const std_msgs::msg::Header& SVWheeledRobotControl::header() const
+		const std_msgs::msg::Header& carla_msgs::msg::SVWheeledRobotControl::header() const
 		{
 			return m_header;
 		}
 
-		std_msgs::msg::Header& SVWheeledRobotControl::header()
+		std_msgs::msg::Header& carla_msgs::msg::SVWheeledRobotControl::header()
 		{
 			return m_header;
 		}
 
 		// Linear vector functions
-		void SVWheeledRobotControl::linear(const geometry_msgs::msg::Vector3& _linear)
+		void carla_msgs::msg::SVWheeledRobotControl::linear(const geometry_msgs::msg::Vector3& _linear)
 		{
 			m_linear = _linear;
 		}
 
-		void SVWheeledRobotControl::linear(geometry_msgs::msg::Vector3&& _linear)
+		void carla_msgs::msg::SVWheeledRobotControl::linear(geometry_msgs::msg::Vector3&& _linear)
 		{
 			m_linear = std::move(_linear);
 		}
 
-		const geometry_msgs::msg::Vector3& SVWheeledRobotControl::linear() const
+		const geometry_msgs::msg::Vector3& carla_msgs::msg::SVWheeledRobotControl::linear() const
 		{
 			return m_linear;
 		}
 
-		geometry_msgs::msg::Vector3& SVWheeledRobotControl::linear()
+		geometry_msgs::msg::Vector3& carla_msgs::msg::SVWheeledRobotControl::linear()
 		{
 			return m_linear;
 		}
 
 		// Angular vector functions
-		void SVWheeledRobotControl::angular(const geometry_msgs::msg::Vector3& _angular)
+		void carla_msgs::msg::SVWheeledRobotControl::angular(const geometry_msgs::msg::Vector3& _angular)
 		{
 			m_angular = _angular;
 		}
 
-		void SVWheeledRobotControl::angular(geometry_msgs::msg::Vector3&& _angular)
+		void carla_msgs::msg::SVWheeledRobotControl::angular(geometry_msgs::msg::Vector3&& _angular)
 		{
 			m_angular = std::move(_angular);
 		}
 
-		const geometry_msgs::msg::Vector3& SVWheeledRobotControl::angular() const
+		const geometry_msgs::msg::Vector3& carla_msgs::msg::SVWheeledRobotControl::angular() const
 		{
 			return m_angular;
 		}
 
-		geometry_msgs::msg::Vector3& SVWheeledRobotControl::angular()
+		geometry_msgs::msg::Vector3& carla_msgs::msg::SVWheeledRobotControl::angular()
 		{
 			return m_angular;
 		}
 
-		size_t SVWheeledRobotControl::getMaxCdrSerializedSize(size_t current_alignment)
+		size_t carla_msgs::msg::SVWheeledRobotControl::getMaxCdrSerializedSize(size_t current_alignment)
 		{
 			size_t initial_alignment = current_alignment;
 
@@ -170,12 +168,9 @@ namespace carla_msgs {
 
 			current_alignment += std_msgs::msg::Header::getCdrSerializedSize(data.header(), current_alignment);
 
-			const size_t float_size = 4;
-			const size_t float_align = 4;
-
-			for (int i = 0; i < 6; ++i) {
-				current_alignment += float_size + eprosima::fastcdr::Cdr::alignment(current_alignment, float_align);
-			}
+			current_alignment += std_msgs::msg::Header::getCdrSerializedSize(data.header(), current_alignment);
+			current_alignment += 3 * sizeof(double) + eprosima::fastcdr::Cdr::alignment(current_alignment, sizeof(double)); // linear
+			current_alignment += 3 * sizeof(double) + eprosima::fastcdr::Cdr::alignment(current_alignment, sizeof(double)); // angular
 
 			return current_alignment - initial_alignment;
 		}
@@ -200,16 +195,25 @@ namespace carla_msgs {
 		{
 			dcdr >> m_header;
 
-			dcdr >> m_linear.x();
-			dcdr >> m_linear.y();
-			dcdr >> m_linear.z();
-
-			dcdr >> m_angular.x();
-			dcdr >> m_angular.y();
-			dcdr >> m_angular.z();
+			// Deserialize linear vector components
+			double x, y, z;
+			dcdr >> x;
+			dcdr >> y;
+			dcdr >> z;
+			m_linear.x(x);
+			m_linear.y(y);
+			m_linear.z(z);
+    
+			// Deserialize angular vector components
+			dcdr >> x;
+			dcdr >> y;
+			dcdr >> z;
+			m_angular.x(x);
+			m_angular.y(y);
+			m_angular.z(z);
 		}
 
-		size_t getKeyMaxCdrSerializedSize(size_t current_alignment)
+		size_t carla_msgs::msg::SVWheeledRobotControl::getKeyMaxCdrSerializedSize(size_t current_alignment)
 		{
 			static_cast<void>(current_alignment);
 			return carla_msgs_msg_SVWheeledRobotControl_max_key_cdr_typesize;

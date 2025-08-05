@@ -34,7 +34,7 @@ namespace ros2 {
     efd::Topic* _topic { nullptr };
     efd::DataReader* _datareader { nullptr };
     efd::TypeSupport _type { new carla_msgs::msg::SVWheeledRobotControlPubSubType() };
-    CarlaSubscriberListener _listener {nullptr};
+    SVSubscriberListener _listener {nullptr};
     carla_msgs::msg::SVWheeledRobotControl _event {};
     VehicleControl _control {};
     bool _new_message {false};
@@ -43,27 +43,34 @@ namespace ros2 {
   };
 
   bool SVWheeledRobotControlSubscriber::Init() {
+    std::cout << "[Init] SVWheeledRobotControlSubscriber::Init() called." << std::endl;
     if (_impl->_type == nullptr) {
-        std::cerr << "Invalid TypeSupport" << std::endl;
+        std::cerr << "[Error] Invalid TypeSupport (_type is nullptr)" << std::endl;
         return false;
     }
-
+  	std::cout << "[Init] Creating DomainParticipant on domain ID = 6" << std::endl;
     efd::DomainParticipantQos pqos = efd::PARTICIPANT_QOS_DEFAULT;
     pqos.name(_name);
     auto factory = efd::DomainParticipantFactory::get_instance();
     _impl->_participant = factory->create_participant(6, pqos);
     if (_impl->_participant == nullptr) {
-        std::cerr << "Failed to create DomainParticipant" << std::endl;
+        std::cerr << "[Error] Failed to create DomainParticipant" << std::endl;
         return false;
     }
-    _impl->_type.register_type(_impl->_participant);
+  	std::cout << "[Init] DomainParticipant created successfully. Name = " << pqos.name() << std::endl;
 
+  	std::cout << "[Init] Registering TypeSupport: " << _impl->_type->getName() << std::endl;
+    _impl->_type.register_type(_impl->_participant);
+  	std::cout << "[Init] Type registered successfully." << std::endl;
+  	
+	std::cout << "[Init] Creating Subscriber..." << std::endl;
     efd::SubscriberQos subqos = efd::SUBSCRIBER_QOS_DEFAULT;
     _impl->_subscriber = _impl->_participant->create_subscriber(subqos, nullptr);
     if (_impl->_subscriber == nullptr) {
       std::cerr << "Failed to create Subscriber" << std::endl;
       return false;
     }
+  	std::cout << "[Init] Subscriber created successfully." << std::endl;
 
     efd::TopicQos tqos = efd::TOPIC_QOS_DEFAULT;
     const std::string base { "rt/carla/" };
@@ -73,20 +80,29 @@ namespace ros2 {
       topic_name += _parent + "/";
     topic_name += _name;
     topic_name += publisher_type;
+
+  	std::cout << "[Init] Constructed Topic Name: " << topic_name << std::endl;
+  	std::cout << "[Init] Type Name: " << _impl->_type->getName() << std::endl;
+
     _impl->_topic = _impl->_participant->create_topic(topic_name, _impl->_type->getName(), tqos);
     if (_impl->_topic == nullptr) {
         std::cerr << "Failed to create Topic" << std::endl;
         return false;
+    } else {
+    	std::cout << "Created topic: " << topic_name << std::endl;
     }
 
     efd::DataReaderQos rqos = efd::DATAREADER_QOS_DEFAULT;
+  	std::cout << "[Init] Creating DataReader with QoS: RELIABLE + VOLATILE" << std::endl;
+
     efd::DataReaderListener* listener = (efd::DataReaderListener*)_impl->_listener._impl.get();
     _impl->_datareader = _impl->_subscriber->create_datareader(_impl->_topic, rqos, listener);
     if (_impl->_datareader == nullptr) {
-        std::cerr << "Failed to create DataReader" << std::endl;
+        std::cerr << "[Error] Failed to create DataReader for topic: " << topic_name << std::endl;
         return false;
     }
-    return true;
+  	std::cout << "[Init] DataReader created successfully." << std::endl;
+  	std::cout << "[Init] SVWheeledRobotControlSubscriber::Init() completed successfully." << std::endl;    return true;
   }
 
   bool SVWheeledRobotControlSubscriber::Read() {
@@ -179,6 +195,7 @@ namespace ros2 {
 
   SVWheeledRobotControlSubscriber::SVWheeledRobotControlSubscriber(void* vehicle, const char* ros_name, const char* parent) :
   _impl(std::make_shared<SVWheeledRobotControlSubscriberImpl>()) {
+    std::cout << "SVWheeledRobotControlSubscriber::SVWheeledRobotControlSubscriber() get called" << std::endl;
     _impl->_listener.SetOwner(this);
     _impl->_vehicle = vehicle;
     _name = ros_name;
@@ -186,6 +203,8 @@ namespace ros2 {
   }
 
   SVWheeledRobotControlSubscriber::~SVWheeledRobotControlSubscriber() {
+  	std::cout << "SVWheeledRobotControlSubscriber::～SVWheeledRobotControlSubscriber() get called" << std::endl;
+
       if (!_impl)
           return;
 

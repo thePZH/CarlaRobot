@@ -41,6 +41,7 @@ namespace ros2 {
   class CarlaTransformPublisher;
   class CarlaClockPublisher;
   class CarlaEgoVehicleControlSubscriber;
+	class SVWheeledRobotControlSubscriber;
   class BasicSubscriber;
   class BasicPublisher;
 
@@ -159,7 +160,8 @@ void ProcessDataFromCollisionSensor(
   uint32_t _nanoseconds { 0 };
   std::unordered_map<void *, std::string> _actor_ros_name;
   std::unordered_map<void *, std::vector<void*> > _actor_parent_ros_name;
-  std::shared_ptr<CarlaEgoVehicleControlSubscriber> _controller;
+  // std::shared_ptr<CarlaEgoVehicleControlSubscriber> _controller;
+	std::shared_ptr<SVWheeledRobotControlSubscriber> _controller;
   std::shared_ptr<CarlaClockPublisher> _clock_publisher;
   std::unordered_map<void *, std::shared_ptr<CarlaPublisher>> _publishers;
   std::unordered_map<void *, std::shared_ptr<CarlaTransformPublisher>> _transforms;

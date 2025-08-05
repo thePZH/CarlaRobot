@@ -22,6 +22,8 @@ namespace ros2 {
               const efd::SubscriptionMatchedStatus& info) override;
       void on_data_available(efd::DataReader* reader) override;
 
+      VehicleControl convert_to_vehicle(const carla_msgs::msg::SVWheeledRobotControl& message);
+
       int _matched {0};
       bool _first_connected {false};
       SVWheeledRobotControlSubscriber* _owner {nullptr};
@@ -30,6 +32,8 @@ namespace ros2 {
 
     void SVSubscriberListenerImpl::on_subscription_matched(efd::DataReader* reader, const efd::SubscriptionMatchedStatus& info)
     {
+    	std::cout << "[Callback] on_subscription_matched. Current count: "
+						  << info.current_count << ", Total count: " << info.total_count << std::endl;
       if (info.current_count_change == 1) {
           _matched = info.total_count;
           _first_connected = true;
@@ -44,19 +48,23 @@ namespace ros2 {
       }
     }
 
+    VehicleControl SVSubscriberListenerImpl::convert_to_vehicle(const carla_msgs::msg::SVWheeledRobotControl& message)
+	{
+    	VehicleControl control;
+    	control.throttle = message.linear().x();	// 油门
+    	control.steer = message.angular().z(); 	// yaw
+		control.brake = message.linear().x() == 0 ? true : false;
+        control.reverse = message.linear().x() < 0 ? true : false;
+		return control;	
+	}
     void SVSubscriberListenerImpl::on_data_available(efd::DataReader* reader)
     {
+		std::cout << "ROS2 msg get" << std::endl;
       efd::SampleInfo info;
       eprosima::fastrtps::types::ReturnCode_t rcode = reader->take_next_sample(&_message, &info);
       if (rcode == erc::ReturnCodeValue::RETCODE_OK) {
-        VehicleControl control;
-        control.throttle = _message.throttle();
-        control.steer = _message.steer();
-        control.brake = _message.brake();
-        control.hand_brake = _message.hand_brake();
-        control.reverse = _message.reverse();
-        control.gear = _message.gear();
-        control.manual_gear_shift = _message.manual_gear_shift();
+      	std::cout << "ROS2 msg available!!!" << std::endl;
+        VehicleControl control = convert_to_vehicle(_message);
         _owner->ForwardMessage(control);
       }
       if (rcode == erc::ReturnCodeValue::RETCODE_ERROR) {
