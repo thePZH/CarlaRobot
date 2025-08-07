@@ -1,9 +1,8 @@
-#include "SVWheeledRobotControlSubscriber.h"
-
-// 修改：使用 Twist 类型替代自定义类型
+#include "SVGimbalMovementSubscriber.h"
 #include "carla/ros2/types/Twist.h"
 #include "carla/ros2/types/TwistPubSubTypes.h"
-#include "carla/ros2/listeners/SVSubscriberListener.h"
+#include "carla/ros2/ROS2CallbackData.h"
+#include "carla/ros2/listeners/SVGimbalMovementListener.h"
 
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/subscriber/Subscriber.hpp>
@@ -28,23 +27,23 @@ namespace ros2 {
   namespace efd = eprosima::fastdds::dds;
   using erc = eprosima::fastrtps::types::ReturnCode_t;
 
-  struct SVWheeledRobotControlSubscriberImpl {
+  struct SVGimbalMovementSubscriberImpl {
     efd::DomainParticipant* _participant { nullptr };
     efd::Subscriber* _subscriber { nullptr };
     efd::Topic* _topic { nullptr };
     efd::DataReader* _datareader { nullptr };
     // 修改：使用 TwistPubSubType 替代自定义类型
     efd::TypeSupport _type { new geometry_msgs::msg::TwistPubSubType() };
-    SVSubscriberListener _listener {nullptr};
+    SVGimbalMovementListener _listener {nullptr};
     // 修改：存储 Twist 消息
     geometry_msgs::msg::Twist _event {};
-    VehicleControl _control {};
+    GimbalRotation _control {};
     bool _new_message {false};
     bool _alive {true};
     void* _vehicle {nullptr};
   };
 
-  bool SVWheeledRobotControlSubscriber::Init() {
+  bool SVGimbalMovementSubscriber::Init() {
     std::cout << "TwistSubscriber::Init()" << std::endl;
     if (_impl->_type == nullptr) {
         std::cerr << "Invalid TypeSupport" << std::endl;
@@ -70,7 +69,7 @@ namespace ros2 {
 
     efd::TopicQos tqos = efd::TOPIC_QOS_DEFAULT;
     const std::string base { "rt/carla/" };
-    const std::string publisher_type {"/robot_control_cmd"};
+    const std::string publisher_type {"/gimbal_control_cmd"};
     std::string topic_name = base;
     if (!_parent.empty())
       topic_name += _parent + "/";
@@ -98,7 +97,7 @@ namespace ros2 {
     return true;
   }
 
-  bool SVWheeledRobotControlSubscriber::Read() {
+  bool SVGimbalMovementSubscriber::Read() {
     efd::SampleInfo info;
     eprosima::fastrtps::types::ReturnCode_t rcode = _impl->_datareader->take_next_sample(&_impl->_event, &info);
     if (rcode == erc::ReturnCodeValue::RETCODE_OK) {
@@ -160,41 +159,41 @@ namespace ros2 {
     return false;
   }
 
-  void SVWheeledRobotControlSubscriber::ForwardMessage(VehicleControl control) {
+  void SVGimbalMovementSubscriber::ForwardMessage(GimbalRotation control) {
     _impl->_control = control;
     _impl->_new_message = true;
   }
 
-  void SVWheeledRobotControlSubscriber::DestroySubscriber() {
+  void SVGimbalMovementSubscriber::DestroySubscriber() {
     _impl->_alive = false;
   }
 
-  VehicleControl SVWheeledRobotControlSubscriber::GetMessage() {
+  GimbalRotation SVGimbalMovementSubscriber::GetMessage() {
     _impl->_new_message = false;
     return _impl->_control;
   }
 
-  bool SVWheeledRobotControlSubscriber::IsAlive() {
+  bool SVGimbalMovementSubscriber::IsAlive() {
     return _impl->_alive;
   }
 
-  bool SVWheeledRobotControlSubscriber::HasNewMessage() {
+  bool SVGimbalMovementSubscriber::HasNewMessage() {
     return _impl->_new_message;
   }
 
-  void* SVWheeledRobotControlSubscriber::GetVehicle() {
+  void* SVGimbalMovementSubscriber::GetVehicle() {
     return _impl->_vehicle;
   }
 
-  SVWheeledRobotControlSubscriber::SVWheeledRobotControlSubscriber(void* vehicle, const char* ros_name, const char* parent) :
-  _impl(std::make_shared<SVWheeledRobotControlSubscriberImpl>()) {
+  SVGimbalMovementSubscriber::SVGimbalMovementSubscriber(void* vehicle, const char* ros_name, const char* parent) :
+  _impl(std::make_shared<SVGimbalMovementSubscriberImpl>()) {
     _impl->_listener.SetOwner(this);
     _impl->_vehicle = vehicle;
     _name = ros_name;
     _parent = parent;
   }
 
-  SVWheeledRobotControlSubscriber::~SVWheeledRobotControlSubscriber() {
+  SVGimbalMovementSubscriber::~SVGimbalMovementSubscriber() {
       if (!_impl)
           return;
 
@@ -211,7 +210,7 @@ namespace ros2 {
           efd::DomainParticipantFactory::get_instance()->delete_participant(_impl->_participant);
   }
 
-  SVWheeledRobotControlSubscriber::SVWheeledRobotControlSubscriber(const SVWheeledRobotControlSubscriber& other) {
+  SVGimbalMovementSubscriber::SVGimbalMovementSubscriber(const SVGimbalMovementSubscriber& other) {
     _frame_id = other._frame_id;
     _name = other._name;
     _parent = other._parent;
@@ -219,7 +218,7 @@ namespace ros2 {
     _impl->_listener.SetOwner(this);
   }
 
-  SVWheeledRobotControlSubscriber& SVWheeledRobotControlSubscriber::operator=(const SVWheeledRobotControlSubscriber& other) {
+  SVGimbalMovementSubscriber& SVGimbalMovementSubscriber::operator=(const SVGimbalMovementSubscriber& other) {
     _frame_id = other._frame_id;
     _name = other._name;
     _parent = other._parent;
@@ -229,7 +228,7 @@ namespace ros2 {
     return *this;
   }
 
-  SVWheeledRobotControlSubscriber::SVWheeledRobotControlSubscriber(SVWheeledRobotControlSubscriber&& other) {
+  SVGimbalMovementSubscriber::SVGimbalMovementSubscriber(SVGimbalMovementSubscriber&& other) {
     _frame_id = std::move(other._frame_id);
     _name = std::move(other._name);
     _parent = std::move(other._parent);
@@ -237,7 +236,7 @@ namespace ros2 {
     _impl->_listener.SetOwner(this);
   }
 
-  SVWheeledRobotControlSubscriber& SVWheeledRobotControlSubscriber::operator=(SVWheeledRobotControlSubscriber&& other) {
+  SVGimbalMovementSubscriber& SVGimbalMovementSubscriber::operator=(SVGimbalMovementSubscriber&& other) {
     _frame_id = std::move(other._frame_id);
     _name = std::move(other._name);
     _parent = std::move(other._parent);

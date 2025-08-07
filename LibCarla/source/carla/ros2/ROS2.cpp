@@ -40,6 +40,7 @@
 #include "subscribers/CarlaSubscriber.h"
 #include "subscribers/CarlaEgoVehicleControlSubscriber.h"
 #include "subscribers/SVWheeledRobotControlSubscriber.h"
+#include "subscribers/SVGimbalMovementSubscriber.h"
 #if defined(WITH_ROS2_DEMO)
   #include "subscribers/BasicSubscriber.h"
 #endif
@@ -90,14 +91,14 @@ void ROS2::Enable(bool enable) {
 void ROS2::SetFrame(uint64_t frame) {
   _frame = frame;
    //log_info("ROS2 new frame: ", _frame);
-   if (_controller) {
-    void* actor = _controller->GetVehicle();
-    if (_controller->IsAlive()) {
-      if (_controller->HasNewMessage()) {
+   if (_robotController) {
+    void* actor = _robotController->GetVehicle();
+    if (_robotController->IsAlive()) {
+      if (_robotController->HasNewMessage()) {
         auto it = _actor_callbacks.find(actor);
         if (it != _actor_callbacks.end()) {
           std::cout << "SetFrame Get, and send control msg to UE" << std::endl;
-          VehicleControl control = _controller->GetMessage();
+          VehicleControl control = _robotController->GetMessage();
           it->second(actor, control);
         }
       }
@@ -105,6 +106,21 @@ void ROS2::SetFrame(uint64_t frame) {
       RemoveActorCallback(actor);
     }
    }
+	if (_gimbalController) {
+		void* actor = _gimbalController->GetVehicle();
+		if (_gimbalController->IsAlive()) {
+			if (_gimbalController->HasNewMessage()) {
+				auto it = _actor_callbacks.find(actor);
+				if (it != _actor_callbacks.end()) {
+					std::cout << "SetFrame Get, and send control msg to UE" << std::endl;
+					GimbalRotation gimbalControl = _gimbalController->GetMessage();
+					it->second(actor, gimbalControl);
+				}
+			}
+		} else {
+			RemoveActorCallback(actor);
+		}
+	}
 #if defined(WITH_ROS2_DEMO)
    if (_basic_subscriber)
    {
@@ -220,19 +236,23 @@ void ROS2::RemoveBasicSubscriberCallback(void* actor) {
   #endif
 }
 
-void ROS2::AddActorCallback(void* actor, std::string ros_name, ActorCallback callback) {
-  _actor_callbacks.insert({actor, std::move(callback)});
+void ROS2::AddActorCallback(void* actor, std::string ros_name, ActorCallback callback) 
+{
+  	_actor_callbacks.insert({actor, std::move(callback)});
 
-  _controller.reset();
-  // _controller = std::make_shared<CarlaEgoVehicleControlSubscriber>(actor, ros_name.c_str());
-	_controller = std::make_shared<SVWheeledRobotControlSubscriber>(actor, ros_name.c_str());
-  std::cout << "SVWheeledRobotControlSubscriber created" << std::endl;
-  _controller->Init();
+  	_robotController.reset();
+	_robotController = std::make_shared<SVWheeledRobotControlSubscriber>(actor, ros_name.c_str());
+  	_robotController->Init();
+
+	_gimbalController.reset();
+	_gimbalController = std::make_shared<SVGimbalMovementSubscriber>(actor, ros_name.c_str());
+	_gimbalController->Init();
 }
 
 void ROS2::RemoveActorCallback(void* actor) {
-  _controller.reset();
-  _actor_callbacks.erase(actor);
+  	_robotController.reset();
+	_gimbalController.reset();
+  	_actor_callbacks.erase(actor);
 }
 
 std::pair<std::shared_ptr<CarlaPublisher>, std::shared_ptr<CarlaTransformPublisher>> ROS2::GetOrCreateSensor(int type, carla::streaming::detail::stream_id_type id, void* actor) {
@@ -890,7 +910,7 @@ void ROS2::Shutdown() {
     element.second.reset();
   }
   _clock_publisher.reset();
-  _controller.reset();
+  _robotController.reset();
   _enabled = false;
 #if defined(WITH_ROS2_DEMO)
   _basic_publisher.reset();

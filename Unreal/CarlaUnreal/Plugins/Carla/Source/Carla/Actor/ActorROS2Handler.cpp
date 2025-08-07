@@ -7,6 +7,8 @@
 #include "ActorROS2Handler.h"
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"
 #include "Carla/Vehicle/VehicleControl.h"
+#include "PzhTest/WheeledRobotAnimationInstance.h"
+#include "carla/ros2/ROS2CallbackData.h"
 
 void ActorROS2Handler::operator()(carla::ros2::VehicleControl &Source)
 {
@@ -26,6 +28,27 @@ void ActorROS2Handler::operator()(carla::ros2::VehicleControl &Source)
   NewControl.Gear = Source.gear;
 
   Vehicle->ApplyVehicleControl(NewControl, EVehicleInputPriority::User);
+}
+
+void ActorROS2Handler::operator()(carla::ros2::GimbalRotation& Msg)
+{
+	if (_Actor)
+	{
+		if (auto* carlaVehicle = Cast<ACarlaWheeledVehicle>(_Actor))
+		{
+			if (auto* skmComp = _Actor->GetComponentByClass<USkeletalMeshComponent>())
+			{
+				if (auto* animInstance = skmComp->GetAnimInstance())
+				{
+					if (auto anim = Cast<UWheeledRobotAnimationInstance>(animInstance))
+					{
+						anim->CameraPitch = Msg.pitch;
+						anim->Gimbalyaw = Msg.yaw;
+					}
+				}
+			}
+		}
+	}
 }
 
 void ActorROS2Handler::operator()(carla::ros2::MessageControl Message)

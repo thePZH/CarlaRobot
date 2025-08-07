@@ -1,14 +1,14 @@
-#include "SVSubscriberListener.h"
+#include "SVGimbalMovementListener.h"
 #include <iostream>
 
 #include <fastdds/dds/subscriber/DataReader.hpp>
 #include <fastdds/dds/subscriber/DataReaderListener.hpp>
 #include <fastdds/dds/core/status/SubscriptionMatchedStatus.hpp>
 #include <fastdds/dds/subscriber/SampleInfo.hpp>
-#include "carla/ros2/subscribers/SVWheeledRobotControlSubscriber.h"
+#include "carla/ros2/subscribers/SVGimbalMovementSubscriber.h"
 #include "carla/ros2/ROS2CallbackData.h"
 #include "carla/ros2/types/Twist.h"
-
+#include "carla/ros2/ROS2CallbackData.h"
 
 namespace carla {
 namespace ros2 {
@@ -16,22 +16,28 @@ namespace ros2 {
   namespace efd = eprosima::fastdds::dds;
   using erc = eprosima::fastrtps::types::ReturnCode_t;
 
-    class SVSubscriberListenerImpl : public efd::DataReaderListener {
+    class SVGimbalMovementListenerImpl : public efd::DataReaderListener {
       public:
       void on_subscription_matched(
               efd::DataReader* reader,
               const efd::SubscriptionMatchedStatus& info) override;
       void on_data_available(efd::DataReader* reader) override;
 
-      VehicleControl convert_to_vehicle(const geometry_msgs::msg::Twist& message);
-
       int _matched {0};
       bool _first_connected {false};
-      SVWheeledRobotControlSubscriber* _owner {nullptr};
+      SVGimbalMovementSubscriber* _owner {nullptr};
       geometry_msgs::msg::Twist _message {};
+
+	    GimbalRotation Twist2GimbalRot(geometry_msgs::msg::Twist& msg)
+	    {
+    		GimbalRotation rot;
+    		rot.pitch = msg.angular().y();
+    		rot.yaw = msg.angular().z();
+			return rot;
+	    }
     };
 
-    void SVSubscriberListenerImpl::on_subscription_matched(efd::DataReader* reader, const efd::SubscriptionMatchedStatus& info)
+    void SVGimbalMovementListenerImpl::on_subscription_matched(efd::DataReader* reader, const efd::SubscriptionMatchedStatus& info)
     {
     	std::cout << "[Callback] on_subscription_matched. Current count: "
 						  << info.current_count << ", Total count: " << info.total_count << std::endl;
@@ -49,28 +55,13 @@ namespace ros2 {
       }
     }
 
-    VehicleControl SVSubscriberListenerImpl::convert_to_vehicle(const geometry_msgs::msg::Twist& message)
-	{
-    	const float linear_x = std::clamp(static_cast<float>(message.linear().x()), -1.0f, 1.0f);
-    	const float angular_z = std::clamp(static_cast<float>(message.angular().z()), -1.0f, 1.0f);
-    	VehicleControl control;
-    	control.throttle = linear_x; // 油门
-    	control.steer = angular_z; 	 // yaw
-    	control.hand_brake = message.linear().x() == 0 ? true : false;
-        control.reverse = message.linear().x() < 0 ? true : false;
-    	control.gear = 1;
-    	control.manual_gear_shift = false;
-		return control;	
-	}
-    void SVSubscriberListenerImpl::on_data_available(efd::DataReader* reader)
+    void SVGimbalMovementListenerImpl::on_data_available(efd::DataReader* reader)
     {
-		std::cout << "ROS2 msg get" << std::endl;
       efd::SampleInfo info;
       eprosima::fastrtps::types::ReturnCode_t rcode = reader->take_next_sample(&_message, &info);
       if (rcode == erc::ReturnCodeValue::RETCODE_OK) {
-      	std::cout << "ROS2 msg available!!!" << std::endl;
-        VehicleControl control = convert_to_vehicle(_message);
-        _owner->ForwardMessage(control);
+		GimbalRotation rot = Twist2GimbalRot(_message);
+        _owner->ForwardMessage(rot);
       }
       if (rcode == erc::ReturnCodeValue::RETCODE_ERROR) {
           std::cerr << "RETCODE_ERROR" << std::endl;
@@ -113,15 +104,15 @@ namespace ros2 {
       }
     }
 
-    void SVSubscriberListener::SetOwner(SVWheeledRobotControlSubscriber* owner) {
+    void SVGimbalMovementListener::SetOwner(SVGimbalMovementSubscriber* owner) {
         _impl->_owner = owner;
     }
 
-    SVSubscriberListener::SVSubscriberListener(SVWheeledRobotControlSubscriber* owner) :
-    _impl(std::make_unique<SVSubscriberListenerImpl>()) {
+    SVGimbalMovementListener::SVGimbalMovementListener(SVGimbalMovementSubscriber* owner) :
+    _impl(std::make_unique<SVGimbalMovementListenerImpl>()) {
         _impl->_owner = owner;
     }
 
-    SVSubscriberListener::~SVSubscriberListener() {}
+    SVGimbalMovementListener::~SVGimbalMovementListener() {}
 
 }}

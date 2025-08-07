@@ -8,6 +8,7 @@
 
 #include <variant>
 #include <functional>
+// #include "carla/ros2/types/Twist.h"
 
 namespace carla {
 namespace ros2 {
@@ -22,13 +23,18 @@ namespace ros2 {
     int32_t gear;
     bool    manual_gear_shift;
   };
+  struct GimbalRotation
+  {
+    float pitch;
+    float yaw;
+  };
   
   struct MessageControl
   {
     const char* message;
   };
-
-  using ROS2CallbackData = std::variant<VehicleControl>;
+  
+  using ROS2CallbackData = std::variant<VehicleControl, GimbalRotation>;
   using ROS2MessageCallbackData = std::variant<MessageControl>;
 
   using ActorCallback = std::function<void(void *actor, ROS2CallbackData data)>;

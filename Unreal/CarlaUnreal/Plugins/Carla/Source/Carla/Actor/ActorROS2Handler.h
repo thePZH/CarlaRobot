@@ -9,7 +9,13 @@
 #include <util/disable-ue4-macros.h>
 #include "carla/ros2/ROS2.h"
 #include <util/enable-ue4-macros.h>
-
+namespace carla
+{
+	namespace ros2
+	{
+		struct GimbalRotation;
+	}
+}
 /// visitor class
 class ActorROS2Handler
 {
@@ -18,6 +24,7 @@ class ActorROS2Handler
         ActorROS2Handler(AActor *Actor, std::string RosName) : _Actor(Actor), _RosName(RosName) {};
 
         void operator()(carla::ros2::VehicleControl &Source);
+		void operator()(carla::ros2::GimbalRotation& Msg);
         void operator()(carla::ros2::MessageControl Message);
 
     private:
