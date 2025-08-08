@@ -41,6 +41,12 @@ namespace client {
       return _callback_id != 0u;
     }
 
+	virtual void SetFOV(float fov) override
+	{
+		
+	}
+	virtual float GetFOV() const override { return 0; }
+
   private:
 
     std::atomic_size_t _callback_id{0u};

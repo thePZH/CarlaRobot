@@ -28,11 +28,12 @@ namespace ros2 {
       SVGimbalMovementSubscriber* _owner {nullptr};
       geometry_msgs::msg::Twist _message {};
 
-	    GimbalRotation Twist2GimbalRot(geometry_msgs::msg::Twist& msg)
+	    GimbalControl Twist2GimbalControl(geometry_msgs::msg::Twist& msg)
 	    {
-    		GimbalRotation rot;
+    		GimbalControl rot;
     		rot.pitch = msg.angular().y();
     		rot.yaw = msg.angular().z();
+			rot.fov = msg.angular().x();
 			return rot;
 	    }
     };
@@ -60,7 +61,7 @@ namespace ros2 {
       efd::SampleInfo info;
       eprosima::fastrtps::types::ReturnCode_t rcode = reader->take_next_sample(&_message, &info);
       if (rcode == erc::ReturnCodeValue::RETCODE_OK) {
-		GimbalRotation rot = Twist2GimbalRot(_message);
+		GimbalControl rot = Twist2GimbalControl(_message);
         _owner->ForwardMessage(rot);
       }
       if (rcode == erc::ReturnCodeValue::RETCODE_ERROR) {

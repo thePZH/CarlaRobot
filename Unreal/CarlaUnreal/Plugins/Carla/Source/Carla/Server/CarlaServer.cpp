@@ -1098,7 +1098,7 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 				"set_sensor_fov",
 				ECarlaServerResponse::ActorNotFound,
 				" Actor Id: " + FString::FromInt(ActorId));
-		
+		std::cout << "server side : receive fov : " << FOV << std::endl;
 		Camera->SetFOVAngle(FOV);
 		return R<void>::Success();
 	};

@@ -37,7 +37,7 @@ namespace ros2 {
     SVGimbalMovementListener _listener {nullptr};
     // 修改：存储 Twist 消息
     geometry_msgs::msg::Twist _event {};
-    GimbalRotation _control {};
+    GimbalControl _control {};
     bool _new_message {false};
     bool _alive {true};
     void* _vehicle {nullptr};
@@ -159,7 +159,7 @@ namespace ros2 {
     return false;
   }
 
-  void SVGimbalMovementSubscriber::ForwardMessage(GimbalRotation control) {
+  void SVGimbalMovementSubscriber::ForwardMessage(GimbalControl control) {
     _impl->_control = control;
     _impl->_new_message = true;
   }
@@ -168,7 +168,7 @@ namespace ros2 {
     _impl->_alive = false;
   }
 
-  GimbalRotation SVGimbalMovementSubscriber::GetMessage() {
+  GimbalControl SVGimbalMovementSubscriber::GetMessage() {
     _impl->_new_message = false;
     return _impl->_control;
   }

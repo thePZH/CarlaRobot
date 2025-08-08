@@ -23,10 +23,11 @@ namespace ros2 {
     int32_t gear;
     bool    manual_gear_shift;
   };
-  struct GimbalRotation
+  struct GimbalControl
   {
     float pitch;
     float yaw;
+    float fov;
   };
   
   struct MessageControl
@@ -34,7 +35,7 @@ namespace ros2 {
     const char* message;
   };
   
-  using ROS2CallbackData = std::variant<VehicleControl, GimbalRotation>;
+  using ROS2CallbackData = std::variant<VehicleControl, GimbalControl>;
   using ROS2MessageCallbackData = std::variant<MessageControl>;
 
   using ActorCallback = std::function<void(void *actor, ROS2CallbackData data)>;

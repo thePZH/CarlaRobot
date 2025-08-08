@@ -13,7 +13,7 @@ namespace carla
 {
 	namespace ros2
 	{
-		struct GimbalRotation;
+		struct GimbalControl;
 	}
 }
 /// visitor class
@@ -24,7 +24,7 @@ class ActorROS2Handler
         ActorROS2Handler(AActor *Actor, std::string RosName) : _Actor(Actor), _RosName(RosName) {};
 
         void operator()(carla::ros2::VehicleControl &Source);
-		void operator()(carla::ros2::GimbalRotation& Msg);
+		void operator()(carla::ros2::GimbalControl& Msg);
         void operator()(carla::ros2::MessageControl Message);
 
     private:

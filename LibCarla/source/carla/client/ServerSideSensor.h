@@ -55,7 +55,15 @@ namespace client {
 
     /// Return if the sensor is publishing for ROS2
     bool IsEnabledForROS();
-
+	virtual void SetFOV(float fov) override
+	{
+		GetEpisode().Lock()->SetFOV(*this, fov);
+	}
+	
+	virtual float GetFOV() const override
+	{
+		return GetEpisode().Lock()->GetFOV(*this);
+	}
     /// @copydoc Actor::Destroy()
     ///
     /// Additionally stop listening.

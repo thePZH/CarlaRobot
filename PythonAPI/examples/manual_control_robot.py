@@ -1032,7 +1032,7 @@ def main():
         '-p', '--port', metavar='P', default=2000, type=int,
         help='TCP port to listen to (default: 2000)')
     argparser.add_argument(
-        '--res', metavar='WIDTHxHEIGHT', default='1920x1080',
+        '--res', metavar='WIDTHxHEIGHT', default='1280x720',
         help='window resolution (default: 1280x720)')
     argparser.add_argument(
         '--filter', metavar='PATTERN', default='vehicle.*',

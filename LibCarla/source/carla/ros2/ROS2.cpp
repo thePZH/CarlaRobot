@@ -112,8 +112,8 @@ void ROS2::SetFrame(uint64_t frame) {
 			if (_gimbalController->HasNewMessage()) {
 				auto it = _actor_callbacks.find(actor);
 				if (it != _actor_callbacks.end()) {
-					std::cout << "SetFrame Get, and send control msg to UE" << std::endl;
-					GimbalRotation gimbalControl = _gimbalController->GetMessage();
+					GimbalControl gimbalControl = _gimbalController->GetMessage();
+					std::cout << "SetFrame-gimbal-fov:" << gimbalControl.fov << std::endl;
 					it->second(actor, gimbalControl);
 				}
 			}

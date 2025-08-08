@@ -4,7 +4,7 @@
 #include "CarlaSubscriber.h"
 #include "carla/ros2/ROS2CallbackData.h"
 
-struct GimbalRotation;
+struct GimbalControl;
 namespace carla {
 	namespace ros2 {
 
@@ -21,7 +21,7 @@ namespace carla {
 
 			bool HasNewMessage();
 			bool IsAlive();
-			GimbalRotation GetMessage();
+			GimbalControl GetMessage();
 			void* GetVehicle();
 
 			bool Init();
@@ -29,7 +29,7 @@ namespace carla {
 			const char* type() const override { return "Wheeled Robot control"; }
 
 			//Do not call, for internal use only
-			void ForwardMessage(GimbalRotation control);
+			void ForwardMessage(GimbalControl control);
 			void DestroySubscriber();
 		private:
 			void SetData(int32_t seconds, uint32_t nanoseconds, uint32_t actor_id, std::vector<float>&& data);

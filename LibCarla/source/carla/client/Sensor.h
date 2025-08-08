@@ -31,16 +31,9 @@ namespace client {
     /// Return whether this Sensor instance is currently listening to new data.
     virtual bool IsListening() const = 0;
 
-	void SetFOV(float fov)
-	{
-		GetEpisode().Lock()->SetFOV(*this, fov);
-	}
+	virtual void SetFOV(float fov) = 0;
 	
-	float GetFOV()
-	{
-		return GetEpisode().Lock()->GetFOV(*this);
-	}
-
+	virtual float GetFOV() const = 0;
   };
 
 } // namespace client
