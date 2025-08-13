@@ -42,6 +42,8 @@ import random
 import re
 import os
 import weakref
+import matplotlib.pyplot as plt
+import numpy as np
 
 try:
     import pygame
@@ -414,6 +416,34 @@ class KeyboardControl(object):
             else:
                 self._ackermann_control.steer = round(self._steer_cache, 1)
                 
+    def visualize_navigable_points(self, navigable_points):
+        # 提取x,y坐标
+        x_coords = [pt.x for pt in navigable_points]
+        y_coords = [pt.y for pt in navigable_points]
+    
+        # 创建图形
+        plt.figure(figsize=(12, 10), dpi=100)
+    
+        # 绘制散点图
+        plt.scatter(x_coords, y_coords, s=10, c='blue', alpha=0.6, label='Navigation Points')
+    
+        # 添加标题和标签
+        plt.title('Carla Navigable Area Points', fontsize=15)
+        plt.xlabel('X Coordinate (meters)', fontsize=12)
+        plt.ylabel('Y Coordinate (meters)', fontsize=12)
+    
+        # 添加网格
+        plt.grid(True, linestyle='--', alpha=0.7)
+    
+        # 添加图例
+        plt.legend()
+    
+        # 等比例显示
+        plt.axis('equal')
+    
+        # 显示图像（可选）
+        plt.show()
+        
     current_transform = carla.Transform()
     current_rotation = current_transform.rotation
     current_fov = 90.0
@@ -492,7 +522,7 @@ class KeyboardControl(object):
             sensor.set_transform(new_transform)
             world.hud.notification('Sensor Yaw: %.1f°' % new_yaw)
             self.current_rotation = new_rotation
-            
+        
         # zoom
         if keys[K_i]:
             self.current_fov = max(10, self.current_fov - 1.0)
@@ -505,7 +535,17 @@ class KeyboardControl(object):
         if keys[K_t]:
             self.current_fov = 90
             sensor.set_fov(90)
-        
+            navigable_points = world.world.get_navigable_area_points(world.player.id, 50)
+            # 打印部分点信息
+            print(f"共获取 {len(navigable_points)} 个导航点")
+            if len(navigable_points) > 0:
+                print("前5个点示例:")
+                for i, point in enumerate(navigable_points[:5]):
+                    print(f"  {i+1}. x={point.x:.2f}, y={point.y:.2f}, z={point.z:.2f}")
+    
+            # 可视化
+            self.visualize_navigable_points(navigable_points)   
+            
 
     @staticmethod
     def _is_quit_shortcut(key):

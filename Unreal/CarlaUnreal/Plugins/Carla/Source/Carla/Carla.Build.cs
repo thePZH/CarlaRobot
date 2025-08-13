@@ -118,7 +118,9 @@ public class Carla :
       "SlateCore",
       "PhysicsCore",
       "Chaos",
-      "ChaosVehicles"
+      "ChaosVehicles",
+      "NavigationSystem",
+	  "AIModule"
     });
 
     PublicDependencyModuleNames.AddRange(new string[]

@@ -365,6 +365,8 @@ namespace detail {
 
     std::vector<ActorId> GetGroupTrafficLights(
         rpc::ActorId traffic_light);
+	
+	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist);
 
     std::string StartRecorder(std::string name, bool additional_data);
 

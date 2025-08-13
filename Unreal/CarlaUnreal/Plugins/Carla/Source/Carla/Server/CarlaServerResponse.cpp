@@ -12,6 +12,8 @@ FString CarlaGetStringError(ECarlaServerResponse Response)
   {
     case ECarlaServerResponse::Success:
       return "Sucess";
+  	case ECarlaServerResponse::Failure:
+  	  return "Server inside error";
     case ECarlaServerResponse::ActorNotFound:
       return "Actor could not be found in the registry";
     case ECarlaServerResponse::ActorTypeMismatch:

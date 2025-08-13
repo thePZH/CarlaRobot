@@ -326,6 +326,13 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     return nav->GetRandomLocation();
   }
 
+	// 获取可巡检区域
+	std::vector<geom::Location> Simulator::GetNavigableAreaPoints(rpc::ActorId actor, float dist) {
+  		DEBUG_ASSERT(_episode != nullptr);
+  		return _client.GetNavigableAreaPoints(actor, dist);
+	}
+
+
   void Simulator::SetPedestriansCrossFactor(float percentage) {
     DEBUG_ASSERT(_episode != nullptr);
     auto nav = _episode->CreateNavigationIfMissing();

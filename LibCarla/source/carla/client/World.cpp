@@ -16,6 +16,7 @@
 #include "carla/road/Junction.h"
 #include "carla/client/TrafficLight.h"
 
+
 #include <exception>
 
 namespace carla {
@@ -44,6 +45,11 @@ namespace client {
   std::optional<geom::Location> World::GetRandomLocationFromNavigation() const {
     return _episode.Lock()->GetRandomLocationFromNavigation();
   }
+	
+	// actorID,用于获取机器人的包围盒大小，
+	std::vector<geom::Location> World::GetNavigableAreaPoints(rpc::ActorId actor, float dist) const {
+		return _episode.Lock()->GetNavigableAreaPoints(actor, dist);
+	}
 
   SharedPtr<Actor> World::GetSpectator() const {
     return _episode.Lock()->GetSpectator();

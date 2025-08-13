@@ -316,6 +316,8 @@ namespace detail {
 
     std::optional<geom::Location> GetRandomLocationFromNavigation();
 
+	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist);
+
     void SetPedestriansCrossFactor(float percentage);
 
     void SetPedestriansSeed(unsigned int seed);

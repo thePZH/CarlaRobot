@@ -308,6 +308,7 @@ void export_world() {
     .def("get_vehicles_light_states", &GetVehiclesLightStates)
     .def("get_map", CONST_CALL_WITHOUT_GIL(cc::World, GetMap))
     .def("get_random_location_from_navigation", CALL_RETURNING_OPTIONAL_WITHOUT_GIL(cc::World, GetRandomLocationFromNavigation))
+    .def("get_navigable_area_points", CALL_RETURNING_LIST_2(cc::World, GetNavigableAreaPoints, carla::ActorId, float), (arg("actor_id"), arg("dist")))
     .def("get_spectator", CONST_CALL_WITHOUT_GIL(cc::World, GetSpectator))
     .def("get_settings", CONST_CALL_WITHOUT_GIL(cc::World, GetSettings))
     .def("apply_settings", &ApplySettings, (arg("settings"), arg("seconds")=0.0))

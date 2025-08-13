@@ -76,8 +76,11 @@
 #include <atomic>
 #include <map>
 #include <tuple>
+#include <random>
 
+#include "NavigationSystem.h"
 #include "Sensor/RayCastLidar.h"
+#include "NavMesh/RecastNavMesh.h"
 
 template <typename T>
 using R = carla::rpc::Response<T>;
@@ -2364,6 +2367,76 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
       return Result;
     }
   };
+
+
+
+	BIND_SYNC(get_navigable_area_points) << [this](const cr::ActorId ActorId, float dist /* 网格间距(cm) */)
+	    -> R<std::vector<carla::geom::Location>>
+	{
+	    // 1. 获取 Actor
+	    FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+	    if (!CarlaActor || !CarlaActor->GetActor()) {
+	        return RespondError(
+	            "get_navigable_area_points",
+	            ECarlaServerResponse::ActorNotFound,
+	            " Actor Id: " + FString::FromInt(ActorId));
+	    }
+	    AActor* Actor = CarlaActor->GetActor();
+
+	    // 2. 获取导航系统
+	    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Actor->GetWorld());
+	    if (!NavSys) {
+	        return RespondError(
+	            "get_navigable_area_points",
+	            ECarlaServerResponse::Failure,
+	            " NavigationSystem not found " + FString::FromInt(ActorId));
+	    }
+
+	    // 3. 获取 NavMesh 数据
+	    ARecastNavMesh* RecastNavMesh = Cast<ARecastNavMesh>(NavSys->GetDefaultNavDataInstance());
+	    if (!RecastNavMesh) {
+	        return RespondError(
+	            "get_navigable_area_points",
+	            ECarlaServerResponse::Failure,
+	            " RecastMesh not found " + FString::FromInt(ActorId));
+	    }
+
+	    std::vector<carla::geom::Location> Result;
+
+	    // 4. 获取 NavMesh 的整体包围盒（包含所有可行走区域）
+	    FBox NavBounds = RecastNavMesh->GetBounds();
+
+	    // 随机数生成器（只生成一次随机Y偏移）
+	    std::random_device rd;
+	    std::mt19937 gen(rd());
+	    std::uniform_real_distribution<float> dis(0.0f, dist);
+
+	    float offsetY = dis(gen);  // Y方向随机偏移0~dist
+
+	    for (float X = NavBounds.Min.X; X <= NavBounds.Max.X; X += dist) {
+	        for (float Y = NavBounds.Min.Y + offsetY; Y <= NavBounds.Max.Y; Y += dist) {
+	            FVector TestPoint(X, Y, NavBounds.Min.Z);
+
+	            FNavLocation OutNavLoc;
+	            bool bOnNav = NavSys->ProjectPointToNavigation(
+	                TestPoint,
+	                OutNavLoc,
+	                FVector(dist * 0.5f, dist * 0.5f, 500.0f)
+	            );
+
+	            if (bOnNav) {
+	                Result.emplace_back(
+	                    OutNavLoc.Location.X / 100.0f, // cm -> m
+	                    OutNavLoc.Location.Y / 100.0f,
+	                    0.0f
+	                );
+	            }
+	        }
+	    }
+
+	    return R<std::vector<carla::geom::Location>>(std::move(Result));
+	};
+
 
   BIND_SYNC(get_light_boxes) << [this](
       const cr::ActorId ActorId) -> R<std::vector<cg::BoundingBox>>

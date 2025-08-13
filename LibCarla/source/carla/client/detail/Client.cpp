@@ -569,6 +569,12 @@ namespace detail {
     return _pimpl->CallAndWait<return_t>("get_group_traffic_lights", traffic_light);
   }
 
+    std::vector<geom::Location> Client::GetNavigableAreaPoints(rpc::ActorId actor, float dist)
+	{
+  		using return_t = std::vector<geom::Location>;
+  		return _pimpl->CallAndWait<return_t>("get_navigable_area_points", actor, dist);
+	}
+
   std::string Client::StartRecorder(std::string name, bool additional_data) {
     return _pimpl->CallAndWait<std::string>("start_recorder", name, additional_data);
   }
