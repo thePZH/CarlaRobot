@@ -19,6 +19,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Kismet/KismetMathLibrary.h"
 #include <util/ue-header-guard-end.h>
+// #include "LidarPointCloudShared.h"
 
 #include <cmath>
 
@@ -60,15 +61,54 @@ void ARayCastLidar::PostPhysTick(UWorld *World, ELevelTick TickType, float Delta
 {
   TRACE_CPUPROFILER_EVENT_SCOPE(ARayCastLidar::PostPhysTick);
   SimulateLidar(DeltaTime);
-#if WITH_EDITOR
-	for (const auto& channelhits : RecordedHits)
-	{
-		for	(const auto& hit : channelhits)
-		{
-			DrawDebugLine(GetWorld(), GetActorLocation(), hit.Location, FColor::Red, false, -1, 0, 0);	
-		}
-	}
-#endif
+// 	int MaxPoiontsNum = FMath::RoundHalfFromZero(Description.PointsPerSecond * DeltaTime);
+// 	FRandomStream RandomStream(FMath::Rand());
+// #if WITH_EDITOR
+// 	PointsCloudPos.Empty();
+// 	PointsCloudPos.Reserve(MaxPoiontsNum);
+// 	
+// 	for (const auto& channelhits : RecordedHits)
+// 	{
+// 		for	(const auto& hit : channelhits)
+// 		{
+//
+// 			FLidarPointCloudPoint point;
+// 			point.Location = {static_cast<float>(hit.Location.X), static_cast<float>(hit.Location.Y), static_cast<float>(hit.Location.Z)};
+// 			point.Color = {0, 100, 255, 255};
+// 			PointsCloudPos.Emplace(point);
+// 			
+// 			if (!bDrawDebugLine && !bDrawDebugPlane)
+// 				continue;
+// 			if (FMath::FRand() > Threshold)
+// 				continue;
+// 			
+// 			double dist = FVector::Dist(hit.Location, GetActorLocation());
+// 			float clampedDist = FMath::Clamp(static_cast<float>(dist), 0.0f, MaxDist);
+// 			float hue = FMath::Loge(1.0f + clampedDist * LogFactor) / FMath::Loge(1.0f + MaxDist * LogFactor) * MaxHue;
+// 			FLinearColor hsvColor(hue, 1.0f, 1.0f, 1.0f);
+// 			FLinearColor linearColor = hsvColor.HSVToLinearRGB();
+//
+// 			if (bDrawDebugLine)
+// 			{
+// 				DrawDebugLine(GetWorld(), GetActorLocation(), hit.Location, linearColor.ToFColor(false), false, -1, 0, 0);
+// 			}
+// 			if (bDrawDebugPlane)
+// 			{
+// 				FPlane plane(hit.Location, hit.Normal);
+// 				DrawDebugSolidPlane(
+// 					GetWorld(),
+// 					plane,				
+// 					hit.Location,                               
+// 					FVector2D(DebugPointSize, DebugPointSize),
+// 					 linearColor.ToFColor(false),
+// 					false,                                      
+// 					-1,
+// 					0
+// 				);
+// 			}
+// 		}
+// 	}
+// #endif
   auto DataStream = GetDataStream(*this);
   auto SensorTransform = DataStream.GetSensorTransform();
 

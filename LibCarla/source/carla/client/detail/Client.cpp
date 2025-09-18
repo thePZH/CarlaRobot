@@ -22,7 +22,10 @@
 #include "carla/rpc/WalkerBoneControlIn.h"
 #include "carla/rpc/WalkerBoneControlOut.h"
 #include "carla/rpc/WalkerControl.h"
+#include "carla/rpc/RobotBoneControlIn.h"
+#include "carla/rpc/RobotBoneControlOut.h"
 #include "carla/streaming/Client.h"
+
 
 #include <rpc/rpc_error.h>
 
@@ -451,6 +454,15 @@ namespace detail {
   void Client::ShowVehicleDebugTelemetry(rpc::ActorId vehicle, const bool enabled) {
     _pimpl->AsyncCall("show_vehicle_debug_telemetry", vehicle, enabled);
   }
+	void Client::SetRobotBonesTransform(rpc::ActorId vehicle, const rpc::RobotBoneControlIn& bones)
+	{
+  		_pimpl->AsyncCall("set_robot_bones_transform", vehicle, bones);
+	}
+
+	rpc::RobotBoneControlOut Client::GetRobotBonesTransform(rpc::ActorId vehicle)
+	{
+  		return _pimpl->CallAndWait<rpc::RobotBoneControlOut>("get_robot_bones_transform", vehicle);
+	}
 
   void Client::ApplyControlToVehicle(rpc::ActorId vehicle, const rpc::VehicleControl &control) {
     _pimpl->AsyncCall("apply_control_to_vehicle", vehicle, control);
@@ -569,10 +581,15 @@ namespace detail {
     return _pimpl->CallAndWait<return_t>("get_group_traffic_lights", traffic_light);
   }
 
-    std::vector<geom::Location> Client::GetNavigableAreaPoints(rpc::ActorId actor, float dist)
+    std::vector<geom::Location> Client::GetNavigableAreaPoints(rpc::ActorId actor, float dist) const
 	{
   		using return_t = std::vector<geom::Location>;
   		return _pimpl->CallAndWait<return_t>("get_navigable_area_points", actor, dist);
+	}
+	std::vector<geom::Transform> Client::GetGaugesTransform() const
+	{
+		using return_t = std::vector<geom::Transform>;
+		return _pimpl->CallAndWait<return_t>("get_gauges_transform");	
 	}
 
   std::string Client::StartRecorder(std::string name, bool additional_data) {
@@ -644,7 +661,9 @@ namespace detail {
     return _pimpl->CallAndWait<bool>("is_sensor_enabled_for_ros", thisToken.get_stream_id());
   }
 	float Client::GetFOV(rpc::ActorId actorid) {
-		return _pimpl->CallAndWait<float>("get_sensor_fov", actorid);
+		float debugVal = _pimpl->CallAndWait<float>("get_sensor_fov", actorid);
+		std::cout << "FOV: " << debugVal << std::endl;
+		return debugVal;
 	}
 	
 	void Client::SetFOV(rpc::ActorId actorid, float fov) {

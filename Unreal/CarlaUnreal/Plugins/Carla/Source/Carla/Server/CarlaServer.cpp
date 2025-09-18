@@ -6,6 +6,8 @@
 
 #include "Carla/Server/CarlaServer.h"
 #include "Carla.h"
+#include "Carla/PzhTest/WheeledRobotAnimationInstance.h"
+#include "Robot/RobotBoneControlIn.h"
 #include "Carla/Server/CarlaServerResponse.h"
 #include "Carla/Traffic/TrafficLightGroup.h"
 #include "Carla/OpenDrive/OpenDrive.h"
@@ -17,6 +19,7 @@
 #include "Carla/Walker/WalkerBase.h"
 #include "Carla/Game/Tagger.h"
 #include "Carla/Game/CarlaStatics.h"
+#include "Carla/Gauges/GaugesManagerActor.h"
 #include "Carla/Vehicle/MovementComponents/CarSimManagerComponent.h"
 #include "Carla/Vehicle/MovementComponents/ChronoMovementComponent.h"
 #include "Carla/Lights/CarlaLightSubsystem.h"
@@ -57,6 +60,8 @@
 #include <carla/rpc/VehicleLightStateList.h>
 #include <carla/rpc/WalkerBoneControlIn.h>
 #include <carla/rpc/WalkerBoneControlOut.h>
+#include <carla/rpc/RobotBoneControlIn.h>
+#include <carla/rpc/RobotBoneControlOut.h>
 #include <carla/rpc/WalkerControl.h>
 #include <carla/rpc/VehicleWheels.h>
 #include <carla/rpc/WeatherParameters.h>
@@ -70,6 +75,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Misc/FileHelper.h"
 #include "Animation/PoseSnapshot.h"
+#include "Animation/AnimInstance.h"
+
 #include <util/ue-header-guard-end.h>
 
 #include <vector>
@@ -1751,7 +1758,177 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
   };
 
   // ~~ Apply control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	BIND_SYNC(get_robot_bones_transform) << [this](cr::ActorId ActorId) -> R<cr::RobotBoneControlOut>
+	{
+		REQUIRE_CARLA_EPISODE();
+		FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+		if (!CarlaActor)
+		{
+			return RespondError(
+					"get_robot_bones_transform",
+					ECarlaServerResponse::ActorNotFound,
+					" Actor Id: " + FString::FromInt(ActorId));
+		}
 
+		// 尝试转换为机器人基类
+		auto* robot = Cast<ACarlaWheeledVehicle>(CarlaActor->GetActor());
+		if (!robot)
+		{
+			return RespondError(
+				"set_robot_bones_transform",
+				ECarlaServerResponse::Failure,
+				" Not a supported robot actor. Actor Id: " + FString::FromInt(ActorId));
+		}
+	    
+		// 获取骨骼网格组件
+		USkeletalMeshComponent* skmComp = robot->GetMesh();
+		if (!skmComp)
+		{
+			return RespondError(
+				"set_robot_bones_transform",
+				ECarlaServerResponse::Failure,
+				" Can't find Skeletal Mesh Component. Actor Id: " + FString::FromInt(ActorId));
+		}
+	    
+		// 获取动画实例
+		UAnimInstance* animInst = skmComp->GetAnimInstance();
+		if (!animInst)
+		{
+			return RespondError(
+				"set_robot_bones_transform",
+				ECarlaServerResponse::Failure,
+				" Failed to find Anim Instance. Actor Id: " + FString::FromInt(ActorId));
+		}
+		
+		auto* robotAnimInst = Cast<UWheeledRobotAnimationInstance>(animInst);
+		if (!robotAnimInst)
+			return RespondError(
+				"set_robot_bones_transform",
+				ECarlaServerResponse::Failure,
+				" Failed to find Anim Instance. Actor Id: " + FString::FromInt(ActorId));
+		
+		FRobotBoneControlOut bones;
+		FPoseSnapshot tempSnapShot;
+		skmComp->SnapshotPose(tempSnapShot);
+		
+		for (int i=0; i<tempSnapShot.BoneNames.Num(); ++i)
+		{
+			FRobotBoneControlOutData Transforms;
+			Transforms.World = skmComp->GetSocketTransform(tempSnapShot.BoneNames[i], ERelativeTransformSpace::RTS_World);
+			Transforms.Component = skmComp->GetSocketTransform(tempSnapShot.BoneNames[i], ERelativeTransformSpace::RTS_Actor);
+			Transforms.Relative = skmComp->GetSocketTransform(tempSnapShot.BoneNames[i], ERelativeTransformSpace::RTS_ParentBoneSpace);
+			bones.BoneTransforms.Add(tempSnapShot.BoneNames[i].ToString(), Transforms);
+		}
+		
+		std::vector<carla::rpc::BoneTransformDataOut> boneData;
+		for (auto Bone : bones.BoneTransforms)
+		{
+			carla::rpc::BoneTransformDataOut Data;
+			Data.bone_name = std::string(TCHAR_TO_UTF8(*Bone.Get<0>()));
+			FRobotBoneControlOutData transform = Bone.Get<1>();
+			Data.world = transform.World;
+			Data.component = transform.Component;
+			Data.relative = transform.Relative;
+			boneData.push_back(Data);
+		}
+		return carla::rpc::RobotBoneControlOut(boneData);
+	};
+
+	BIND_SYNC(set_robot_bones_transform) << [this](cr::ActorId ActorId, cr::RobotBoneControlIn bones) -> R<void>
+	{
+	    REQUIRE_CARLA_EPISODE();
+	    FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+	    if (!CarlaActor)
+	    {
+	        return RespondError(
+	                "set_robot_bones_transform",
+	                ECarlaServerResponse::ActorNotFound,
+	                " Actor Id: " + FString::FromInt(ActorId));
+	    }
+
+		FRobotBoneControlIn robotBones = FRobotBoneControlIn(bones);
+
+	    AActor* actor = CarlaActor->GetActor();
+	    
+	    // 尝试转换为机器人基类
+	    auto* robot = Cast<ACarlaWheeledVehicle>(actor);
+	    if (!robot)
+	    {
+	        return RespondError(
+	            "set_robot_bones_transform",
+	            ECarlaServerResponse::Failure,
+	            " Not a supported robot actor. Actor Id: " + FString::FromInt(ActorId));
+	    }
+	    
+	    // 获取骨骼网格组件
+	    USkeletalMeshComponent* skmComp = robot->GetMesh();
+	    if (!skmComp)
+	    {
+	        return RespondError(
+	            "set_robot_bones_transform",
+	            ECarlaServerResponse::Failure,
+	            " Can't find Skeletal Mesh Component. Actor Id: " + FString::FromInt(ActorId));
+	    }
+	    
+	    // 获取动画实例
+	    UAnimInstance* animInst = skmComp->GetAnimInstance();
+	    if (!animInst)
+	    {
+            return RespondError(
+                "set_robot_bones_transform",
+                ECarlaServerResponse::Failure,
+                " Failed to find Anim Instance. Actor Id: " + FString::FromInt(ActorId));
+	    }
+		
+		
+		auto* robotAnimInst = Cast<UWheeledRobotAnimationInstance>(animInst);
+		if (!robotAnimInst)
+			return RespondError(
+				"set_robot_bones_transform",
+				ECarlaServerResponse::Failure,
+				" Failed to find Anim Instance. Actor Id: " + FString::FromInt(ActorId));
+
+		// 将 RPC 接收到的骨骼数据转换为 TMap<FName, FTransform>
+		TMap<FName, FTransform> boneMap;
+		for (const auto& BoneData : bones.bone_transforms)
+		{
+			boneMap.Add(FName(BoneData.first.c_str()), BoneData.second);
+		}
+
+		// 调用动画实例接口应用骨骼变换
+		robotAnimInst->SetBonesTransform(boneMap);
+		
+		// robotAnimInst->bUseSnapshot = true;
+		// // 拿快照
+		// if (robotAnimInst->Snap.BoneNames.Num() == 0)
+		// {
+		// 	skmComp->SnapshotPose(robotAnimInst->Snap);
+		// }
+		//
+		// TMap<FName, FTransform> inputBonesMap;
+		// for (const TPair<FString, FTransform> &pair : robotBones.BoneTransforms)
+		// {
+		// 	FName BoneName = FName(*pair.Key);
+		// 	inputBonesMap.Add(BoneName, pair.Value);
+		// }
+		//
+		// int loopCount = robotAnimInst->Snap.BoneNames.Num();
+		// for (int i = loopCount - 1; i >= 0; --i)
+		// {
+		// 	if (FTransform *trans = inputBonesMap.Find(robotAnimInst->Snap.BoneNames[i]))
+		// 	{
+		// 		robotAnimInst->Snap.LocalTransforms[i] = *trans;
+		// 	}
+		// 	else
+		// 	{
+		// 		robotAnimInst->Snap.BoneNames.RemoveAt(i);
+		// 		robotAnimInst->Snap.LocalTransforms.RemoveAt(i);
+		// 	}
+		// }
+		
+	    return R<void>::Success();
+	};
+	
   BIND_SYNC(apply_control_to_vehicle) << [this](
       cr::ActorId ActorId,
       cr::VehicleControl Control) -> R<void>
@@ -2373,7 +2550,7 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 	BIND_SYNC(get_navigable_area_points) << [this](const cr::ActorId ActorId, float dist /* 网格间距(cm) */)
 	    -> R<std::vector<carla::geom::Location>>
 	{
-	    // 1. 获取 Actor
+	    // 获取 Actor (TODO：根据传入actor包围盒调整区域）
 	    FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
 	    if (!CarlaActor || !CarlaActor->GetActor()) {
 	        return RespondError(
@@ -2383,7 +2560,7 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 	    }
 	    AActor* Actor = CarlaActor->GetActor();
 
-	    // 2. 获取导航系统
+	    // 获取导航系统
 	    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Actor->GetWorld());
 	    if (!NavSys) {
 	        return RespondError(
@@ -2392,7 +2569,7 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 	            " NavigationSystem not found " + FString::FromInt(ActorId));
 	    }
 
-	    // 3. 获取 NavMesh 数据
+	    // 获取 NavMesh 数据
 	    ARecastNavMesh* RecastNavMesh = Cast<ARecastNavMesh>(NavSys->GetDefaultNavDataInstance());
 	    if (!RecastNavMesh) {
 	        return RespondError(
@@ -2402,17 +2579,13 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 	    }
 
 	    std::vector<carla::geom::Location> Result;
-
-	    // 4. 获取 NavMesh 的整体包围盒（包含所有可行走区域）
-	    FBox NavBounds = RecastNavMesh->GetBounds();
-
-	    // 随机数生成器（只生成一次随机Y偏移）
+		
 	    std::random_device rd;
 	    std::mt19937 gen(rd());
 	    std::uniform_real_distribution<float> dis(0.0f, dist);
-
 	    float offsetY = dis(gen);  // Y方向随机偏移0~dist
 
+		FBox NavBounds = RecastNavMesh->GetBounds();
 	    for (float X = NavBounds.Min.X; X <= NavBounds.Max.X; X += dist) {
 	        for (float Y = NavBounds.Min.Y + offsetY; Y <= NavBounds.Max.Y; Y += dist) {
 	            FVector TestPoint(X, Y, NavBounds.Min.Z);
@@ -2426,18 +2599,56 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 
 	            if (bOnNav) {
 	                Result.emplace_back(
-	                    OutNavLoc.Location.X / 100.0f, // cm -> m
+	                    OutNavLoc.Location.X / 100.0f, // x左为正 y上为正
 	                    OutNavLoc.Location.Y / 100.0f,
-	                    0.0f
+	                    OutNavLoc.Location.Z / 100.0f
 	                );
 	            }
 	        }
 	    }
-
+		
 	    return R<std::vector<carla::geom::Location>>(std::move(Result));
 	};
 
+	// 表计数据
+	BIND_SYNC(get_gauges_transform) << [this]() -> R<std::vector<carla::geom::Transform>>
+	{
+		AActor* actor = UGameplayStatics::GetActorOfClass(Episode->GetWorld(), AGaugesManagerActor::StaticClass());
+		
+		AGaugesManagerActor* gaugesManager = Cast<AGaugesManagerActor>(actor);
+		if (!gaugesManager)
+			return RespondError(
+				"get_gauges_transform",
+				ECarlaServerResponse::Failure,
+				" gaugesManager Actor Not Found!");
 
+		std::vector<carla::geom::Transform> result;
+		TArray<FTransform> gaugesTransforms = gaugesManager->GetGaugesTransform();
+		for (const auto& transform : gaugesTransforms)
+		{
+			carla::geom::Transform carlaTrans;
+        
+			// 转换位置（从厘米到米）
+			FVector tempLoc = transform.GetLocation();
+			carlaTrans.location = {
+				static_cast<float>(tempLoc.X) / 100.f,
+				static_cast<float>(tempLoc.Y) / 100.f,
+				static_cast<float>(tempLoc.Z) / 100.f
+			};
+        
+			// 转换旋转
+			FRotator rotator = transform.GetRotation().Rotator();
+			carlaTrans.rotation = {
+				static_cast<float>(rotator.Pitch),
+				static_cast<float>(rotator.Yaw),
+				static_cast<float>(rotator.Roll)
+			};
+			
+			result.push_back(carlaTrans);
+		}
+		return R<std::vector<carla::geom::Transform>>(std::move(result));
+	};
+	
   BIND_SYNC(get_light_boxes) << [this](
       const cr::ActorId ActorId) -> R<std::vector<cg::BoundingBox>>
   {

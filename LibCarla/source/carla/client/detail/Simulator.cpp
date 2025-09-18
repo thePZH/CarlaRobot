@@ -327,11 +327,17 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
   }
 
 	// 获取可巡检区域
-	std::vector<geom::Location> Simulator::GetNavigableAreaPoints(rpc::ActorId actor, float dist) {
+	std::vector<geom::Location> Simulator::GetNavigableAreaPoints(rpc::ActorId actor, float dist) const 
+	{
   		DEBUG_ASSERT(_episode != nullptr);
   		return _client.GetNavigableAreaPoints(actor, dist);
 	}
-
+	
+	std::vector<geom::Transform> Simulator::GetGaugesTransform() const
+	{  		
+		DEBUG_ASSERT(_episode != nullptr);
+		return _client.GetGaugesTransform();
+	}
 
   void Simulator::SetPedestriansCrossFactor(float percentage) {
     DEBUG_ASSERT(_episode != nullptr);
@@ -426,7 +432,7 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     return _client.IsEnabledForROS(sensor.GetActorDescription().GetStreamToken());
   }
 
-	bool Simulator::GetFOV(const Sensor &sensor) {
+	float Simulator::GetFOV(const Sensor &sensor) {
 		return _client.GetFOV(sensor.GetId());
 	}
 

@@ -316,7 +316,9 @@ namespace detail {
 
     std::optional<geom::Location> GetRandomLocationFromNavigation();
 
-	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist);
+	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist) const;
+
+	std::vector<geom::Transform> GetGaugesTransform() const;
 
     void SetPedestriansCrossFactor(float percentage);
 
@@ -521,9 +523,18 @@ namespace detail {
     }
 
     void SetLightsToVehicle(Vehicle &vehicle, const rpc::VehicleControl &control) {
-      _client.ApplyControlToVehicle(vehicle.GetId(), control);
+    	_client.ApplyControlToVehicle(vehicle.GetId(), control);
     }
+	
+	void SetRobotBonesTransform(Vehicle &vehicle, const rpc::RobotBoneControlIn& bones) {
+		_client.SetRobotBonesTransform(vehicle.GetId(), bones);
+	}
 
+	rpc::RobotBoneControlOut GetRobotBonesTransform(const Vehicle& vehicle)
+	{
+		return _client.GetRobotBonesTransform(vehicle.GetId());
+	}
+	
     void ApplyControlToVehicle(Vehicle &vehicle, const rpc::VehicleControl &control) {
       _client.ApplyControlToVehicle(vehicle.GetId(), control);
     }
@@ -673,7 +684,7 @@ namespace detail {
 
     bool IsEnabledForROS(const Sensor &sensor);
 
-	bool GetFOV(const Sensor &sensor);
+	float GetFOV(const Sensor &sensor);
 
 	void SetFOV(const Sensor &sensor, float fov);
 

@@ -47,8 +47,13 @@ namespace client {
   }
 	
 	// actorID,用于获取机器人的包围盒大小，
-	std::vector<geom::Location> World::GetNavigableAreaPoints(rpc::ActorId actor, float dist) const {
+	std::vector<geom::Location> World::GetNavigableAreaPoints(rpc::ActorId actor, float dist) const 
+	{
 		return _episode.Lock()->GetNavigableAreaPoints(actor, dist);
+	}
+	std::vector<geom::Transform> World::GetGaugesTransform() const 
+	{
+		return _episode.Lock()->GetGaugesTransform();	
 	}
 
   SharedPtr<Actor> World::GetSpectator() const {

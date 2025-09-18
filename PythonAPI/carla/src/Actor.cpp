@@ -171,8 +171,9 @@ void export_actor() {
     .value("TirePuncture", cr::VehicleFailureState::TirePuncture)
   ;
 
-  class_<cc::Vehicle, bases<cc::Actor>, boost::noncopyable, std::shared_ptr<cc::Vehicle>>("Vehicle",
-      no_init)
+  class_<cc::Vehicle, bases<cc::Actor>, boost::noncopyable, std::shared_ptr<cc::Vehicle>>("Vehicle",no_init)
+	  .def("set_bones_transform", &cc::Vehicle::SetBonesTransform, (arg("bones_transform")))
+	  .def("get_bones_transform", &cc::Vehicle::GetBonesTransform)
       .def("apply_control", &cc::Vehicle::ApplyControl, (arg("control")))
       .def("apply_ackermann_control", &cc::Vehicle::ApplyAckermannControl, (arg("control")))
       .def("get_control", &cc::Vehicle::GetControl)

@@ -66,7 +66,7 @@ protected:
   /// RawDetections and then send it to the LidarData structure.
   virtual void ComputeAndSaveDetections(const FTransform &SensorTransform);
 
-  UPROPERTY(EditAnywhere)
+  UPROPERTY(EditAnywhere, BlueprintReadWrite)
   FLidarDescription Description;
 
   TArray<float> LaserAngles;

@@ -11,6 +11,8 @@
 #include "carla/client/TrafficLight.h"
 #include "carla/Memory.h"
 #include "carla/rpc/TrafficLightState.h"
+#include "carla/rpc/RobotBoneControlIn.h"
+#include "carla/rpc/RobotBoneControlOut.h"
 
 #include "carla/trafficmanager/TrafficManager.h"
 
@@ -47,6 +49,16 @@ namespace client {
   void Vehicle::ShowDebugTelemetry(bool enabled) {
     GetEpisode().Lock()->ShowVehicleDebugTelemetry(*this, enabled);
   }
+
+	void Vehicle::SetBonesTransform(const BoneControlIn& transform)
+	{
+  		GetEpisode().Lock()->SetRobotBonesTransform(*this, transform);
+	}
+
+	rpc::RobotBoneControlOut Vehicle::GetBonesTransform() const
+	{
+  		return GetEpisode().Lock()->GetRobotBonesTransform(*this);
+	}
 
   void Vehicle::ApplyControl(const Control &control) {
     if (!_is_control_sticky || (control != _control)) {

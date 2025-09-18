@@ -16,6 +16,30 @@ class CARLA_API UWheeledRobotAnimationInstance : public UVehicleAnimationInstanc
 public:
 	UPROPERTY(Blueprintreadwrite, EditAnywhere)
 	float CameraPitch;
+	
 	UPROPERTY(Blueprintreadwrite, EditAnywhere)
 	float Gimbalyaw;
+	
+	// UPROPERTY(Blueprintreadwrite, EditAnywhere)
+	// FPoseSnapshot Snap;
+	//
+	// UPROPERTY(Blueprintreadwrite, EditAnywhere)
+	// bool bUseSnapshot = false;
+	//
+	// virtual void NativePostEvaluateAnimation() override;
+	void SetBonesTransform(const TMap<FName, FTransform>& InTransforms)
+	{
+		for (auto it = InTransforms.begin(); it != InTransforms.end(); ++it)
+		{
+			BoneNames.Emplace(it.Key());
+			BoneTransforms.Emplace(it.Value());
+		}
+	}
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TArray<FName> BoneNames;
+    
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TArray<FTransform> BoneTransforms;
+
 };

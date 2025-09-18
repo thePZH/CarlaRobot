@@ -16,7 +16,7 @@
 #include <util/disable-ue4-macros.h>
 #include <carla/sensor/data/LidarData.h>
 #include <util/enable-ue4-macros.h>
-
+// #include "LidarPointCloudShared.h"
 #include "RayCastLidar.generated.h"
 
 /// A ray-cast based Lidar sensor.
@@ -38,7 +38,27 @@ public:
   virtual void PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime);
 
   const TArray<float>& GetTestPointCloud() const { return PointCloudLidarData; };
-
+	
+	// UPROPERTY(BlueprintReadOnly) // TODO:Delete ,只作为可视化点云数据用
+	// TArray<FLidarPointCloudPoint> PointsCloudPos;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// float MaxDist = 3500.f;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "360"))
+	// float MaxHue = 350.f;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// float MaxDistReflectionLine = 1.f;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "1"))
+	// float Threshold = 0.001;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// float LogFactor = 0.001f; 
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// float DebugPointSize = 10.0f;
+	//
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// bool bDrawDebugLine = false;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// bool bDrawDebugPlane = false;
+	
 private:
   /// Compute the received intensity of the point
   float ComputeIntensity(const FSemanticDetection& RawDetection) const;

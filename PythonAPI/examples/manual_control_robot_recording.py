@@ -71,7 +71,6 @@ try:
     from pygame.locals import K_t
     from pygame.locals import K_v
     from pygame.locals import K_g
-    from pygame.locals import K_b
     from pygame.locals import K_EQUALS
 
 except ImportError:
@@ -209,7 +208,7 @@ class World(object):
         vehicle_bp.set_attribute("role_name", "ego")
         vehicle_bp.set_attribute("ros_name", "ego")
 
-        spawn_point = carla.Transform(carla.Location(x=0, y=-5, z=0))
+        spawn_point = carla.Transform(carla.Location(x=10, y=-7, z=0), carla.Rotation(pitch=0, yaw=180, roll=0))
         # Spawn the player.
         if self.player is not None:
             # spawn_point = self.player.get_transform()
@@ -256,11 +255,12 @@ class World(object):
             pass
 
     def tick(self, clock):
-        self.hud.tick(self, clock)
+        pass
+        #self.hud.tick(self, clock)
 
     def render(self, display):
         self.camera_manager.render(display)
-        self.hud.render(display)
+       # self.hud.render(display)
 
     def destroy_sensors(self):
         self.camera_manager.sensor.destroy()
@@ -366,36 +366,29 @@ class KeyboardControl(object):
 
     # 机器人移动
     def _parse_vehicle_keys(self, keys, milliseconds):
+        if keys[K_w]:
+            if not self._ackermann_enabled:
+        self._control.throttle = 1
+            else:
+                self._ackermann_control.speed += round(milliseconds * 0.005, 2) * self._ackermann_reverse
+        else:
+            if not self._ackermann_enabled:
+                self._control.throttle = 0.0
+
+        if keys[K_s]:
+            if not self._ackermann_enabled:
+                # self._control.brake = min(self._control.brake + 0.2, 1)
+                self._control.brake = 1
+            else:
+                self._ackermann_control.speed -= min(abs(self._ackermann_control.speed), round(milliseconds * 0.005, 2)) * self._ackermann_reverse
+                self._ackermann_control.speed = max(0, abs(self._ackermann_control.speed)) * self._ackermann_reverse
+        else:
+            if not self._ackermann_enabled:
+                self._control.brake = 0
+
+        # 如果速度 == 0，就做原地旋转，transform RPC
         velocity = self._world.player.get_velocity()
         speed = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
-
-        if keys[K_w]:
-            if self._control.gear < 0:
-                self._control.brake = 1
-                self._control.throttle = 0
-                if speed < 0.01:
-                    self._control.brake = 0
-                    self._control.gear = 1 
-                    self._control.throttle = 1
-            else:
-                self._control.throttle = 1
-                self._control.brake = 0
-        elif keys[K_s]:
-            if self._control.gear > 0 :
-                self._control.brake = 1
-                self._control.throttle = 0
-                if speed < 0.01:
-                    self._control.brake = 0
-                    self._control.gear = -1
-                    self._control.throttle = 1
-            else:
-                self._control.throttle = 1
-                self._control.brake = 0
-                self._control.gear = -1
-        else:
-            self._control.throttle = 0
-            self._control.brake = 0
-
         if speed < 0.001:
             if keys[K_a]:
                 self._control.steer = 0.0
@@ -476,8 +469,7 @@ class KeyboardControl(object):
                 location=self.current_transform.location,
                 rotation=new_rotation
             )
-            # sensor.set_transform(new_transform)
-            
+            sensor.set_transform(new_transform)
             world.hud.notification('Sensor Pitch: %.1f°' % new_pitch)
             self.current_rotation = new_rotation
 
@@ -510,20 +502,7 @@ class KeyboardControl(object):
                 location=self.current_transform.location,
                 rotation=new_rotation
             )
-            # sensor.set_transform(new_transform)
-            # 创建空对象
-            bones_ctrl = carla.RobotBoneControlIn()
-            
-            # 构造骨骼列表
-            bone_transform = carla.bone_transform()
-            bone_transform.name = "Gimbal"
-            bone_transform.transform = carla.Transform(carla.Location(0,0,1), carla.Rotation(pitch=0, yaw=45, roll=0))
-            bones_list = [bone_transform]
-            
-            # 赋值给属性（会调用 C++ setter）
-            bones_ctrl.bone_transforms = bones_list
-            self._world.player.set_bones_transform(bones_ctrl)
-            
+            sensor.set_transform(new_transform)
             world.hud.notification('Sensor Yaw: %.1f°' % new_yaw)
             self.current_rotation = new_rotation
 
@@ -546,7 +525,7 @@ class KeyboardControl(object):
         # zoom
         if keys[K_i]:
             self.current_fov = max(10, self.current_fov - 1.0)
-            print(f"Current FOV: {sensor.get_fov()}")
+            print(f"Current FOV: {self.current_fov}")
             sensor.set_fov(self.current_fov)
         if keys[K_o]:
             self.current_fov = min(90, self.current_fov + 1.0)
@@ -562,15 +541,6 @@ class KeyboardControl(object):
             transforms = world.world.get_gauges_transform()
             print(f"tatal gauges: {len(transforms)}")
             print(f"First gauge pos: {transforms[0].location.x, transforms[0].location.y, transforms[0].location.z}")
-        if keys[K_b]:
-            bone_control_out = self._world.player.get_bones_transform()
-            bones = bone_control_out.bones_transform
-            for bone in bones:
-                print("Bone:", bone.name)
-                print("  World:", bone.world)
-                print("  Component:", bone.component)
-                print("  Relative:", bone.relative)
-            
 
     @staticmethod
     def _is_quit_shortcut(key):
@@ -931,7 +901,7 @@ class CameraManager(object):
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)', {}],
             ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
-            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '200', 'upper_fov': '15.0', 'lower_fov': '-15', 'horizontal_fov': '180.0'}],
+            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '200', 'upper_fov': '15.0', 'lower_fov': '-15.0', 'horizontal_fov': '180.0'}],
         ]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()

@@ -71,7 +71,6 @@ try:
     from pygame.locals import K_t
     from pygame.locals import K_v
     from pygame.locals import K_g
-    from pygame.locals import K_b
     from pygame.locals import K_EQUALS
 
 except ImportError:
@@ -205,7 +204,7 @@ class World(object):
 
         bp_lib = self.world.get_blueprint_library()
         vehicle_bp = bp_lib.find("vehicle.robot.01")
-        # vehicle_bp = bp_lib.find("vehicle.lincoln.mkz")
+        #vehicle_bp = bp_lib.find("vehicle.lincoln.mkz")
         vehicle_bp.set_attribute("role_name", "ego")
         vehicle_bp.set_attribute("ros_name", "ego")
 
@@ -256,11 +255,12 @@ class World(object):
             pass
 
     def tick(self, clock):
-        self.hud.tick(self, clock)
+        pass
+        # self.hud.tick(self, clock)
 
     def render(self, display):
         self.camera_manager.render(display)
-        self.hud.render(display)
+        # self.hud.render(display)
 
     def destroy_sensors(self):
         self.camera_manager.sensor.destroy()
@@ -366,36 +366,30 @@ class KeyboardControl(object):
 
     # 机器人移动
     def _parse_vehicle_keys(self, keys, milliseconds):
+        if keys[K_w]:
+            if not self._ackermann_enabled:
+                # self._control.throttle = min(self._control.throttle + 0.1, 1.00)
+                self._control.throttle = 1
+            else:
+                self._ackermann_control.speed += round(milliseconds * 0.005, 2) * self._ackermann_reverse
+        else:
+            if not self._ackermann_enabled:
+                self._control.throttle = 0.0
+
+        if keys[K_s]:
+            if not self._ackermann_enabled:
+                # self._control.brake = min(self._control.brake + 0.2, 1)
+                self._control.brake = 1
+            else:
+                self._ackermann_control.speed -= min(abs(self._ackermann_control.speed), round(milliseconds * 0.005, 2)) * self._ackermann_reverse
+                self._ackermann_control.speed = max(0, abs(self._ackermann_control.speed)) * self._ackermann_reverse
+        else:
+            if not self._ackermann_enabled:
+                self._control.brake = 0
+
+        # 如果速度 == 0，就做原地旋转，transform RPC
         velocity = self._world.player.get_velocity()
         speed = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
-
-        if keys[K_w]:
-            if self._control.gear < 0:
-                self._control.brake = 1
-                self._control.throttle = 0
-                if speed < 0.01:
-                    self._control.brake = 0
-                    self._control.gear = 1 
-                    self._control.throttle = 1
-            else:
-                self._control.throttle = 1
-                self._control.brake = 0
-        elif keys[K_s]:
-            if self._control.gear > 0 :
-                self._control.brake = 1
-                self._control.throttle = 0
-                if speed < 0.01:
-                    self._control.brake = 0
-                    self._control.gear = -1
-                    self._control.throttle = 1
-            else:
-                self._control.throttle = 1
-                self._control.brake = 0
-                self._control.gear = -1
-        else:
-            self._control.throttle = 0
-            self._control.brake = 0
-
         if speed < 0.001:
             if keys[K_a]:
                 self._control.steer = 0.0
@@ -428,18 +422,18 @@ class KeyboardControl(object):
                 self._control.hand_brake = keys[K_SPACE]
             else:
                 self._ackermann_control.steer = round(self._steer_cache, 1)
-                
+
     def visualize_navigable_points(self, navigable_points):
         # 提取x,y坐标
         x_coords = [pt.x for pt in navigable_points]
         y_coords = [pt.y for pt in navigable_points]
-    
+
         # 创建图形
         plt.figure(figsize=(12, 10), dpi=100)
-    
+
         # 绘制散点图
         plt.scatter(x_coords, y_coords, s=10, c='blue', alpha=0.6, label='Navigation Points')
-    
+
         # 添加标题和标签
         plt.title('Carla Navigable Area Points', fontsize=15)
         plt.xlabel('X Coordinate (meters)', fontsize=12)
@@ -449,17 +443,17 @@ class KeyboardControl(object):
         plt.axis('equal')
         plt.gca().invert_xaxis()
         plt.show()
-        
+
     current_transform = carla.Transform()
     current_rotation = current_transform.rotation
     current_fov = 90.0
-    def _parse_sensor_keys(self, keys, milliseconds, world, angle=1):
-        if world.camera_manager.sensor is None:
+    def _parse_sensor_keys(self, keys, milliseconds, world, angle=0.1):
+        if world.camera_manager.all_sensors[0] is None:
             return
-        sensor = world.camera_manager.sensor
+        sensors = world.camera_manager.all_sensors
         if keys[K_r]:
             new_transform = carla.Transform()
-            sensor.set_transform(new_transform)
+            sensors[0].set_transform(new_transform)
             self.current_rotation = carla.Rotation()
 
         if keys[K_UP]:
@@ -476,8 +470,8 @@ class KeyboardControl(object):
                 location=self.current_transform.location,
                 rotation=new_rotation
             )
-            # sensor.set_transform(new_transform)
-            
+            print(f"nnnnnn")
+            sensors[1].set_transform(new_transform)
             world.hud.notification('Sensor Pitch: %.1f°' % new_pitch)
             self.current_rotation = new_rotation
 
@@ -494,7 +488,7 @@ class KeyboardControl(object):
                 location=self.current_transform.location,
                 rotation=new_rotation
             )
-            sensor.set_transform(new_transform)
+            sensors[0].set_transform(new_transform)
             world.hud.notification('Sensor Pitch: %.1f°' % new_pitch)
             self.current_rotation = new_rotation
 
@@ -510,20 +504,7 @@ class KeyboardControl(object):
                 location=self.current_transform.location,
                 rotation=new_rotation
             )
-            # sensor.set_transform(new_transform)
-            # 创建空对象
-            bones_ctrl = carla.RobotBoneControlIn()
-            
-            # 构造骨骼列表
-            bone_transform = carla.bone_transform()
-            bone_transform.name = "Gimbal"
-            bone_transform.transform = carla.Transform(carla.Location(0,0,1), carla.Rotation(pitch=0, yaw=45, roll=0))
-            bones_list = [bone_transform]
-            
-            # 赋值给属性（会调用 C++ setter）
-            bones_ctrl.bone_transforms = bones_list
-            self._world.player.set_bones_transform(bones_ctrl)
-            
+            sensors[0].set_transform(new_transform)
             world.hud.notification('Sensor Yaw: %.1f°' % new_yaw)
             self.current_rotation = new_rotation
 
@@ -539,22 +520,22 @@ class KeyboardControl(object):
                 location=self.current_transform.location,
                 rotation=new_rotation
             )
-            sensor.set_transform(new_transform)
+            sensors[0].set_transform(new_transform)
             world.hud.notification('Sensor Yaw: %.1f°' % new_yaw)
             self.current_rotation = new_rotation
-        
+
         # zoom
         if keys[K_i]:
             self.current_fov = max(10, self.current_fov - 1.0)
-            print(f"Current FOV: {sensor.get_fov()}")
-            sensor.set_fov(self.current_fov)
+            print(f"Current FOV: {self.current_fov}")
+            sensors[0].set_fov(self.current_fov)
         if keys[K_o]:
             self.current_fov = min(90, self.current_fov + 1.0)
             print(f"Current FOV: {self.current_fov}")
-            sensor.set_fov(self.current_fov)
+            sensors[0].set_fov(self.current_fov)
         if keys[K_t]:
             self.current_fov = 90
-            sensor.set_fov(90)
+            sensors[0].set_fov(90)
         if keys[K_v]:
             navigable_points = world.world.get_navigable_area_points(world.player.id, 50)
             self.visualize_navigable_points(navigable_points)
@@ -562,15 +543,6 @@ class KeyboardControl(object):
             transforms = world.world.get_gauges_transform()
             print(f"tatal gauges: {len(transforms)}")
             print(f"First gauge pos: {transforms[0].location.x, transforms[0].location.y, transforms[0].location.z}")
-        if keys[K_b]:
-            bone_control_out = self._world.player.get_bones_transform()
-            bones = bone_control_out.bones_transform
-            for bone in bones:
-                print("Bone:", bone.name)
-                print("  World:", bone.world)
-                print("  Component:", bone.component)
-                print("  Relative:", bone.relative)
-            
 
     @staticmethod
     def _is_quit_shortcut(key):
@@ -938,6 +910,8 @@ class CameraManager(object):
         for item in self.sensors:
             bp = bp_library.find(item[0])
             if item[0].startswith('sensor.camera'):
+                camera_type = item[0].split('.')[-1]
+                bp.set_attribute("ros_name", f"{camera_type}_{len(item[2])}")
                 bp.set_attribute('image_size_x', str(hud.dim[0]))
                 bp.set_attribute('image_size_y', str(hud.dim[1]))
                 if bp.has_attribute('gamma'):
@@ -960,61 +934,147 @@ class CameraManager(object):
         self.set_sensor(self.index, notify=False, force_respawn=True)
 
     def set_sensor(self, index, notify=True, force_respawn=False):
-        index = index % len(self.sensors)
-        needs_respawn = True if self.index is None else \
-            (force_respawn or (self.sensors[index][2] != self.sensors[self.index][2]))
-        if needs_respawn:
-            if self.sensor is not None:
-                self.sensor.destroy()
-                self.surface = None
-            self.sensor = self._parent.get_world().spawn_actor(
-                self.sensors[index][-1],
+        # 忽略参数，直接创建所有4个传感器
+        if hasattr(self, 'all_sensors') and self.all_sensors:
+            # 如果已经创建过，先销毁
+            for sensor in self.all_sensors:
+                if sensor:
+                    sensor.destroy()
+    
+        self.all_sensors = []  # 存储所有传感器
+        self.all_surfaces = [None] * 4  # 存储4个传感器的表面
+    
+        # 创建所有传感器
+        for i in range(len(self.sensors)):
+            sensor = self._parent.get_world().spawn_actor(
+                self.sensors[i][-1],
                 self._camera_transforms[self.transform_index][0],
                 attach_to=self._parent,
                 attachment_type=self._camera_transforms[self.transform_index][1])
-            # We need to pass the lambda a weak reference to self to avoid
-            # circular reference.
+    
             weak_self = weakref.ref(self)
-            # 监听 sensor 信号  
-            self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
+            # 为每个传感器指定索引
+            sensor.listen(lambda image, idx=i: CameraManager._parse_image(weak_self, image, idx))
+    
+            self.all_sensors.append(sensor)
+    
+        # 设置当前索引为0（RGB相机）
+        self.index = 0
         if notify:
-            self.hud.notification(self.sensors[index][2])
-        self.index = index
+            self.hud.notification("所有传感器已启动: RGB + Depth + LogDepth + Lidar")
 
     def next_sensor(self):
-        self.set_sensor(self.index + 1)
+        pass
+        # self.set_sensor(self.index + 1)
 
     def render(self, display):
-        if self.surface is not None:
-            display.blit(self.surface, (0, 0))
+        # 显示RGB主画面（全屏）
+        if self.all_surfaces and self.all_surfaces[0] is not None:
+            display.blit(self.all_surfaces[0], (0, 0))
+    
+        # 画中画设置 - 小窗口大小
+        pip_size = (self.hud.dim[0] // 6, self.hud.dim[1] // 6)
+        spacing = 5  # 窗口间距
+    
+        # 四个子窗口竖直一列，靠右边排列
+        positions = [
+            (self.hud.dim[0] - pip_size[0] - spacing, spacing),  # 第1个（顶）
+            (self.hud.dim[0] - pip_size[0] - spacing, pip_size[1] + spacing * 2),  # 第2个
+            (self.hud.dim[0] - pip_size[0] - spacing, pip_size[1] * 2 + spacing * 3),  # 第3个
+            (self.hud.dim[0] - pip_size[0] - spacing, pip_size[1] * 3 + spacing * 4)   # 第4个（底）
+        ]
+    
+        # 传感器名称（对应4个子窗口）
+        sensor_names = [
+            "RGB View",
+            "Depth Raw",
+            "Depth Log",
+            "Lidar"
+        ]
+    
+        # 显示4个子窗口
+        for i in range(4):
+            if self.all_surfaces[i] is not None:
+                # 缩放图像到画中画大小
+                pip_surface = pygame.transform.scale(self.all_surfaces[i], pip_size)
+    
+                # 画边框
+                border_rect = pygame.Rect(
+                    positions[i][0] - 2,
+                    positions[i][1] - 2,
+                    pip_size[0] + 4,
+                    pip_size[1] + 4
+                )
+                pygame.draw.rect(display, (255, 255, 255), border_rect, 2)
+    
+                # 显示画中画
+                display.blit(pip_surface, positions[i])
+    
+                # 添加标签（黑色背景确保可读性）
+                font = pygame.font.SysFont('Arial', 10)
+                label = font.render(sensor_names[i], True, (255, 255, 255))
+    
+                # 绘制半透明背景
+                label_bg = pygame.Surface((label.get_width() + 4, label.get_height() + 2))
+                label_bg.set_alpha(180)
+                label_bg.fill((0, 0, 0))
+    
+                display.blit(label_bg, (positions[i][0] + 2, positions[i][1] + 2))
+                display.blit(label, (positions[i][0] + 4, positions[i][1] + 3))
+
 
     @staticmethod
-    def _parse_image(weak_self, image):
+    def _parse_image(weak_self, image, sensor_index):
         self = weak_self()
-        
         if not self:
             return
-        if self.sensors[self.index][0] == 'sensor.lidar.ray_cast':
+    
+        if not hasattr(self, 'all_surfaces'):
+            self.all_surfaces = [None] * 4
+    
+        sensor_type = self.sensors[sensor_index][0]
+    
+        if sensor_type == 'sensor.lidar.ray_cast':
+            # 处理Lidar数据 - 优化版本
             points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range)
+            points = points.reshape(-1, 4)
+        
+            # 只取前两列（x,y）
+            lidar_data = points[:, :2].copy()  # 使用copy避免视图问题
+        
+            # 缩放和居中
+            scale_factor = 3.0
+            lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range) * scale_factor
             lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
-            lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
+        
+            # 限制范围并取整
+            lidar_data = np.clip(lidar_data, 0, [self.hud.dim[0]-1, self.hud.dim[1]-1])
             lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self.surface = pygame.surfarray.make_surface(lidar_img)
+        
+            # 使用向量化操作创建图像 - 大幅提升性能！
+            lidar_img = np.zeros((self.hud.dim[1], self.hud.dim[0], 3), dtype=np.uint8)
+        
+            # 方法1：直接赋值（最快）
+            valid_mask = (lidar_data[:, 0] < self.hud.dim[0]) & (lidar_data[:, 1] < self.hud.dim[1])
+            valid_points = lidar_data[valid_mask]
+            lidar_img[valid_points[:, 1], valid_points[:, 0]] = (255, 255, 255)
+        
+            surface = pygame.surfarray.make_surface(lidar_img.swapaxes(0, 1))  # 需要交换轴
         else:
-            self.raw_depth_image = image
-            image.convert(self.sensors[self.index][1])
+            # 处理相机数据
+            image.convert(self.sensors[sensor_index][1])
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             array = array[:, :, :3]
             array = array[:, :, ::-1]
-            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+            surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+    
+        # 存储到对应的表面
+        self.all_surfaces[sensor_index] = surface
+    
+        # 如果是RGB相机（索引0），也设置给主surface用于兼容原有代码
+        if sensor_index == 0:
+            self.surface = surface
 
 
 # ==============================================================================

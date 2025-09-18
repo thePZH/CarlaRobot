@@ -15,7 +15,10 @@
 #include "carla/rpc/VehicleLightState.h"
 #include "carla/rpc/VehiclePhysicsControl.h"
 #include "carla/rpc/VehicleWheels.h"
+#include "carla/rpc/RobotBoneControlIn.h"
+#include "carla/rpc/RobotBoneControlOut.h"
 #include "carla/trafficmanager/TrafficManager.h"
+
 
 using carla::traffic_manager::constants::Networking::TM_DEFAULT_PORT;
 
@@ -39,11 +42,17 @@ namespace client {
     using TM = traffic_manager::TrafficManager;
     using VehicleDoor = rpc::VehicleDoor;
     using WheelLocation = carla::rpc::VehicleWheelLocation;
-
+	using BoneControlIn = rpc::RobotBoneControlIn;
+	using BoneControlOut = rpc::RobotBoneControlOut;
 
     explicit Vehicle(ActorInitializer init);
+	
+	// 设置骨骼旋转
+	void SetBonesTransform(const BoneControlIn &bones);
 
-    /// Switch on/off this vehicle's autopilot.
+	BoneControlOut GetBonesTransform() const;
+    
+	/// Switch on/off this vehicle's autopilot.
     void SetAutopilot(bool enabled = true, uint16_t tm_port = TM_DEFAULT_PORT);
 
     /// Switch on/off this vehicle's autopilot.

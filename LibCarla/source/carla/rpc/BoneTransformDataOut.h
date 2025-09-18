@@ -14,7 +14,7 @@
 namespace carla {
 namespace rpc {
 
-  // using BoneTransformDataOut = std::pair<std::string, geom::Transform>;
+  // using BoneTransformDataOut = std::pair<std::string, geom::Transform>; // 这是N个版本之前，输出信息还没增加的时候
   class BoneTransformDataOut
   {
     public:

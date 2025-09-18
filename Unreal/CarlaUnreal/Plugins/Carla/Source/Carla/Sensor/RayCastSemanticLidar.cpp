@@ -59,8 +59,7 @@ void ARayCastSemanticLidar::CreateLasers()
   const auto NumberOfLasers = Description.Channels;
   check(NumberOfLasers > 0u);
   const float DeltaAngle = NumberOfLasers == 1u ? 0.f :
-    (Description.UpperFovLimit - Description.LowerFovLimit) /
-    static_cast<float>(NumberOfLasers - 1);
+    (Description.UpperFovLimit - Description.LowerFovLimit) / static_cast<float>(NumberOfLasers - 1);
   LaserAngles.Empty(NumberOfLasers);
   for(auto i = 0u; i < NumberOfLasers; ++i)
   {
@@ -258,8 +257,8 @@ bool ARayCastSemanticLidar::ShootLaser(const float VerticalAngle, const float Ho
 
   const auto Range = Description.Range;
   FVector EndTrace = Range * UKismetMathLibrary::GetForwardVector(ResultRot) + LidarBodyLoc;
-	// TODO：雷达半径7cm，先写死，后续支持参数
-	FVector startTrace = LidarBodyLoc + UKismetMathLibrary::GetForwardVector(ResultRot) * 7;
+	// TODO：小车的激光雷达半径测出来是7cm，先写死了，这个雷达外壳上的点作为起点
+	FVector startTrace = LidarBodyLoc + UKismetMathLibrary::GetForwardVector(ResultRot) * 10;
 	
   GetWorld()->ParallelLineTraceSingleByChannel(
     HitInfo,

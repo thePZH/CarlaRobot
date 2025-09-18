@@ -21,6 +21,8 @@
 #include <carla/rpc/WalkerControl.h>
 #include <carla/rpc/WalkerBoneControlIn.h>
 #include <carla/rpc/WalkerBoneControlOut.h>
+#include <carla/rpc/RobotBoneControlIn.h>
+#include <carla/rpc/RobotBoneControlOut.h>
 #include <carla/rpc/TrafficLightState.h>
 #include <carla/rpc/ActorId.h>
 #include <carla/rpc/Command.h>
@@ -464,6 +466,26 @@ namespace rpc {
     out << "))";
     return out;
   }
+	
+	inline std::ostream &operator<<(std::ostream &out, const RobotBoneControlIn &control) {
+  		out << "RobotBoneControlIn(bone_transforms(";
+  		for (auto bone_transform : control.bone_transforms) {
+  			out << "(name="  << bone_transform.first
+				  << ", transform=" << bone_transform.second << ')';
+  		}
+  		out << "))";
+  		return out;
+  	}
+
+	inline std::ostream &operator<<(std::ostream &out, const RobotBoneControlOut &control) {
+  		out << "RobotBoneControlOut(bone_transforms(";
+  		for (auto bone_transform : control.bone_transforms) {
+  			out << "(name="  << bone_transform.bone_name
+				  << ", world=" << bone_transform.world << ", component=" << bone_transform.component << ", relative=" << bone_transform.relative << ')';
+  		}
+  		out << "))";
+  		return out;
+  	}
 
   inline std::ostream &operator<<(std::ostream &out, const WheelPhysicsControl &control) {
     out << "WheelPhysicsControl(axle_type=" << std::to_string(control.axle_type)

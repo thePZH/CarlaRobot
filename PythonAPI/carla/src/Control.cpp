@@ -241,8 +241,20 @@ static auto GetBonesTransform(const carla::rpc::WalkerBoneControlIn &self) {
   return boost::python::list(iter);
 }
 
+static auto GetRobotBonesTransform(const carla::rpc::RobotBoneControlIn &self) {
+	const std::vector<carla::rpc::BoneTransformDataIn> &bone_transform_data = self.bone_transforms;
+	boost::python::object get_iter =
+		boost::python::iterator<const std::vector<carla::rpc::BoneTransformDataIn>>();
+	boost::python::object iter = get_iter(bone_transform_data);
+	return boost::python::list(iter);
+}
+
 static void SetBonesTransform(carla::rpc::WalkerBoneControlIn &self, const boost::python::list &list) {
   self.bone_transforms = GetVectorOfBoneTransformFromList(list);
+}
+
+static void SetRobotBonesTransform(carla::rpc::RobotBoneControlIn &self, const boost::python::list &list) {
+	self.bone_transforms = GetVectorOfBoneTransformFromList(list);
 }
 
 static auto GetBonesTransformOut(const carla::rpc::WalkerBoneControlOut &self) {
@@ -251,6 +263,20 @@ static auto GetBonesTransformOut(const carla::rpc::WalkerBoneControlOut &self) {
       boost::python::iterator<const std::vector<carla::rpc::BoneTransformDataOut>>();
   boost::python::object iter = get_iter(bone_transform_data);
   return boost::python::list(iter);
+}
+
+static auto GetRobotBonesTransformOut(const carla::rpc::RobotBoneControlOut &self) {
+//	const std::vector<carla::rpc::BoneTransformDataOut> &bone_transform_data = self.bone_transforms;
+//	boost::python::object get_iter =
+//		boost::python::iterator<const std::vector<carla::rpc::BoneTransformDataOut>>();
+//	boost::python::object iter = get_iter(bone_transform_data);
+//	return boost::python::list(iter);
+	boost::python::list py_list;
+	for (const auto &bone : self.bone_transforms) {
+		// 每个元素拷贝成新的 Python 对象
+		py_list.append(bone);
+	}
+	return py_list;
 }
 
 boost::python::object WalkerBoneControl_init(boost::python::tuple args, boost::python::dict kwargs) {
@@ -277,6 +303,33 @@ boost::python::object WalkerBoneControl_init(boost::python::tuple args, boost::p
   }
 
   return res;
+}
+
+boost::python::object RobotBoneControl_init(boost::python::tuple args, boost::python::dict kwargs) 
+{
+	// Args names
+	const uint32_t NUM_ARGUMENTS = 1;
+	const char* args_names[NUM_ARGUMENTS] = {
+		"bonetransforms"
+	};
+
+	boost::python::object self = args[0];
+	args = boost::python::tuple(args.slice(1, boost::python::_));
+
+	auto res = self.attr("__init__")();
+	if (len(args) > 0) {
+		for (unsigned int i = 0; i < len(args); i++) {
+			self.attr(args_names[i]) = args[i];
+		}
+	}
+
+	for (unsigned int i = 0; i < NUM_ARGUMENTS; i++) {
+		if (kwargs.contains(args_names[i])) {
+			self.attr(args_names[i]) = kwargs[args_names[i]];
+		}
+	}
+
+	return res;
 }
 
 void export_control() {
@@ -391,12 +444,25 @@ void export_control() {
     .def(self_ns::str(self_ns::self))
   ;
 
+  class_<cr::RobotBoneControlIn>("RobotBoneControlIn")
+	.def("__init__", raw_function(RobotBoneControl_init))
+	.def(init<>())
+	.add_property("bone_transforms", &GetRobotBonesTransform, &SetRobotBonesTransform)
+	.def(self_ns::str(self_ns::self))
+  ;
+
   class_<cr::WalkerBoneControlOut>("WalkerBoneControlOut")
     .def("__init__", raw_function(WalkerBoneControl_init))
     .def(init<>())
     // .add_property("bone_transforms", &GetBonesTransformOut, &SetBonesTransformOut)
     .add_property("bone_transforms", &GetBonesTransformOut)
     .def(self_ns::str(self_ns::self))
+  ;
+  class_<cr::RobotBoneControlOut>("RobotBoneControlOut")
+	.def("__init__", raw_function(RobotBoneControl_init))
+	.def(init<>())
+	.add_property("bones_transform", &GetRobotBonesTransformOut) // 注意跟walker不一样
+	.def(self_ns::str(self_ns::self))
   ;
 
   class_<std::vector<cr::WheelPhysicsControl>>("vector_of_wheels")

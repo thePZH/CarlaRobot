@@ -51,6 +51,8 @@ namespace rpc {
   class WalkerControl;
   class WalkerBoneControlIn;
   class WalkerBoneControlOut;
+  class RobotBoneControlIn;
+  class RobotBoneControlOut;
 }
 namespace sensor {
   class SensorData;
@@ -269,6 +271,10 @@ namespace detail {
         rpc::ActorId vehicle,
         bool enabled);
 
+  	void SetRobotBonesTransform(rpc::ActorId vehicle, const rpc::RobotBoneControlIn& bones);
+
+  	rpc::RobotBoneControlOut GetRobotBonesTransform(rpc::ActorId vehicle);
+
     void ApplyControlToVehicle(
         rpc::ActorId vehicle,
         const rpc::VehicleControl &control);
@@ -366,8 +372,8 @@ namespace detail {
     std::vector<ActorId> GetGroupTrafficLights(
         rpc::ActorId traffic_light);
 	
-	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist);
-
+	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist) const;
+	std::vector<geom::Transform> GetGaugesTransform() const;
     std::string StartRecorder(std::string name, bool additional_data);
 
     void StopRecorder();

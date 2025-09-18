@@ -81,7 +81,9 @@ namespace client {
 	// 获取可巡检区域	
 	std::vector<geom::Location> GetNavigableAreaPoints(rpc::ActorId actor, float dist) const;
     
-/// Return the spectator actor. The spectator controls the view in the
+	// 获取表计 transform
+	std::vector<geom::Transform> GetGaugesTransform() const;
+	/// Return the spectator actor. The spectator controls the view in the
     /// simulator window.
     SharedPtr<Actor> GetSpectator() const;
 
