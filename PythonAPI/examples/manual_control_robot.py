@@ -51,6 +51,7 @@ import json
 try:
     import pygame
     from pygame.locals import KMOD_CTRL
+    from pygame.locals import KMOD_SHIFT
     from pygame.locals import K_DOWN
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_F1
@@ -62,6 +63,7 @@ try:
     from pygame.locals import K_d
     from pygame.locals import K_s
     from pygame.locals import K_w
+    from pygame.locals import K_c
     from pygame.locals import K_r
     from pygame.locals import K_q
     from pygame.locals import K_f
@@ -123,6 +125,11 @@ OBJECT_TO_COLOR = [
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
 # ==============================================================================
+def find_weather_presets():
+    rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
+    name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
+    presets = [x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)]
+    return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
 
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
@@ -175,6 +182,8 @@ class World(object):
         self.gnss_sensor = None
         self.imu_sensor = None
         self.camera_manager = None
+        self._weather_presets = find_weather_presets()
+        self._weather_index = 0
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
@@ -251,7 +260,14 @@ class World(object):
             self.world.tick()
         else:
             self.world.wait_for_tick()
-
+            
+    def next_weather(self, reverse=False):
+        self._weather_index += -1 if reverse else 1
+        self._weather_index %= len(self._weather_presets)
+        preset = self._weather_presets[self._weather_index]
+        self.hud.notification('Weather: %s' % preset[1])
+        self.player.get_world().set_weather(preset[0])
+        
     def modify_vehicle_physics(self, actor):
         #If actor is not a vehicle, we cannot use the physics control
         try:
@@ -296,11 +312,8 @@ class KeyboardControl(object):
         self._world = world
         self.key_pressed = {K_y : False, K_u: False}
         self.uuids = []
-        self._ackermann_enabled = False
-        self._ackermann_reverse = 1
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
-            self._ackermann_control = carla.VehicleAckermannControl()
             self._lights = carla.VehicleLightState.NONE
             world.player.set_light_state(self._lights)
         elif isinstance(world.player, carla.Walker):
@@ -343,20 +356,13 @@ class KeyboardControl(object):
                     world.hud.help.toggle()
                 elif event.key == K_n:
                     world.camera_manager.next_sensor()
+                elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
+                    world.next_weather(reverse=True)
+                elif event.key == K_c:
+                    world.next_weather()
+                
                 if isinstance(self._control, carla.VehicleControl):
-                    if event.key == K_f:
-                        # Toggle ackermann controller
-                        self._ackermann_enabled = not self._ackermann_enabled
-                        world.hud.show_ackermann_info(self._ackermann_enabled)
-                        world.hud.notification("Ackermann Controller %s" %
-                                               ("Enabled" if self._ackermann_enabled else "Disabled"))
-                    if event.key == K_q:
-                        if not self._ackermann_enabled:
-                            self._control.gear = 1 if self._control.reverse else -1
-                        else:
-                            self._ackermann_reverse *= -1
-                            # Reset ackermann control
-                            self._ackermann_control = carla.VehicleAckermannControl()
+                    pass #车辆事件
 
         if isinstance(self._control, carla.VehicleControl):
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
@@ -374,14 +380,7 @@ class KeyboardControl(object):
             if current_lights != self._lights: # Change the light state only if necessary
                 world.player.set_light_state(carla.VehicleLightState(current_lights))
             # Apply control
-            if not self._ackermann_enabled:
-                world.player.apply_control(self._control)
-            else:
-                world.player.apply_ackermann_control(self._ackermann_control)
-                # Update control to the last one applied by the ackermann controller.
-                self._control = world.player.get_control()
-                # Update hud with the newest ackermann control
-                world.hud.update_ackermann_control(self._ackermann_control)
+            world.player.apply_control(self._control)
 
         elif isinstance(self._control, carla.WalkerControl):
             self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time(), world)
@@ -448,11 +447,9 @@ class KeyboardControl(object):
                     self._steer_cache = 1
             else:
                 self._steer_cache = 0.0
-            if not self._ackermann_enabled:
-                self._control.steer = round(self._steer_cache, 1)
-                self._control.hand_brake = keys[K_SPACE]
-            else:
-                self._ackermann_control.steer = round(self._steer_cache, 1)
+
+            self._control.steer = round(self._steer_cache, 1)
+            self._control.hand_brake = keys[K_SPACE]
                 
     def visualize_navigable_points(self, navigable_points):
         # 提取x,y坐标
@@ -594,7 +591,7 @@ class KeyboardControl(object):
         # 处理Y键 - 创建特效
         if keys[K_y] and not self.key_pressed[K_y]:
             self.key_pressed[K_y] = True
-            category = "fire"  # 或者从别的逻辑获得
+            category = "smoke03"  # 或者从别的逻辑获得
             location = (0, -5, 0)
             rotation = (0, 0, 0)
             scale = (1, 1, 1)
@@ -662,9 +659,6 @@ class HUD(object):
         self._info_text = []
         self._server_clock = pygame.time.Clock()
 
-        self._show_ackermann_info = False
-        self._ackermann_control = carla.VehicleAckermannControl()
-
     def on_world_tick(self, timestamp):
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
@@ -713,12 +707,7 @@ class HUD(object):
                 ('Hand brake:', c.hand_brake),
                 ('Manual:', c.manual_gear_shift),
                 'Gear:        %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear)]
-            if self._show_ackermann_info:
-                self._info_text += [
-                    '',
-                    'Ackermann Controller:',
-                    '  Target speed: % 8.0f km/h' % (3.6*self._ackermann_control.speed),
-                    ]
+
         elif isinstance(c, carla.WalkerControl):
             self._info_text += [
                 ('Speed:', c.speed, 0.0, 5.556),
@@ -738,12 +727,6 @@ class HUD(object):
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-
-    def show_ackermann_info(self, enabled):
-        self._show_ackermann_info = enabled
-
-    def update_ackermann_control(self, ackermann_control):
-        self._ackermann_control = ackermann_control
 
     def toggle_info(self):
         self._show_info = not self._show_info

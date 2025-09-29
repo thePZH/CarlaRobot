@@ -69,6 +69,7 @@
 #include <carla/rpc/Texture.h>
 #include <carla/rpc/MaterialParameter.h>
 #include <util/enable-ue4-macros.h>
+#include "Engine/Engine.h"
 
 #include <util/ue-header-guard-begin.h>
 #include "EngineUtils.h"
