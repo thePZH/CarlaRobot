@@ -322,6 +322,8 @@ void export_world() {
     .def("get_actors", &GetActorsById, (arg("actor_ids")))
     .def("spawn_actor", SPAWN_ACTOR_WITHOUT_GIL(SpawnActor))
     .def("try_spawn_actor", SPAWN_ACTOR_WITHOUT_GIL(TrySpawnActor))
+	.def("create_object", CALL_WITHOUT_GIL_1(cc::World, CreateObject, std::string), (arg("json")))
+	.def("destroy_object", CALL_WITHOUT_GIL_1(cc::World, DestroyObject, std::string), (arg("uuid")))
     .def("wait_for_tick", &WaitForTick, (arg("seconds")=0.0))
     .def("on_tick", &OnTick, (arg("callback")))
     .def("remove_on_tick", &cc::World::RemoveOnTick, (arg("callback_id")))

@@ -129,6 +129,10 @@ namespace client {
         const geom::Transform &transform,
         Actor *parent = nullptr,
         rpc::AttachmentType attachment_type = rpc::AttachmentType::Rigid) noexcept;
+	
+	std::string CreateObject(const std::string& json);
+
+	bool DestroyObject(const std::string& uuid);
 
     /// Block calling thread until a world tick is received.
     WorldSnapshot WaitForTick(time_duration timeout) const;

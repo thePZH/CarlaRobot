@@ -370,6 +370,16 @@ namespace detail {
         Actor *parent = nullptr,
         rpc::AttachmentType attachment_type = rpc::AttachmentType::Rigid,
         GarbageCollectionPolicy gc = GarbageCollectionPolicy::Inherit);
+	
+	std::string CreateObject(const std::string& json)
+	{
+		return _client.CreateObject(json);
+	}
+	
+	bool DestroyObject(const std::string& uuid)
+	{
+		return _client.DestroyObject(uuid);	
+	}
 
     bool DestroyActor(Actor &actor);
 

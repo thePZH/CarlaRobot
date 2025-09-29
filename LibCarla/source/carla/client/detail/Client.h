@@ -196,6 +196,10 @@ namespace detail {
         const geom::Transform &transform,
         rpc::ActorId parent,
         rpc::AttachmentType attachment_type);
+	
+	std::string CreateObject(const std::string& json);
+
+	bool DestroyObject(const std::string& uuid);
 
     bool DestroyActor(rpc::ActorId actor);
 

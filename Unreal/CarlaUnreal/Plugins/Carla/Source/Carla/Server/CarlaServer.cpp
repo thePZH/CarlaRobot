@@ -77,6 +77,9 @@
 #include "Animation/PoseSnapshot.h"
 #include "Animation/AnimInstance.h"
 
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+
 #include <util/ue-header-guard-end.h>
 
 #include <vector>
@@ -885,6 +888,137 @@ void FCarlaServer::FPimpl::BindActions()
 
     return Episode->SerializeActor(CarlaActor);
   };
+	
+	BIND_SYNC(create_object) << [this](std::string json) -> R<std::string>
+	{
+	    // 1. 解析 JSON
+	    FString jsonStr(UTF8_TO_TCHAR(json.c_str()));
+	    TSharedPtr<FJsonObject> jsonObject;
+	    TSharedRef<TJsonReader<>> reader = TJsonReaderFactory<>::Create(jsonStr);
+
+	    if (!FJsonSerializer::Deserialize(reader, jsonObject) || !jsonObject.IsValid())
+	        return std::string();
+
+	    // 2. type 校验
+	    FString type;
+	    if (!jsonObject->TryGetStringField(TEXT("type"), type))
+	        return std::string();
+	    if (!type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
+	        return std::string();
+
+	    // 3. params
+	    const TSharedPtr<FJsonObject>* paramsObj;
+	    if (!jsonObject->TryGetObjectField(TEXT("params"), paramsObj))
+	        return std::string();
+
+	    // 4. category
+	    FString category;
+	    if (!(*paramsObj)->TryGetStringField(TEXT("category"), category))
+	        return std::string();
+
+	    // 5. transform，带默认值
+	    const TSharedPtr<FJsonObject>* transformObj;
+	    FVector location = FVector::ZeroVector;       // 默认位置 (0,0,0)
+	    FRotator rotation = FRotator::ZeroRotator;    // 默认旋转 (0,0,0)
+	    FVector scale = FVector::OneVector;           // 默认缩放 (1,1,1)
+	    if ((*paramsObj)->TryGetObjectField(TEXT("transform"), transformObj))
+	    {
+	        const TSharedPtr<FJsonObject>* locObj;
+	        if ((*transformObj)->TryGetObjectField(TEXT("location"), locObj))
+	        {
+	            double x, y, z;
+	            if ((*locObj)->TryGetNumberField(TEXT("x"), x)) location.X = x;
+	            if ((*locObj)->TryGetNumberField(TEXT("y"), y)) location.Y = y;
+	            if ((*locObj)->TryGetNumberField(TEXT("z"), z)) location.Z = z;
+	        }
+
+	        const TSharedPtr<FJsonObject>* rotObj;
+	        if ((*transformObj)->TryGetObjectField(TEXT("rotation"), rotObj))
+	        {
+	            double p, yaw, r;
+	            if ((*rotObj)->TryGetNumberField(TEXT("pitch"), p)) rotation.Pitch = p;
+	            if ((*rotObj)->TryGetNumberField(TEXT("yaw"), yaw)) rotation.Yaw = yaw;
+	            if ((*rotObj)->TryGetNumberField(TEXT("roll"), r)) rotation.Roll = r;
+	        }
+
+	        const TSharedPtr<FJsonObject>* scaleObj;
+	        if ((*transformObj)->TryGetObjectField(TEXT("scale"), scaleObj))
+	        {
+	            double sx, sy, sz;
+	            if ((*scaleObj)->TryGetNumberField(TEXT("x"), sx)) scale.X = sx;
+	            if ((*scaleObj)->TryGetNumberField(TEXT("y"), sy)) scale.Y = sy;
+	            if ((*scaleObj)->TryGetNumberField(TEXT("z"), sz)) scale.Z = sz;
+	        }
+	    }
+
+	    // 6. Spawn Actor
+	    TMap<FString, TSubclassOf<AActor>> effectMap;
+	    effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Fire.BP_Fire_C")));
+	    effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke01.BP_Smoke01_C")));
+	    effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke02.BP_Smoke02_C")));
+	    effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+
+	    if (!effectMap.Contains(category))
+	        return std::string();
+
+	    TSubclassOf<AActor> effectClass = effectMap[category];
+	    if (!effectClass)
+	        return std::string();
+
+	    UWorld* world = GEngine->GetWorldFromContextObjectChecked(GEngine->GetCurrentPlayWorld());
+	    if (!world)
+	    {
+	        UE_LOG(LogTemp, Warning, TEXT("No valid world to spawn actor."));
+	        return std::string();
+	    }
+
+	    FActorSpawnParameters spawnParams;
+	    AActor* spawnedActor = world->SpawnActor<AActor>(effectClass, location, rotation, spawnParams);
+	    if (!spawnedActor)
+	        return std::string();
+
+	    spawnedActor->SetActorScale3D(scale);
+
+	    // 7. 生成唯一 UUID 并保存
+	    FString uuidFStr = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
+	    Episode->CreatedActorMap.Add(uuidFStr, spawnedActor);
+
+	    // 8. 返回 std::string
+	    return std::string(TCHAR_TO_UTF8(*uuidFStr));
+	};
+	
+	BIND_SYNC(destroy_object) << [this](std::string uuidStr) -> R<bool>
+	{
+		FString uuid = UTF8_TO_TCHAR(uuidStr.c_str());
+		
+		TWeakObjectPtr<AActor>* actorPtr = Episode->CreatedActorMap.Find(uuid);
+		if (!actorPtr || !actorPtr->IsValid())
+			return false;
+		
+		AActor* actor = actorPtr->Get();
+		if (!actor)
+		{
+			Episode->CreatedActorMap.Remove(uuid);
+			return false;
+		}
+		
+		UWorld* world = actor->GetWorld();
+		if (!world)
+		{
+			Episode->CreatedActorMap.Remove(uuid);
+			return false;
+		}
+
+		if (!world->DestroyActor(actor))
+		{
+			Episode->CreatedActorMap.Remove(uuid);
+			return false;
+		}
+
+		Episode->CreatedActorMap.Remove(uuid);
+
+		return true;
+	};
 
   BIND_SYNC(destroy_actor) << [this](cr::ActorId ActorId) -> R<bool>
   {

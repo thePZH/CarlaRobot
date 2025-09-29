@@ -89,6 +89,10 @@
 				"Mac",
 				"Linux"
 			]
+		},
+		{
+			"Name": "PixelStreaming",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

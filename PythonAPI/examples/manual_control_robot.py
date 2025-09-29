@@ -46,6 +46,7 @@ import os
 import weakref
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 try:
     import pygame
@@ -59,17 +60,22 @@ try:
     from pygame.locals import K_UP
     from pygame.locals import K_a
     from pygame.locals import K_d
-    from pygame.locals import K_f
-    from pygame.locals import K_h
-    from pygame.locals import K_r
-    from pygame.locals import K_n
-    from pygame.locals import K_q
     from pygame.locals import K_s
     from pygame.locals import K_w
+    from pygame.locals import K_r
+    from pygame.locals import K_q
+    from pygame.locals import K_f
+    from pygame.locals import K_g
+    from pygame.locals import K_h
+    from pygame.locals import K_n
+    from pygame.locals import K_y
+    from pygame.locals import K_u
     from pygame.locals import K_i
     from pygame.locals import K_o
     from pygame.locals import K_t
     from pygame.locals import K_v
+    
+    from pygame.locals import K_t
     from pygame.locals import K_g
     from pygame.locals import K_b
     from pygame.locals import K_EQUALS
@@ -239,7 +245,7 @@ class World(object):
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
-        self.traffic_manager.update_vehicle_lights(self.player, True)
+        # self.traffic_manager.update_vehicle_lights(self.player, True)
 
         if self.sync:
             self.world.tick()
@@ -288,6 +294,8 @@ class KeyboardControl(object):
     """Class that handles keyboard input."""
     def __init__(self, world):
         self._world = world
+        self.key_pressed = {K_y : False, K_u: False}
+        self.uuids = []
         self._ackermann_enabled = False
         self._ackermann_reverse = 1
         if isinstance(world.player, carla.Vehicle):
@@ -301,6 +309,23 @@ class KeyboardControl(object):
         else:
             raise NotImplementedError("Actor type not supported")
         self._steer_cache = 0.0
+        self.current_fov = 90
+        # 初始化骨骼旋转状态
+        self._bone_rotations = {}
+        # 缓存初始骨骼信息，只保存 relative
+        self._bones_cache = {}
+        try:
+            bone_control_out = world.player.get_bones_transform()
+            for bone in bone_control_out.bones_transform:
+                self._bones_cache[bone.name] = bone.relative
+                # 初始化骨骼旋转状态
+                self._bone_rotations[bone.name] = bone.relative.rotation
+        except Exception as e:
+            print(f"Failed to get bones transform: {e}")
+            # 设置默认值
+            self._bone_rotations["Camera"] = carla.Rotation()
+            self._bone_rotations["Gimbal"] = carla.Rotation()
+
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, client, world, clock, sync_mode):
@@ -449,112 +474,106 @@ class KeyboardControl(object):
         plt.axis('equal')
         plt.gca().invert_xaxis()
         plt.show()
-        
-    current_transform = carla.Transform()
-    current_rotation = current_transform.rotation
-    current_fov = 90.0
+
+    # 根据缓存的初始 relative Transform 构造新的 Transform，只修改 rotation
+    def _get_bone_transform_with_rotation(self, bone_name, new_rotation):
+        if bone_name in self._bones_cache:
+            cached = self._bones_cache[bone_name]
+            return carla.Transform(location=cached.location, rotation=new_rotation)
+        else:
+            return carla.Transform(location=carla.Location(0, 0, 0), rotation=new_rotation)
+
+    # 应用骨骼旋转
+    def _apply_bone_rotation(self, bone_name, new_rotation):
+        bones_ctrl = carla.RobotBoneControlIn()
+        bone_transform = carla.bone_transform()
+        bone_transform.name = bone_name
+        bone_transform.transform = self._get_bone_transform_with_rotation(bone_name, new_rotation)
+        bones_ctrl.bone_transforms = [bone_transform]
+        self._world.player.set_bones_transform(bones_ctrl)
+        # 更新骨骼旋转状态
+        self._bone_rotations[bone_name] = new_rotation
+
+    
     def _parse_sensor_keys(self, keys, milliseconds, world, angle=1):
         if world.camera_manager.sensor is None:
             return
         sensor = world.camera_manager.sensor
-        if keys[K_r]:
-            new_transform = carla.Transform()
-            sensor.set_transform(new_transform)
-            self.current_rotation = carla.Rotation()
+        
+        if keys[K_r]:# 重置所有骨骼到初始状态
+            bones_ctrl = carla.RobotBoneControlIn()
+            bone_transforms = []
+    
+            for bone_name, initial_transform in self._bones_cache.items():
+                bone_transform = carla.bone_transform()
+                bone_transform.name = bone_name
+                bone_transform.transform = initial_transform 
+                bone_transforms.append(bone_transform)
+    
+            bones_ctrl.bone_transforms = bone_transforms
+            self._world.player.set_bones_transform(bones_ctrl)
+    
+            for bone_name in self._bone_rotations:
+                if bone_name in self._bones_cache:
+                    self._bone_rotations[bone_name] = self._bones_cache[bone_name].rotation
+    
+            world.hud.notification('All bones reset to initial state.')
 
         if keys[K_UP]:
-            # PITCH 增加
-            new_pitch = self.current_rotation.pitch + angle
-            # 限制 pitch 在 [-60, 60]
-            new_pitch = max(-60, min(60, new_pitch))
+            current_rotation = self._bone_rotations.get("Camera", carla.Rotation())
+            new_pitch = max(-60, min(60, current_rotation.pitch + angle))
             new_rotation = carla.Rotation(
                 pitch=new_pitch,
-                yaw=self.current_rotation.yaw,
-                roll=self.current_rotation.roll
+                yaw=current_rotation.yaw,
+                roll=current_rotation.roll
             )
-            new_transform = carla.Transform(
-                location=self.current_transform.location,
-                rotation=new_rotation
-            )
-            # sensor.set_transform(new_transform)
-            
-            world.hud.notification('Sensor Pitch: %.1f°' % new_pitch)
-            self.current_rotation = new_rotation
+            self._apply_bone_rotation("Camera", new_rotation)
+            world.hud.notification('Camera Bone Pitch: %.1f°' % new_pitch)
 
-        if keys[K_DOWN]:
-            # PITCH 减少
-            new_pitch = self.current_rotation.pitch - angle
-            new_pitch = max(-60, min(60, new_pitch))
+        elif keys[K_DOWN]:
+            current_rotation = self._bone_rotations.get("Camera", carla.Rotation())
+            new_pitch = max(-60, min(60, current_rotation.pitch - angle))
             new_rotation = carla.Rotation(
                 pitch=new_pitch,
-                yaw=self.current_rotation.yaw,
-                roll=self.current_rotation.roll
+                yaw=current_rotation.yaw,
+                roll=current_rotation.roll
             )
-            new_transform = carla.Transform(
-                location=self.current_transform.location,
-                rotation=new_rotation
-            )
-            sensor.set_transform(new_transform)
-            world.hud.notification('Sensor Pitch: %.1f°' % new_pitch)
-            self.current_rotation = new_rotation
+            self._apply_bone_rotation("Camera", new_rotation)
+            world.hud.notification('Camera Bone Pitch: %.1f°' % new_pitch)
 
+        # YAW - 控制 Gimbal 骨骼
         if keys[K_LEFT]:
-            # YAW 左转
-            new_yaw = self.current_rotation.yaw - angle
+            current_rotation = self._bone_rotations.get("Gimbal", carla.Rotation())
+            new_yaw = current_rotation.yaw - angle
             new_rotation = carla.Rotation(
-                pitch=self.current_rotation.pitch,
+                pitch=current_rotation.pitch,
                 yaw=new_yaw,
-                roll=self.current_rotation.roll
+                roll=current_rotation.roll
             )
-            new_transform = carla.Transform(
-                location=self.current_transform.location,
-                rotation=new_rotation
-            )
-            # sensor.set_transform(new_transform)
-            # 创建空对象
-            bones_ctrl = carla.RobotBoneControlIn()
-            
-            # 构造骨骼列表
-            bone_transform = carla.bone_transform()
-            bone_transform.name = "Gimbal"
-            bone_transform.transform = carla.Transform(carla.Location(0,0,1), carla.Rotation(pitch=0, yaw=45, roll=0))
-            bones_list = [bone_transform]
-            
-            # 赋值给属性（会调用 C++ setter）
-            bones_ctrl.bone_transforms = bones_list
-            self._world.player.set_bones_transform(bones_ctrl)
-            
-            world.hud.notification('Sensor Yaw: %.1f°' % new_yaw)
-            self.current_rotation = new_rotation
+            self._apply_bone_rotation("Gimbal", new_rotation)
+            world.hud.notification('Gimbal Bone Yaw: %.1f°' % new_yaw)
 
-        if keys[K_RIGHT]:
-            # YAW 右转
-            new_yaw = self.current_rotation.yaw + angle
+        elif keys[K_RIGHT]:
+            current_rotation = self._bone_rotations.get("Gimbal", carla.Rotation())
+            new_yaw = current_rotation.yaw + angle
             new_rotation = carla.Rotation(
-                pitch=self.current_rotation.pitch,
+                pitch=current_rotation.pitch,
                 yaw=new_yaw,
-                roll=self.current_rotation.roll
+                roll=current_rotation.roll
             )
-            new_transform = carla.Transform(
-                location=self.current_transform.location,
-                rotation=new_rotation
-            )
-            sensor.set_transform(new_transform)
-            world.hud.notification('Sensor Yaw: %.1f°' % new_yaw)
-            self.current_rotation = new_rotation
-        
-        # zoom
+            self._apply_bone_rotation("Gimbal", new_rotation)
+            world.hud.notification('Gimbal Bone Yaw: %.1f°' % new_yaw)
+    
+        # FOV 控制
         if keys[K_i]:
             self.current_fov = max(10, self.current_fov - 1.0)
-            print(f"Current FOV: {sensor.get_fov()}")
             sensor.set_fov(self.current_fov)
-        if keys[K_o]:
+        elif keys[K_o]:
             self.current_fov = min(90, self.current_fov + 1.0)
-            print(f"Current FOV: {self.current_fov}")
             sensor.set_fov(self.current_fov)
-        if keys[K_t]:
+        elif keys[K_t]:
             self.current_fov = 90
-            sensor.set_fov(90)
+            sensor.set_fov(self.current_fov)
         if keys[K_v]:
             navigable_points = world.world.get_navigable_area_points(world.player.id, 50)
             self.visualize_navigable_points(navigable_points)
@@ -562,16 +581,58 @@ class KeyboardControl(object):
             transforms = world.world.get_gauges_transform()
             print(f"tatal gauges: {len(transforms)}")
             print(f"First gauge pos: {transforms[0].location.x, transforms[0].location.y, transforms[0].location.z}")
+        # 调试：打印骨骼信息
         if keys[K_b]:
             bone_control_out = self._world.player.get_bones_transform()
-            bones = bone_control_out.bones_transform
+            bones = bone_control_out.bone_transforms
             for bone in bones:
                 print("Bone:", bone.name)
                 print("  World:", bone.world)
                 print("  Component:", bone.component)
                 print("  Relative:", bone.relative)
-            
 
+        # 处理Y键 - 创建特效
+        if keys[K_y] and not self.key_pressed[K_y]:
+            self.key_pressed[K_y] = True
+            category = "fire"  # 或者从别的逻辑获得
+            location = (0, -5, 0)
+            rotation = (0, 0, 0)
+            scale = (1, 1, 1)
+            effect_json = {
+                "type": "effect",
+                "params": {
+                    "category": category,
+                    "transform": {
+                        "location": {"x": location[0], "y": location[1], "z": location[2]},
+                        "rotation": {"pitch": rotation[0], "yaw": rotation[1], "roll": rotation[2]},
+                        "scale": {"x": scale[0], "y": scale[1], "z": scale[2]}
+                    }
+                }
+            }
+            json_str = json.dumps(effect_json)
+            uuid = world.world.create_object(json_str)
+            if uuid:
+                self.uuids.append(uuid)
+                print(f"create success. uuid: {uuid}")
+            else:
+                print("create failed")
+        elif not keys[K_y]:
+            self.key_pressed[K_y] = False
+
+        # 处理U键 - 销毁特效
+        if keys[K_u] and not self.key_pressed[K_u]:
+            self.key_pressed[K_u] = True
+            if self.uuids:  # 检查是否有已创建的 Actor
+                uuid_to_destroy = self.uuids.pop()  # 取最后一个 UUID
+                if world.world.destroy_object(uuid_to_destroy):
+                    print(f"destroy success. uuid: {uuid_to_destroy}")
+                else:
+                    print(f"destroy failed. uuid: {uuid_to_destroy}")
+            else:
+                print("No effect to destroy")
+        elif not keys[K_u]:
+            self.key_pressed[K_u] = False
+            
     @staticmethod
     def _is_quit_shortcut(key):
         return (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL)

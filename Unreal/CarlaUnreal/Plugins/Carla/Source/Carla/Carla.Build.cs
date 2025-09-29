@@ -121,7 +121,8 @@ public class Carla :
       "ChaosVehicles",
       "NavigationSystem",
 	  "AIModule",
-	  "AnimGraphRuntime"
+	  "AnimGraphRuntime",
+	  "Json"
     });
 
     PublicDependencyModuleNames.AddRange(new string[]

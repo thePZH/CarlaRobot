@@ -45,7 +45,7 @@ FActorSpawnResult ABlueprintActorFactory::SpawnActor(
     SpawnResult.Status = EActorSpawnResultStatus::Collision;
     return SpawnResult;
   }
-
+	
   if(PostProcessBlueprint(SpawnedActor, ActorDescription))
   {
     SpawnResult.Status = EActorSpawnResultStatus::Success;

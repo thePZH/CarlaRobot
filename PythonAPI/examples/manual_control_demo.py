@@ -46,6 +46,7 @@ import os
 import weakref
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 try:
     import pygame
@@ -59,18 +60,21 @@ try:
     from pygame.locals import K_UP
     from pygame.locals import K_a
     from pygame.locals import K_d
-    from pygame.locals import K_f
-    from pygame.locals import K_h
-    from pygame.locals import K_r
-    from pygame.locals import K_n
-    from pygame.locals import K_q
     from pygame.locals import K_s
     from pygame.locals import K_w
+    from pygame.locals import K_r
+    from pygame.locals import K_q
+    from pygame.locals import K_f
+    from pygame.locals import K_g
+    from pygame.locals import K_h
+    from pygame.locals import K_n
+    from pygame.locals import K_y
+    from pygame.locals import K_u
     from pygame.locals import K_i
     from pygame.locals import K_o
     from pygame.locals import K_t
     from pygame.locals import K_v
-    from pygame.locals import K_g
+    
     from pygame.locals import K_EQUALS
 
 except ImportError:
@@ -288,6 +292,7 @@ class KeyboardControl(object):
     """Class that handles keyboard input."""
     def __init__(self, world):
         self._world = world
+        self.object_uids = []
         self._ackermann_enabled = False
         self._ackermann_reverse = 1
         if isinstance(world.player, carla.Vehicle):
@@ -543,6 +548,7 @@ class KeyboardControl(object):
             transforms = world.world.get_gauges_transform()
             print(f"tatal gauges: {len(transforms)}")
             print(f"First gauge pos: {transforms[0].location.x, transforms[0].location.y, transforms[0].location.z}")
+
 
     @staticmethod
     def _is_quit_shortcut(key):

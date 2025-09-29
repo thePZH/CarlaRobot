@@ -48,6 +48,9 @@ class CARLA_API UCarlaEpisode : public UObject
   // ===========================================================================
 
 public:
+	// 管理通过create_object()创建的对象
+	UPROPERTY()
+	TMap<FString, TWeakObjectPtr<AActor>> CreatedActorMap;
 
   UCarlaEpisode(const FObjectInitializer &ObjectInitializer);
 

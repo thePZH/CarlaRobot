@@ -374,6 +374,16 @@ namespace detail {
         attachment_type);
   }
 
+	std::string Client::CreateObject(const std::string& json)
+	{
+		return _pimpl->CallAndWait<std::string>("create_object", json);
+	}
+
+	bool Client::DestroyObject(const std::string& uuid)
+	{
+		return _pimpl->CallAndWait<bool>("destroy_object", uuid);
+	}
+
   bool Client::DestroyActor(rpc::ActorId actor) {
     try {
       return _pimpl->CallAndWait<bool>("destroy_actor", actor);

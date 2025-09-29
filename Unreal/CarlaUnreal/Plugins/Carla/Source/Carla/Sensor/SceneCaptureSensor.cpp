@@ -68,6 +68,8 @@ ASceneCaptureSensor::ASceneCaptureSensor(const FObjectInitializer &ObjectInitial
   CaptureComponent2D->bCaptureEveryFrame = false;
   CaptureComponent2D->bAlwaysPersistRenderingState = true;
   CaptureComponent2D->bUseRayTracingIfEnabled = true;
+	CaptureComponent2D->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	// CaptureComponent2D->TextureTarget->SRGB = true;
 
   SceneCaptureSensor_local_ns::SetCameraDefaultOverrides(*CaptureComponent2D);
 
@@ -669,61 +671,150 @@ void ASceneCaptureSensor::EnqueueRenderSceneImmediate() {
 #endif
 }
 
+// void ASceneCaptureSensor::BeginPlay()
+// {
+//   using namespace SceneCaptureSensor_local_ns;
+//
+//   // Determine the gamma of the player.
+//   const bool bInForceLinearGamma = !bEnablePostProcessingEffects;
+//
+//   CaptureRenderTarget->InitCustomFormat(
+//       ImageWidth,
+//       ImageHeight,
+//       // bEnable16BitFormat ? PF_FloatRGBA : PF_B8G8R8A8,
+//       PF_B8G8R8A8,
+//       bInForceLinearGamma);
+//
+//   if (bEnablePostProcessingEffects)
+//   {
+//     CaptureRenderTarget->TargetGamma = TargetGamma;
+//   }
+//
+//   check(IsValid(CaptureComponent2D) && IsValidChecked(CaptureComponent2D));
+//
+//   CaptureComponent2D->Deactivate();
+//   CaptureComponent2D->TextureTarget = CaptureRenderTarget;
+//
+//   // Call derived classes to set up their things.
+//   SetUpSceneCaptureComponent(*CaptureComponent2D);
+//
+//   // CaptureComponent2D->CaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
+//   CaptureComponent2D->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+//
+//   CaptureComponent2D->UpdateContent();
+//   CaptureComponent2D->Activate();
+//
+//   // Make sure that there is enough time in the render queue.
+//   UKismetSystemLibrary::ExecuteConsoleCommand(
+//       GetWorld(),
+//       FString("g.TimeoutForBlockOnRenderFence 300000"));
+//
+//   auto PostProcessConfig = FPostProcessConfig(
+//       CaptureComponent2D->PostProcessSettings,
+//       CaptureComponent2D->ShowFlags);
+//   PostProcessConfig.UpdateFromSceneCaptureComponent2D(*CaptureComponent2D);
+//   PostProcessConfig.EnablePostProcessingEffects(ArePostProcessingEffectsEnabled());
+//   UpdatePostProcessConfig(PostProcessConfig);
+//   CaptureComponent2D->ShowFlags = PostProcessConfig.EngineShowFlags;
+//   CaptureComponent2D->PostProcessSettings = PostProcessConfig.PostProcessSettings;
+//
+//   if (ImageWidth < 1920 || ImageHeight < 1080)
+//     CaptureComponent2D->ShowFlags.SetMotionBlur(false);
+//   
+//   // This ensures the camera is always spawning the raindrops in case the
+//   // weather was previously set to have rain.
+//   auto Weather = GetEpisode().GetWeather();
+//   if (Weather != nullptr)
+//     Weather->NotifyWeather(this);
+//   
+//   Super::BeginPlay();
+// }
 void ASceneCaptureSensor::BeginPlay()
 {
-  using namespace SceneCaptureSensor_local_ns;
+    Super::BeginPlay();
 
-  // Determine the gamma of the player.
-  const bool bInForceLinearGamma = !bEnablePostProcessingEffects;
+    using namespace SceneCaptureSensor_local_ns;
 
-  CaptureRenderTarget->InitCustomFormat(
-      ImageWidth,
-      ImageHeight,
-      bEnable16BitFormat ? PF_FloatRGBA : PF_B8G8R8A8,
-      bInForceLinearGamma);
+    check(IsValid(CaptureComponent2D));
+    check(IsValid(CaptureRenderTarget));
 
-  if (bEnablePostProcessingEffects)
-  {
-    CaptureRenderTarget->TargetGamma = TargetGamma;
-  }
+    // -------------------------------------------------------
+    // 1. 初始化 RenderTarget
+    // -------------------------------------------------------
+    // 使用 LDR 格式 PF_B8G8R8A8，sRGB 自动处理 gamma，与主相机显示一致
+    const bool bInForceLinearGamma = false; // LDR 输出不需要强制线性
+    CaptureRenderTarget->InitCustomFormat(
+        ImageWidth,
+        ImageHeight,
+        PF_B8G8R8A8, // 8bit LDR
+        bInForceLinearGamma
+    );
 
-  check(IsValid(CaptureComponent2D) && IsValidChecked(CaptureComponent2D));
+    CaptureRenderTarget->bAutoGenerateMips = false;
+    CaptureRenderTarget->CompressionSettings = TextureCompressionSettings::TC_Default;
 
-  CaptureComponent2D->Deactivate();
-  CaptureComponent2D->TextureTarget = CaptureRenderTarget;
+    // 如果开启了后处理，保持 TargetGamma 设置（通常 LDR 下可不改）
+    if (bEnablePostProcessingEffects)
+    {
+        CaptureRenderTarget->TargetGamma = TargetGamma;
+    }
 
-  // Call derived classes to set up their things.
-  SetUpSceneCaptureComponent(*CaptureComponent2D);
+    // -------------------------------------------------------
+    // 2. 设置 CaptureComponent2D
+    // -------------------------------------------------------
+    CaptureComponent2D->Deactivate();
+    CaptureComponent2D->TextureTarget = CaptureRenderTarget;
 
-  CaptureComponent2D->CaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
+    // 调用子类自定义初始化
+    SetUpSceneCaptureComponent(*CaptureComponent2D);
 
-  CaptureComponent2D->UpdateContent();
-  CaptureComponent2D->Activate();
+    // 捕获最终显示画面（含后处理和 gamma 矫正）
+    CaptureComponent2D->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
-  // Make sure that there is enough time in the render queue.
-  UKismetSystemLibrary::ExecuteConsoleCommand(
-      GetWorld(),
-      FString("g.TimeoutForBlockOnRenderFence 300000"));
+    // 保持默认后处理和显示设置
+    CaptureComponent2D->bUseCustomProjectionMatrix = false;
+    CaptureComponent2D->bEnableClipPlane = false;
 
-  auto PostProcessConfig = FPostProcessConfig(
-      CaptureComponent2D->PostProcessSettings,
-      CaptureComponent2D->ShowFlags);
-  PostProcessConfig.UpdateFromSceneCaptureComponent2D(*CaptureComponent2D);
-  PostProcessConfig.EnablePostProcessingEffects(ArePostProcessingEffectsEnabled());
-  UpdatePostProcessConfig(PostProcessConfig);
-  CaptureComponent2D->ShowFlags = PostProcessConfig.EngineShowFlags;
-  CaptureComponent2D->PostProcessSettings = PostProcessConfig.PostProcessSettings;
+    // 执行首次捕获
+    CaptureComponent2D->UpdateContent();
+    CaptureComponent2D->Activate();
 
-  if (ImageWidth < 1920 || ImageHeight < 1080)
-    CaptureComponent2D->ShowFlags.SetMotionBlur(false);
-  
-  // This ensures the camera is always spawning the raindrops in case the
-  // weather was previously set to have rain.
-  auto Weather = GetEpisode().GetWeather();
-  if (Weather != nullptr)
-    Weather->NotifyWeather(this);
-  
-  Super::BeginPlay();
+    // -------------------------------------------------------
+    // 3. PostProcess 配置同步
+    // -------------------------------------------------------
+    auto PostProcessConfig = FPostProcessConfig(
+        CaptureComponent2D->PostProcessSettings,
+        CaptureComponent2D->ShowFlags
+    );
+    PostProcessConfig.UpdateFromSceneCaptureComponent2D(*CaptureComponent2D);
+    PostProcessConfig.EnablePostProcessingEffects(ArePostProcessingEffectsEnabled());
+    UpdatePostProcessConfig(PostProcessConfig);
+
+    CaptureComponent2D->ShowFlags = PostProcessConfig.EngineShowFlags;
+    CaptureComponent2D->PostProcessSettings = PostProcessConfig.PostProcessSettings;
+
+    // 小分辨率时关闭 Motion Blur，避免图像抖动
+    if (ImageWidth < 1920 || ImageHeight < 1080)
+    {
+        CaptureComponent2D->ShowFlags.SetMotionBlur(false);
+    }
+
+    // -------------------------------------------------------
+    // 4. 确保渲染队列有足够时间
+    // -------------------------------------------------------
+    UKismetSystemLibrary::ExecuteConsoleCommand(
+        GetWorld(),
+        FString("g.TimeoutForBlockOnRenderFence 300000")
+    );
+
+    // -------------------------------------------------------
+    // 5. 同步天气（保证雨滴效果）
+    // -------------------------------------------------------
+    auto Weather = GetEpisode().GetWeather();
+    if (Weather != nullptr)
+    {
+        Weather->NotifyWeather(this);
+    }
 }
 
 void ASceneCaptureSensor::PrePhysTick(float DeltaSeconds)

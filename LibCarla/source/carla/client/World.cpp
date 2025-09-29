@@ -150,6 +150,16 @@ namespace client {
     }
   }
 
+  	std::string World::CreateObject(const std::string& json)
+	{
+		return _episode.Lock()->CreateObject(json);
+	}
+	
+	bool World::DestroyObject(const std::string& uuid)
+	{
+		return _episode.Lock()->DestroyObject(uuid);	
+	}
+
   WorldSnapshot World::WaitForTick(time_duration timeout) const {
     time_duration local_timeout = timeout.milliseconds() == 0 ?
         _episode.Lock()->GetNetworkingTimeout() : timeout;
