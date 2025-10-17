@@ -379,6 +379,11 @@ namespace detail {
     return _pimpl->CallAndWait<std::string>("create_robot", json);
   }
 
+    bool Client::DestroyRobot(rpc::ActorId robot_id)
+	{
+		return _pimpl->CallAndWait<bool>("destroy_robot", robot_id); 
+	}
+
 	std::string Client::CreateObject(const std::string& json)
 	{
 		return _pimpl->CallAndWait<std::string>("create_object", json);

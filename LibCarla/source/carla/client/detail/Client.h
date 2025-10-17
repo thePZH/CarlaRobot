@@ -199,7 +199,7 @@ namespace detail {
 	
     // Create robot (vehicle + sensors) by JSON spec, returns JSON result
     std::string CreateRobot(const std::string& json);
-    bool DestroyRobot(rpc::ActorId robot_id) { return _pimpl->CallAndWait<bool>("destroy_robot", robot_id); }
+    bool DestroyRobot(rpc::ActorId robot_id);
 
 	std::string CreateObject(const std::string& json);
 

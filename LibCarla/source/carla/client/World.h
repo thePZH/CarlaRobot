@@ -138,9 +138,7 @@ namespace client {
 	bool DestroyObject(const std::string& uuid);
 
     // Destroy robot (vehicle + attached sensors) by root actor id
-    bool DestroyRobot(ActorId robot_id) {
-      return _episode.Lock()->DestroyRobot(robot_id);
-    }
+    bool DestroyRobot(ActorId robot_id);
 
     /// Block calling thread until a world tick is received.
     WorldSnapshot WaitForTick(time_duration timeout) const;
