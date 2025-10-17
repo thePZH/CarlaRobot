@@ -26,6 +26,8 @@
 #include "Carla/Actor/ActorData.h"
 #include "CarlaServerResponse.h"
 #include "Carla/Util/BoundingBoxCalculator.h"
+#include "Carla/Services/SevnceRobotLogic.h"
+#include "Carla/Services/SevnceActorLogic.h"
 
 #include <util/disable-ue4-macros.h>
 #include <carla/Functional.h>
@@ -92,6 +94,7 @@
 #include "NavigationSystem.h"
 #include "Sensor/RayCastLidar.h"
 #include "NavMesh/RecastNavMesh.h"
+#include "Services/SevnceRobotLogic.h"
 
 template <typename T>
 using R = carla::rpc::Response<T>;
@@ -767,21 +770,13 @@ void FCarlaServer::FPimpl::BindActions()
   {
     REQUIRE_CARLA_EPISODE();
 
-    auto Result = Episode->SpawnActorWithInfo(Transform, std::move(Description));
-
-    if (Result.Key != EActorSpawnResultStatus::Success)
+    FCarlaActor* Result = SvcActorLogic::SpawnActor(Episode, Description, Transform);
+    if (!Result)
     {
-      UE_LOG(LogCarla, Error, TEXT("Actor not Spawned"));
-      RESPOND_ERROR_FSTRING(FActorSpawnResult::StatusToString(Result.Key));
+      RESPOND_ERROR("Failed to spawn actor");
     }
 
-    ALargeMapManager* LargeMap = UCarlaStatics::GetLargeMapManager(Episode->GetWorld());
-    if(LargeMap)
-    {
-      LargeMap->OnActorSpawned(*Result.Value);
-    }
-
-    return Episode->SerializeActor(Result.Value);
+    return Episode->SerializeActor(Result);
   };
 
   BIND_SYNC(spawn_actor_with_parent) << [this](
@@ -792,145 +787,66 @@ void FCarlaServer::FPimpl::BindActions()
   {
     REQUIRE_CARLA_EPISODE();
 
-    auto Result = Episode->SpawnActorWithInfo(Transform, std::move(Description));
-    if (Result.Key != EActorSpawnResultStatus::Success)
-    {
-      RESPOND_ERROR_FSTRING(FActorSpawnResult::StatusToString(Result.Key));
-    }
-
-    FCarlaActor* CarlaActor = Episode->FindCarlaActor(Result.Value->GetActorId());
+    FCarlaActor* CarlaActor = SvcActorLogic::SpawnActorWithParent(Episode, Description, Transform, ParentId, InAttachmentType);
     if (!CarlaActor)
     {
-      RESPOND_ERROR("internal error: actor could not be spawned");
-    }
-
-    FCarlaActor* ParentCarlaActor = Episode->FindCarlaActor(ParentId);
-    
-    if (!ParentCarlaActor)
-    {
-      RESPOND_ERROR("unable to attach actor: parent actor not found");
-    }
-  	CarlaActor->SetParentActor(ParentCarlaActor->GetActor());
-    CarlaActor->SetParent(ParentId);
-    CarlaActor->SetAttachmentType(InAttachmentType);
-    ParentCarlaActor->AddChildren(CarlaActor->GetActorId());
-
-    #if defined(WITH_ROS2)
-    auto ROS2 = carla::ros2::ROS2::GetInstance();
-    if (ROS2->IsEnabled())
-    {
-      FCarlaActor* CurrentActor = ParentCarlaActor;
-      while(CurrentActor)
-      {
-        for (const auto &Attr : CurrentActor->GetActorInfo()->Description.Variations)
-        {
-          if (Attr.Key == "ros_name")
-          {
-            const std::string value = std::string(TCHAR_TO_UTF8(*Attr.Value.Value));
-            ROS2->AddActorParentRosName(static_cast<void*>(CarlaActor->GetActor()), static_cast<void*>(CurrentActor->GetActor()));
-          }
-        }
-        CurrentActor = Episode->FindCarlaActor(CurrentActor->GetParent());
-      }
-    }
-    #endif
-
-    // Only is possible to attach if the actor has been really spawned and
-    // is not in dormant state
-  	if (!ParentCarlaActor->IsDormant())
-  	{
-  		/////////////////////////////////////////////////////////////////////////////////////////////////
-  		// Server不应该知道任何具体类型，放到类中实现绑定，这里可以简单掉用一个处理函数（抽象接口），处理挂载问题
-  		bool bDidAttachToSocket = false;
-  		if (auto SkeletalMeshComp = ParentCarlaActor->GetActor()->FindComponentByClass<USkeletalMeshComponent>())
-  		{
-  			if (USkeletalMesh* SkMesh = SkeletalMeshComp->GetSkeletalMeshAsset())
-  			{
-  				// 区分 sensor 和 lidar
-			    if (auto lidar = Cast<ARayCastLidar>(CarlaActor->GetActor()))
-			    {
-				    if (SkMesh->FindSocket(TEXT("SlotLD")))
-				    {
-				    	CarlaActor->GetActor()->AttachToComponent(
-				    		SkeletalMeshComp,
-							FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-							FName(TEXT("SlotLD")));
-				    	bDidAttachToSocket = true;
-				    }
-			    }
-  				else
-  				{
-  					if (SkMesh->FindSocket(TEXT("SlotBL")))
-  					{
-  						CarlaActor->GetActor()->AttachToComponent(
-							SkeletalMeshComp,
-							FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-							FName(TEXT("SlotBL")));
-
-  						bDidAttachToSocket = true;
-  					}
-  				}
-  			}
-  		}
-  		/////////////////////////////////////////////////////////////////////////////////////////////////
-  		
-  		if (!bDidAttachToSocket)
-  		{
-  			Episode->AttachActors(
-				CarlaActor->GetActor(),
-				ParentCarlaActor->GetActor(),
-				static_cast<EAttachmentType>(InAttachmentType));
-  		}
-  	}
-    else
-    {
-      Episode->PutActorToSleep(CarlaActor->GetActorId());
+      RESPOND_ERROR("Failed to spawn actor with parent");
     }
 
     return Episode->SerializeActor(CarlaActor);
   };
+
+  BIND_SYNC(create_robot) << [this](std::string json) -> R<std::string>
+  {
+    REQUIRE_CARLA_EPISODE();
+    FString JsonString(UTF8_TO_TCHAR(json.c_str()));
+    FString ResultJson = SvcRobotLogic::CreateRobot(Episode, JsonString);
+    return std::string(TCHAR_TO_UTF8(*ResultJson));
+  };
+
+  BIND_SYNC(destroy_robot) << [this](cr::ActorId RobotId) -> R<bool>
+  {
+    REQUIRE_CARLA_EPISODE();
+    bool ok = SvcRobotLogic::DestroyRobot(Episode, RobotId);
+    return ok;
+  };
 	
 	BIND_SYNC(create_object) << [this](std::string json) -> R<std::string>
 	{
-	    // 1. 解析 JSON
 	    FString jsonStr(UTF8_TO_TCHAR(json.c_str()));
 	    TSharedPtr<FJsonObject> jsonObject;
 	    TSharedRef<TJsonReader<>> reader = TJsonReaderFactory<>::Create(jsonStr);
 
 	    if (!FJsonSerializer::Deserialize(reader, jsonObject) || !jsonObject.IsValid())
 	        return std::string();
-
-	    // 2. type 校验
+		
 	    FString type;
 	    if (!jsonObject->TryGetStringField(TEXT("type"), type))
 	        return std::string();
 	    if (!type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
 	        return std::string();
-
-	    // 3. params
+		
 	    const TSharedPtr<FJsonObject>* paramsObj;
 	    if (!jsonObject->TryGetObjectField(TEXT("params"), paramsObj))
 	        return std::string();
-
-	    // 4. category
+		
 	    FString category;
 	    if (!(*paramsObj)->TryGetStringField(TEXT("category"), category))
 	        return std::string();
-
-	    // 5. transform，带默认值
+		
 	    const TSharedPtr<FJsonObject>* transformObj;
-	    FVector location = FVector::ZeroVector;       // 默认位置 (0,0,0)
-	    FRotator rotation = FRotator::ZeroRotator;    // 默认旋转 (0,0,0)
-	    FVector scale = FVector::OneVector;           // 默认缩放 (1,1,1)
+	    FVector location = FVector::ZeroVector;       // 默认(0,0,0)
+	    FRotator rotation = FRotator::ZeroRotator;    // 默认(0,0,0)
+	    FVector scale = FVector::OneVector;           // 默认(1,1,1)
 	    if ((*paramsObj)->TryGetObjectField(TEXT("transform"), transformObj))
 	    {
 	        const TSharedPtr<FJsonObject>* locObj;
 	        if ((*transformObj)->TryGetObjectField(TEXT("location"), locObj))
 	        {
 	            double x, y, z;
-	            if ((*locObj)->TryGetNumberField(TEXT("x"), x)) location.X = x;
-	            if ((*locObj)->TryGetNumberField(TEXT("y"), y)) location.Y = y;
-	            if ((*locObj)->TryGetNumberField(TEXT("z"), z)) location.Z = z;
+	            if ((*locObj)->TryGetNumberField(TEXT("x"), x)) location.X = x*100;	// m -> cm
+	            if ((*locObj)->TryGetNumberField(TEXT("y"), y)) location.Y = y*100;
+	            if ((*locObj)->TryGetNumberField(TEXT("z"), z)) location.Z = z*100;
 	        }
 
 	        const TSharedPtr<FJsonObject>* rotObj;
@@ -951,8 +867,7 @@ void FCarlaServer::FPimpl::BindActions()
 	            if ((*scaleObj)->TryGetNumberField(TEXT("z"), sz)) scale.Z = sz;
 	        }
 	    }
-
-	    // 6. Spawn Actor
+		
 	    TMap<FString, TSubclassOf<AActor>> effectMap;
 	    effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Fire.BP_Fire_C")));
 	    effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke01.BP_Smoke01_C")));
@@ -980,11 +895,10 @@ void FCarlaServer::FPimpl::BindActions()
 
 	    spawnedActor->SetActorScale3D(scale);
 
-	    // 7. 生成唯一 UUID 并保存
 	    FString uuidFStr = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 	    Episode->CreatedActorMap.Add(uuidFStr, spawnedActor);
 
-	    // 8. 返回 std::string
+
 	    return std::string(TCHAR_TO_UTF8(*uuidFStr));
 	};
 	
@@ -2069,20 +1983,12 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
       cr::VehicleControl Control) -> R<void>
   {
     REQUIRE_CARLA_EPISODE();
-    FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
-    if (!CarlaActor)
-    {
-      return RespondError(
-          "apply_control_to_vehicle",
-          ECarlaServerResponse::ActorNotFound,
-          " Actor Id: " + FString::FromInt(ActorId));
-    }
-    ECarlaServerResponse Response =
-        CarlaActor->ApplyControlToVehicle(Control, EVehicleInputPriority::Client);
+    
+    ECarlaServerResponse Response = SvcRobotLogic::ApplyControlToRobot(Episode, ActorId, Control);
     if (Response != ECarlaServerResponse::Success)
     {
       return RespondError(
-          "apply_control_to_vehicle",
+          "apply_control_to_robot",
           Response,
           " Actor Id: " + FString::FromInt(ActorId));
     }
@@ -3224,6 +3130,266 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
     return std::string((const char*)NameStr.Get(), NameStr.Length());
   };
 
+  // ~~ Line Trace Functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  BIND_SYNC(line_trace_single) << [this](const std::string& json_params) -> R<std::string>
+  {
+    REQUIRE_CARLA_EPISODE();
+  
+    FString JsonStr(UTF8_TO_TCHAR(json_params.c_str()));
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
+  
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::Failure, "Invalid JSON parameters");
+    }
+  
+    double sensorId;
+    double tmpU = 0.0, tmpV = 0.0;
+  
+    if (!JsonObject->TryGetNumberField(TEXT("sensor_id"), sensorId))
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::Failure, "Missing sensor_id");
+    }
+  
+    if (!JsonObject->TryGetNumberField(TEXT("u"), tmpU))
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::Failure, "Missing u coordinate");
+    }
+  
+    if (!JsonObject->TryGetNumberField(TEXT("v"), tmpV))
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::Failure, "Missing v coordinate");
+    }
+  
+    cr::ActorId sensorActorID = static_cast<cr::ActorId>(static_cast<int32>(sensorId));
+    float U = static_cast<float>(tmpU);
+    float V = static_cast<float>(tmpV);
+    float MaxDistance = 100000.f; // in cm
+  	
+  	FCarlaActor* sensorCarlaActor = Episode->FindCarlaActor(sensorActorID);
+    if (!sensorCarlaActor)
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::ActorNotFound,
+                          "Sensor not found: " + FString::FromInt((int32)sensorActorID));
+    }
+  
+    AActor* FoundSensorActor = sensorCarlaActor->GetActor();
+    if (!FoundSensorActor)
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::ActorNotFound,
+                          "Sensor not found: ");
+    }
+  
+    USceneCaptureComponent2D* SceneCaptureComponent = FoundSensorActor->FindComponentByClass<USceneCaptureComponent2D>();
+    if (!SceneCaptureComponent)
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::Failure,
+                          "USceneCaptureComponent2D not found on sensor: ");
+    }
+  
+    FVector SensorLocation = FoundSensorActor->GetActorLocation();
+    FRotator SensorRotation = FoundSensorActor->GetActorRotation();
+  
+    int32 ImageWidth = 1920;
+    int32 ImageHeight = 1080;
+    if (SceneCaptureComponent->TextureTarget)
+    {
+      ImageWidth = SceneCaptureComponent->TextureTarget->SizeX;
+      ImageHeight = SceneCaptureComponent->TextureTarget->SizeY;
+      ImageWidth = FMath::Max(1, ImageWidth);
+      ImageHeight = FMath::Max(1, ImageHeight);
+    }
+  	
+    float FOV = SceneCaptureComponent->FOVAngle; // degrees
+    float AspectRatio = static_cast<float>(ImageWidth) / static_cast<float>(ImageHeight);
+    float HalfFOV = FMath::DegreesToRadians(FOV * 0.5f);
+    float HalfWidth = FMath::Tan(HalfFOV);
+    float HalfHeight = HalfWidth / AspectRatio;
+  	
+    float NDC_X = (U / static_cast<float>(ImageWidth)) * 2.0f - 1.0f;
+    float NDC_Y = 1.0f - (V / static_cast<float>(ImageHeight)) * 2.0f;
+  	
+    FVector LocalDir = FVector(1.0f, NDC_X * HalfWidth, NDC_Y * HalfHeight);
+    LocalDir = LocalDir.GetSafeNormal();
+  
+    FVector WorldRayDirection = SensorRotation.RotateVector(LocalDir).GetSafeNormal();
+    FVector RayStart = SensorLocation;
+    FVector RayEnd = RayStart + WorldRayDirection * MaxDistance;
+  
+    FHitResult HitResult;
+    UWorld* World = Episode->GetWorld();
+    if (!World)
+    {
+      return RespondError("line_trace_single", ECarlaServerResponse::Failure, "World pointer is null");
+    }
+  
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(LineTraceSingle), true);
+    Params.bReturnPhysicalMaterial = false;
+  
+    bool bHit = World->LineTraceSingleByChannel(
+        HitResult,
+        RayStart,
+        RayEnd,
+        ECC_Visibility,
+        Params
+    );
+    DrawDebugLine(World, RayStart, RayEnd, FColor::Red, false,  30.f, 0, 1.0f);
+  
+    // Create result JSON
+    TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
+    ResultObject->SetBoolField(TEXT("hit"), bHit);
+  
+    if (bHit)
+    {
+      TSharedPtr<FJsonObject> HitLocation = MakeShareable(new FJsonObject);
+      HitLocation->SetNumberField(TEXT("x"), HitResult.Location.X / 100.0f);
+      HitLocation->SetNumberField(TEXT("y"), HitResult.Location.Y / 100.0f);
+      HitLocation->SetNumberField(TEXT("z"), HitResult.Location.Z / 100.0f);
+      ResultObject->SetObjectField(TEXT("location"), HitLocation);
+
+    	FVector SensorForward = SensorRotation.Vector();
+    	FVector ToHitPoint = HitResult.Location - SensorLocation;
+    	float Depth = FVector::DotProduct(ToHitPoint, SensorForward) / 100.0f; 
+    	ResultObject->SetNumberField(TEXT("Depth"), Depth);
+    }
+  
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(ResultObject.ToSharedRef(), Writer);
+  
+    return std::string(TCHAR_TO_UTF8(*OutputString));
+  };
+
+	BIND_SYNC(line_trace_multiple) << [this](const std::string& json_params) -> R<std::string>
+	{
+	    REQUIRE_CARLA_EPISODE();
+
+	    FString JsonStr(UTF8_TO_TCHAR(json_params.c_str()));
+	    TSharedPtr<FJsonObject> JsonObject;
+	    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
+
+	    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure, "Invalid JSON parameters");
+	    }
+
+	    double tmpSensorId = 0.0;
+	    if (!JsonObject->TryGetNumberField(TEXT("sensor_id"), tmpSensorId))
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure, "Missing sensor_id");
+	    }
+
+	    const TArray<TSharedPtr<FJsonValue>>* UVArray = nullptr;
+	    if (!JsonObject->TryGetArrayField(TEXT("uvs"), UVArray) || !UVArray)
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure, "Missing uvs array");
+	    }
+
+	    cr::ActorId SensorActorId = static_cast<cr::ActorId>(static_cast<int32>(tmpSensorId));
+	    float MaxDistance = 100000.f; // in cm
+
+	    FCarlaActor* SensorCarlaActor = Episode->FindCarlaActor(SensorActorId);
+	    if (!SensorCarlaActor)
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::ActorNotFound,
+	                            "Sensor not found: " + FString::FromInt((int32)SensorActorId));
+	    }
+
+	    AActor* FoundSensorActor = SensorCarlaActor->GetActor();
+	    if (!FoundSensorActor)
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::ActorNotFound,
+	                            "Sensor actor is null: " + FString::FromInt((int32)SensorActorId));
+	    }
+
+	    USceneCaptureComponent2D* SceneCaptureComponent = FoundSensorActor->FindComponentByClass<USceneCaptureComponent2D>();
+	    if (!SceneCaptureComponent)
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure,
+	                            "USceneCaptureComponent2D not found on sensor: " + FString::FromInt((int32)SensorActorId));
+	    }
+
+	    FVector SensorLocation = FoundSensorActor->GetActorLocation();
+	    FRotator SensorRotation = FoundSensorActor->GetActorRotation();
+	    FVector SensorForward = SensorRotation.Vector();
+
+	    int32 ImageWidth = 1920;
+	    int32 ImageHeight = 1080;
+	    if (SceneCaptureComponent->TextureTarget)
+	    {
+	        ImageWidth = FMath::Max(1, SceneCaptureComponent->TextureTarget->SizeX);
+	        ImageHeight = FMath::Max(1, SceneCaptureComponent->TextureTarget->SizeY);
+	    }
+
+	    float FOV = SceneCaptureComponent->FOVAngle;
+	    float AspectRatio = static_cast<float>(ImageWidth) / static_cast<float>(ImageHeight);
+	    float HalfFOV = FMath::DegreesToRadians(FOV * 0.5f);
+	    float HalfWidth = FMath::Tan(HalfFOV);
+	    float HalfHeight = HalfWidth / AspectRatio;
+
+	    TArray<TSharedPtr<FJsonValue>> ResultsArray;
+	    UWorld* World = Episode->GetWorld();
+	    if (!World)
+	    {
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure, "World pointer is null");
+	    }
+
+	    FCollisionQueryParams Params(SCENE_QUERY_STAT(LineTraceMultiple), true);
+	    Params.bReturnPhysicalMaterial = false;
+
+	    for (const TSharedPtr<FJsonValue>& UVValue : *UVArray)
+	    {
+	        if (!UVValue.IsValid()) continue;
+	        const TSharedPtr<FJsonObject>* UVObjectPtr = nullptr;
+	        if (!UVValue->TryGetObject(UVObjectPtr) || !UVObjectPtr || !(*UVObjectPtr).IsValid()) continue;
+
+	        double tmpU = 0.0, tmpV = 0.0;
+	        if (!(*UVObjectPtr)->TryGetNumberField(TEXT("u"), tmpU) || !(*UVObjectPtr)->TryGetNumberField(TEXT("v"), tmpV))
+	            continue;
+
+	        float U = static_cast<float>(tmpU);
+	        float V = static_cast<float>(tmpV);
+
+	        float NDC_X = (U / static_cast<float>(ImageWidth)) * 2.0f - 1.0f;
+	        float NDC_Y = 1.0f - (V / static_cast<float>(ImageHeight)) * 2.0f;
+
+	        FVector LocalDir = FVector(1.0f, NDC_X * HalfWidth, NDC_Y * HalfHeight).GetSafeNormal();
+	        FVector WorldRayDirection = SensorRotation.RotateVector(LocalDir).GetSafeNormal();
+	        FVector RayStart = SensorLocation;
+	        FVector RayEnd = RayStart + WorldRayDirection * MaxDistance;
+
+	        FHitResult HitResult;
+	        bool bHit = World->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_Visibility, Params);
+	        DrawDebugLine(World, RayStart, RayEnd, FColor::Red, false, 30.0f, 0, 1.0f);
+
+	        TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
+	        ResultObject->SetBoolField(TEXT("hit"), bHit);
+
+	        if (bHit)
+	        {
+	            TSharedPtr<FJsonObject> HitLocation = MakeShareable(new FJsonObject);
+	            HitLocation->SetNumberField(TEXT("x"), HitResult.Location.X / 100.0f);
+	            HitLocation->SetNumberField(TEXT("y"), HitResult.Location.Y / 100.0f);
+	            HitLocation->SetNumberField(TEXT("z"), HitResult.Location.Z / 100.0f);
+	            ResultObject->SetObjectField(TEXT("location"), HitLocation);
+
+	            float Depth = FVector::DotProduct(HitResult.Location - SensorLocation, SensorForward) / 100.0f;
+	            ResultObject->SetNumberField(TEXT("Depth"), Depth);
+	        }
+
+	        ResultsArray.Add(MakeShareable(new FJsonValueObject(ResultObject)));
+	    }
+
+	    TSharedPtr<FJsonObject> FinalResult = MakeShareable(new FJsonObject);
+	    FinalResult->SetArrayField(TEXT("results"), ResultsArray);
+
+	    FString OutputString;
+	    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	    FJsonSerializer::Serialize(FinalResult.ToSharedRef(), Writer);
+
+	    return std::string(TCHAR_TO_UTF8(*OutputString));
+	};
 }
 
 // =============================================================================

@@ -374,6 +374,11 @@ namespace detail {
         attachment_type);
   }
 
+  std::string Client::CreateRobot(const std::string& json)
+  {
+    return _pimpl->CallAndWait<std::string>("create_robot", json);
+  }
+
 	std::string Client::CreateObject(const std::string& json)
 	{
 		return _pimpl->CallAndWait<std::string>("create_object", json);
@@ -671,9 +676,7 @@ namespace detail {
     return _pimpl->CallAndWait<bool>("is_sensor_enabled_for_ros", thisToken.get_stream_id());
   }
 	float Client::GetFOV(rpc::ActorId actorid) {
-		float debugVal = _pimpl->CallAndWait<float>("get_sensor_fov", actorid);
-		std::cout << "FOV: " << debugVal << std::endl;
-		return debugVal;
+		return _pimpl->CallAndWait<float>("get_sensor_fov", actorid);
 	}
 	
 	void Client::SetFOV(rpc::ActorId actorid, float fov) {
@@ -769,6 +772,16 @@ namespace detail {
   std::string Client::GetActorClassName(rpc::ActorId actor) const
   {
     return _pimpl->CallAndWait<std::string>("get_actor_class_name", actor);
+  }
+
+  std::string Client::LineTraceSingle(const std::string& json_params) const
+  {
+    return _pimpl->CallAndWait<std::string>("line_trace_single", json_params);
+  }
+
+  std::string Client::LineTraceMultiple(const std::string& json_params) const
+  {
+    return _pimpl->CallAndWait<std::string>("line_trace_multiple", json_params);
   }
 
 } // namespace detail

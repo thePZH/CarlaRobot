@@ -52,6 +52,12 @@ namespace detail {
 
     void Clear();
 
+    /// Remove a specific actor id from cache if present.
+    void Remove(ActorId id) {
+      std::scoped_lock<std::mutex> lock(_mutex);
+      _actors.erase(id);
+    }
+
   private:
 
     mutable std::mutex _mutex;

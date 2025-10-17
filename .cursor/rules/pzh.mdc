@@ -1,0 +1,7 @@
+---
+alwaysApply: true
+---
+
+1、用中文回答
+2、私有成员变量用这种m_Value 驼峰形式
+3、函数局部变量用returnValue小驼峰

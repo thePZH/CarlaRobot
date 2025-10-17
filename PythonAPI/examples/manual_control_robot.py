@@ -47,6 +47,7 @@ import weakref
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+import sys
 
 try:
     import pygame
@@ -64,6 +65,8 @@ try:
     from pygame.locals import K_s
     from pygame.locals import K_w
     from pygame.locals import K_c
+    from pygame.locals import K_e
+    
     from pygame.locals import K_r
     from pygame.locals import K_q
     from pygame.locals import K_f
@@ -125,12 +128,6 @@ OBJECT_TO_COLOR = [
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
 # ==============================================================================
-def find_weather_presets():
-    rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
-    name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
-    presets = [x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)]
-    return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
-
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
@@ -182,11 +179,11 @@ class World(object):
         self.gnss_sensor = None
         self.imu_sensor = None
         self.camera_manager = None
-        self._weather_presets = find_weather_presets()
-        self._weather_index = 0
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
+        # 记录通过 create_robot 创建的车辆/传感器 ActorId，便于强制销毁
+        self._external_actor_ids = []
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.show_vehicle_telemetry = False
@@ -260,13 +257,6 @@ class World(object):
             self.world.tick()
         else:
             self.world.wait_for_tick()
-            
-    def next_weather(self, reverse=False):
-        self._weather_index += -1 if reverse else 1
-        self._weather_index %= len(self._weather_presets)
-        preset = self._weather_presets[self._weather_index]
-        self.hud.notification('Weather: %s' % preset[1])
-        self.player.get_world().set_weather(preset[0])
         
     def modify_vehicle_physics(self, actor):
         #If actor is not a vehicle, we cannot use the physics control
@@ -290,11 +280,30 @@ class World(object):
         self.camera_manager.index = None
 
     def destroy(self):
+        # 先尝试强制销毁通过 create_robot 创建的所有 actor（车辆 + 传感器）
+        try:
+            if self._external_actor_ids:
+                for aid in list(self._external_actor_ids):
+                    try:
+                        act = self.world.get_actor(aid)
+                        if act is not None:
+                            act.destroy()
+                    except Exception:
+                        pass
+                self._external_actor_ids = []
+        except Exception:
+            pass
+        # 再销毁通过 create_robot 接管的外部传感器集合
+        try:
+            if self.camera_manager is not None and hasattr(self.camera_manager, 'destroy_external_sensors'):
+                self.camera_manager.destroy_external_sensors()
+        except Exception:
+            pass
         sensors = [
-            self.camera_manager.sensor,
-            self.collision_sensor.sensor,
-            self.gnss_sensor.sensor,
-            self.imu_sensor.sensor]
+            self.camera_manager.sensor if self.camera_manager else None,
+            self.collision_sensor.sensor if self.collision_sensor else None,
+            self.gnss_sensor.sensor if self.gnss_sensor else None,
+            self.imu_sensor.sensor if self.imu_sensor else None]
         for sensor in sensors:
             if sensor is not None:
                 sensor.stop()
@@ -356,10 +365,120 @@ class KeyboardControl(object):
                     world.hud.help.toggle()
                 elif event.key == K_n:
                     world.camera_manager.next_sensor()
-                elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
-                    world.next_weather(reverse=True)
-                elif event.key == K_c:
-                    world.next_weather()
+                elif event.key == K_q:
+                    json_params = {
+                        "sensor_id": world.camera_manager.sensor.id,
+                        "u": 100,
+                        "v": 200
+                    }
+                    return_value = world.world.line_trace_single(json.dumps(json_params))
+                    print(f"line_trace_single return_value: {return_value}")
+                    json_params = {
+                        "sensor_id": world.camera_manager.sensor.id,
+                        "u": 300,
+                        "v": 400
+                    }
+                    return_value = world.world.line_trace_single(json.dumps(json_params))
+                    print(f"line_trace_single return_value: {return_value}")
+                
+                    json_params = {
+                        "sensor_id": world.camera_manager.sensor.id,
+                        "uvs": [
+                            { "u": 0, "v": 0 },
+                            { "u": 100, "v": 200 },
+                            { "u": 300, "v": 400 }
+                        ]
+                    }
+                    return_multi = world.world.line_trace_multiple(json.dumps(json_params))
+                    print(f"[line_trace_multiple output: {return_multi}")
+                elif event.key == K_e:
+                    # 彻底销毁当前小车及其传感器
+                    try:
+                        if world is not None:
+                            world.destroy()
+                    except Exception as e:
+                        print(f"cleanup failed: {e}")
+                    
+                    json_params = {
+                        "robot": {
+                            "blueprint": "vehicle.robot.01",
+                            "attributes": {
+                                "role_name": "ego",
+                                "ros_name": "ego"
+                            },
+                            "transform": {
+                                "location": { "x": 0.0, "y": -5.0, "z": 0.0 },
+                                "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 }
+                            }
+                        },
+                        "sensors": [
+                            {
+                                "name": "FrontRGB",
+                                "blueprint": "sensor.camera.rgb",
+                                "attributes": {
+                                    "image_size_x": "1280",
+                                    "image_size_y": "720",
+                                    "gamma": "2.2"
+                                }
+                            },
+                            {
+                                "name": "LidarRayCast",
+                                "blueprint": "sensor.lidar.ray_cast",
+                                "attributes": {
+                                    "range": "200",
+                                    "upper_fov": "15.0",
+                                    "lower_fov": "-15",
+                                    "horizontal_fov": "180.0"
+                                }
+                            }
+                        ]
+                    }
+                    json_str = world.world.create_robot(json.dumps(json_params))
+                    print(f"create_robot json_str: {json_str}")
+                    # 解析返回，设置新车和外部传感器集合
+                    try:
+                        result = json.loads(json_str)
+                    except Exception as e:
+                        print(f"parse create_robot result failed: {e}")
+                        result = None
+
+                    if result and result.get("ok"):
+                        # 设置新 player
+                        robot_id = int(result.get("robot_id", 0))
+                        if robot_id:
+                            new_player = world.world.get_actor(robot_id)
+                            if new_player is not None:
+                                world.player = new_player
+                        # 记录外部 actor ids（车辆 + 传感器）
+                        try:
+                            world._external_actor_ids = []
+                            if robot_id:
+                                world._external_actor_ids.append(robot_id)
+                        except Exception:
+                            pass
+                        # 准备外部传感器集合
+                        sensor_ids = []
+                        for s in result.get("sensors", []):
+                            sid = s.get("id")
+                            if sid is not None:
+                                sensor_ids.append(int(sid))
+                        try:
+                            for sid in sensor_ids:
+                                world._external_actor_ids.append(sid)
+                        except Exception:
+                            pass
+                        sensor_actors = []
+                        for sid in sensor_ids:
+                            actor = world.world.get_actor(sid)
+                            if actor is not None:
+                                sensor_actors.append(actor)
+                        # 初始化/切换 CameraManager 到外部模式
+                        if world.camera_manager is None:
+                            world.camera_manager = CameraManager(world.player, world.hud, world._gamma)
+                        else:
+                            world.camera_manager._parent = world.player
+                        world.camera_manager.set_external_sensors(sensor_actors)
+                    
                 
                 if isinstance(self._control, carla.VehicleControl):
                     pass #车辆事件
@@ -588,11 +707,10 @@ class KeyboardControl(object):
                 print("  Component:", bone.component)
                 print("  Relative:", bone.relative)
 
-        # 处理Y键 - 创建特效
         if keys[K_y] and not self.key_pressed[K_y]:
             self.key_pressed[K_y] = True
-            category = "smoke03"  # 或者从别的逻辑获得
-            location = (0, -5, 0)
+            category = "fire"
+            location = (5, 0, 0)
             rotation = (0, 0, 0)
             scale = (1, 1, 1)
             effect_json = {
@@ -616,11 +734,10 @@ class KeyboardControl(object):
         elif not keys[K_y]:
             self.key_pressed[K_y] = False
 
-        # 处理U键 - 销毁特效
         if keys[K_u] and not self.key_pressed[K_u]:
             self.key_pressed[K_u] = True
-            if self.uuids:  # 检查是否有已创建的 Actor
-                uuid_to_destroy = self.uuids.pop()  # 取最后一个 UUID
+            if self.uuids:
+                uuid_to_destroy = self.uuids.pop()
                 if world.world.destroy_object(uuid_to_destroy):
                     print(f"destroy success. uuid: {uuid_to_destroy}")
                 else:
@@ -632,7 +749,7 @@ class KeyboardControl(object):
             
     @staticmethod
     def _is_quit_shortcut(key):
-        return (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL)
+        return (key == K_ESCAPE)
 
 
 # ==============================================================================
@@ -950,6 +1067,11 @@ class CameraManager(object):
         self._parent = parent_actor
         self.hud = hud
         self.raw_depth_image = None
+        self.lidar_range = 50
+        # 外部模式：由 create_robot 返回的传感器集合
+        self.use_external = False
+        self.external_sensors = []
+        self.external_index = -1
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
@@ -1001,9 +1123,13 @@ class CameraManager(object):
 
     def toggle_camera(self):
         self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
-        self.set_sensor(self.index, notify=False, force_respawn=True)
+        # 外部模式不重新生成/切换机位（由父子绑定/骨骼决定）
+        if not self.use_external:
+            self.set_sensor(self.index, notify=False, force_respawn=True)
 
     def set_sensor(self, index, notify=True, force_respawn=False):
+        if self.use_external:
+            return  # 外部模式禁用内部相机生成
         index = index % len(self.sensors)
         needs_respawn = True if self.index is None else \
             (force_respawn or (self.sensors[index][2] != self.sensors[self.index][2]))
@@ -1016,17 +1142,91 @@ class CameraManager(object):
                 self._camera_transforms[self.transform_index][0],
                 attach_to=self._parent,
                 attachment_type=self._camera_transforms[self.transform_index][1])
-            # We need to pass the lambda a weak reference to self to avoid
-            # circular reference.
             weak_self = weakref.ref(self)
-            # 监听 sensor 信号  
             self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
         if notify:
             self.hud.notification(self.sensors[index][2])
         self.index = index
 
     def next_sensor(self):
+        # 外部模式：只在已创建的外部传感器集合中切换
+        if self.use_external and len(self.external_sensors) > 0:
+            self.external_index = (self.external_index + 1) % len(self.external_sensors)
+            self._activate_external_by_index(self.external_index)
+            return
+        # 内部模式：维持原逻辑
         self.set_sensor(self.index + 1)
+
+    def set_external_sensors(self, sensor_actors):
+        # 切换到外部模式，记录集合并激活第一项
+        self.use_external = True
+        self.external_sensors = list(sensor_actors) if sensor_actors else []
+        self.external_index = 0 if self.external_sensors else -1
+        if self.external_index >= 0:
+            self._activate_external_by_index(self.external_index)
+
+    def _activate_external_by_index(self, idx):
+        if idx < 0 or idx >= len(self.external_sensors):
+            return
+        actor = self.external_sensors[idx]
+        # 停止旧的监听
+        try:
+            if self.sensor is not None and self.sensor.id != actor.id:
+                self.sensor.stop()
+        except Exception:
+            pass
+        self.sensor = actor
+        self.surface = None
+        # 选择解析模式：0 相机 / 3 激光
+        t = getattr(actor, 'type_id', '')
+        if isinstance(t, str) and t.startswith('sensor.lidar.ray_cast'):
+            self.index = 3
+            label = 'External Lidar'
+            # 尝试从传感器属性读取range
+            try:
+                rng = None
+                if hasattr(actor, 'attributes') and isinstance(actor.attributes, dict):
+                    rng = actor.attributes.get('range')
+                if rng is None and hasattr(actor, 'get_attribute'):
+                    rng_attr = actor.get_attribute('range')
+                    if rng_attr is not None:
+                        rng = rng_attr
+                if rng is not None:
+                    self.lidar_range = float(str(rng))
+            except Exception:
+                self.lidar_range = 50
+        else:
+            self.index = 0
+            label = 'External Camera RGB'
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
+        self.hud.notification(label)
+
+    def destroy_external_sensors(self):
+        # 停止并销毁通过 create_robot 接管的所有外部传感器
+        try:
+            # 若当前显示的传感器属于外部集合，也一起处理
+            for act in list(self.external_sensors):
+                try:
+                    act.stop()
+                except Exception:
+                    pass
+                try:
+                    act.destroy()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # 清理状态
+        self.external_sensors = []
+        self.external_index = -1
+        self.use_external = False
+        # 如果当前 self.sensor 已被销毁且引用失效，则置空
+        try:
+            if self.sensor is not None and (not hasattr(self.sensor, 'is_alive') or not self.sensor.is_alive):
+                self.sensor = None
+        except Exception:
+            self.sensor = None
 
     def render(self, display):
         if self.surface is not None:
@@ -1038,27 +1238,47 @@ class CameraManager(object):
         
         if not self:
             return
-        if self.sensors[self.index][0] == 'sensor.lidar.ray_cast':
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range)
-            lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
-            lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self.surface = pygame.surfarray.make_surface(lidar_img)
+        # 外部模式优先根据实际传感器类型判定
+        t = None
+        try:
+            t = getattr(self.sensor, 'type_id', '')
+        except Exception:
+            t = ''
+        if (self.use_external and isinstance(t, str) and t.startswith('sensor.lidar')) or (not self.use_external and self.sensors[self.index][0] == 'sensor.lidar.ray_cast'):
+            try:
+                points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
+                points = np.reshape(points, (int(points.shape[0] / 4), 4))
+                lidar_xy = points[:, :2]
+                scale = min(self.hud.dim) / (2.0 * max(1e-3, float(self.lidar_range)))
+                lidar_xy = lidar_xy * scale
+                center = np.array([0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1]], dtype=np.float32)
+                lidar_xy = lidar_xy + center
+                mask = np.isfinite(lidar_xy).all(axis=1)
+                lidar_xy = lidar_xy[mask]
+                idx = np.clip(lidar_xy.astype(np.int32), [0, 0], [self.hud.dim[0]-1, self.hud.dim[1]-1])
+                lidar_img = np.zeros((self.hud.dim[0], self.hud.dim[1], 3), dtype=np.uint8)
+                if idx.size > 0:
+                    lidar_img[idx[:, 0], idx[:, 1]] = (255, 255, 255)
+                self.surface = pygame.surfarray.make_surface(lidar_img)
+            except Exception:
+                # 出错时清空画面但不中断
+                lidar_img = np.zeros((self.hud.dim[0], self.hud.dim[1], 3), dtype=np.uint8)
+                self.surface = pygame.surfarray.make_surface(lidar_img)
         else:
-            self.raw_depth_image = image
-            image.convert(self.sensors[self.index][1])
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+            # 相机：外部模式默认 Raw，内部模式沿用表配置
+            try:
+                self.raw_depth_image = image
+                if self.use_external:
+                    image.convert(cc.Raw)
+                else:
+                    image.convert(self.sensors[self.index][1])
+                array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+                array = np.reshape(array, (image.height, image.width, 4))
+                array = array[:, :, :3]
+                array = array[:, :, ::-1]
+                self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+            except Exception:
+                pass
 
 
 # ==============================================================================

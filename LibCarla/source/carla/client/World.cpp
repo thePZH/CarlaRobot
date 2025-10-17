@@ -150,6 +150,19 @@ namespace client {
     }
   }
 
+  std::string World::CreateRobot(const std::string& json)
+  {
+    return _episode.Lock()->CreateRobot(json);
+  }
+
+  // Destroy robot: forward to simulator
+  // Note: this destroys the vehicle and all attached sensors on server, and client caches clean up via DestroyActor path
+  // Returns true on success
+  bool World::DestroyRobot(carla::ActorId robot_id)
+  {
+    return _episode.Lock()->DestroyRobot(robot_id);
+  }
+
   	std::string World::CreateObject(const std::string& json)
 	{
 		return _episode.Lock()->CreateObject(json);
@@ -406,6 +419,14 @@ namespace client {
       ApplyFloatColorTextureToObjects(
           objects_names, rpc::MaterialParameter::Tex_Emissive, emissive_texture);
     }
+  }
+
+  std::string World::LineTraceSingle(const std::string& json_params) const {
+    return _episode.Lock()->LineTraceSingle(json_params);
+  }
+
+  std::string World::LineTraceMultiple(const std::string& json_params) const {
+    return _episode.Lock()->LineTraceMultiple(json_params);
   }
 
 } // namespace client

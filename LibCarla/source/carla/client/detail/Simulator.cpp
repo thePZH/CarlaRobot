@@ -391,6 +391,10 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     if (success) {
       // Remove it's persistent state so it cannot access the client anymore.
       actor.GetEpisode().Clear();
+      // Also deregister from episode cache to avoid stale entries
+      if (_episode) {
+        _episode->DeregisterActor(actor.GetId());
+      }
       log_debug(actor.GetDisplayId(), "destroyed.");
     } else {
       log_debug("failed to destroy", actor.GetDisplayId());
@@ -480,6 +484,14 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
 
   std::vector<std::string> Simulator::GetNamesOfAllObjects() const {
     return _client.GetNamesOfAllObjects();
+  }
+
+  std::string Simulator::LineTraceSingle(const std::string& json_params) const {
+    return _client.LineTraceSingle(json_params);
+  }
+
+  std::string Simulator::LineTraceMultiple(const std::string& json_params) const {
+    return _client.LineTraceMultiple(json_params);
   }
 
 } // namespace detail

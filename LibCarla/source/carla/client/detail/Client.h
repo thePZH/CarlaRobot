@@ -197,6 +197,10 @@ namespace detail {
         rpc::ActorId parent,
         rpc::AttachmentType attachment_type);
 	
+    // Create robot (vehicle + sensors) by JSON spec, returns JSON result
+    std::string CreateRobot(const std::string& json);
+    bool DestroyRobot(rpc::ActorId robot_id) { return _pimpl->CallAndWait<bool>("destroy_robot", robot_id); }
+
 	std::string CreateObject(const std::string& json);
 
 	bool DestroyObject(const std::string& uuid);
@@ -462,6 +466,12 @@ namespace detail {
     std::string GetActorName(rpc::ActorId actor) const;
 
     std::string GetActorClassName(rpc::ActorId actor) const;
+
+    /// Perform a single line trace and return result as JSON string
+    std::string LineTraceSingle(const std::string& json_params) const;
+
+    /// Perform multiple line traces and return results as JSON string
+    std::string LineTraceMultiple(const std::string& json_params) const;
 
   private:
 

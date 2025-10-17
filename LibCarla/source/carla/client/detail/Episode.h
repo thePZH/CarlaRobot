@@ -54,6 +54,10 @@ namespace detail {
       _actors.Insert(std::move(actor));
     }
 
+    void DeregisterActor(ActorId id) {
+      _actors.Remove(id);
+    }
+
     std::optional<rpc::Actor> GetActorById(ActorId id);
 
     std::vector<rpc::Actor> GetActorsById(const std::vector<ActorId> &actor_ids);

@@ -130,9 +130,17 @@ namespace client {
         Actor *parent = nullptr,
         rpc::AttachmentType attachment_type = rpc::AttachmentType::Rigid) noexcept;
 	
+    // Create robot (vehicle + sensors) by JSON, returns JSON result
+    std::string CreateRobot(const std::string& json);
+
 	std::string CreateObject(const std::string& json);
 
 	bool DestroyObject(const std::string& uuid);
+
+    // Destroy robot (vehicle + attached sensors) by root actor id
+    bool DestroyRobot(ActorId robot_id) {
+      return _episode.Lock()->DestroyRobot(robot_id);
+    }
 
     /// Block calling thread until a world tick is received.
     WorldSnapshot WaitForTick(time_duration timeout) const;
@@ -241,6 +249,12 @@ namespace client {
         const rpc::TextureFloatColor& ao_roughness_metallic_emissive_texture);
 
     std::vector<std::string> GetNamesOfAllObjects() const;
+
+    /// Perform a single line trace and return result as JSON string
+    std::string LineTraceSingle(const std::string& json_params) const;
+
+    /// Perform multiple line traces and return results as JSON string
+    std::string LineTraceMultiple(const std::string& json_params) const;
 
   private:
 

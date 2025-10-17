@@ -1,7 +1,2 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-- 中文回答
-- 当前项目是carla0.10版本，舍弃了之前的ros-bridge，原生支持ROS2
+- 中文回答我所有的问题
+- 当前项目是carla0.10.0版本，舍弃了之前的ros-bridge，原生支持ROS2
