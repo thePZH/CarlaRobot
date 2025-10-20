@@ -12,18 +12,22 @@ ASevnceRobotServiceActor::ASevnceRobotServiceActor()
 FString ASevnceRobotServiceActor::CreateRobot(const FString& JsonSpec)
 {
     UWorld* World = GetWorld();
-    if (!World) return FString();
+    if (!World)
+    	return FString();
     UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(World);
-    if (!Episode) return FString();
+    if (!Episode)
+    	return FString();
     return SvcRobotLogic::CreateRobot(Episode, JsonSpec);
 }
 
 bool ASevnceRobotServiceActor::DestroyRobot(int32 RobotActorId)
 {
     UWorld* World = GetWorld();
-    if (!World) return false;
+    if (!World)
+    	return false;
     UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(World);
-    if (!Episode) return false;
+    if (!Episode)
+    	return false;
     return SvcRobotLogic::DestroyRobot(Episode, static_cast<carla::rpc::ActorId>(RobotActorId));
 }
 

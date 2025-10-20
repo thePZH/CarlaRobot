@@ -20,8 +20,6 @@ void USvcPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 	if (!m_PixelStreamingActor)
 		return;
 
-    m_PixelStreamingActor->SetActorLabel(TEXT("SevncePixelStreamingActor"));
-
     m_PixelInputComponent = NewObject<UPixelStreamingInput>(m_PixelStreamingActor);
 	if (!m_PixelInputComponent)
 		return;

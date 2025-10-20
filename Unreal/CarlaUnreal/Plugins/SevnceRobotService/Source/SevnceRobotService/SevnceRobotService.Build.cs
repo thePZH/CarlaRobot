@@ -8,6 +8,10 @@ public class SevnceRobotService : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
+		// 与Carla模块保持一致，启用异常处理和RTTI
+		bEnableExceptions = true;
+		bUseRTTI = true;
+		
 		PublicIncludePaths.AddRange(
 			new string[] {
 				// ... add public include paths required here ...
