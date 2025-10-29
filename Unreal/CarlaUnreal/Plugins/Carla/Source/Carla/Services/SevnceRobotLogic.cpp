@@ -374,11 +374,11 @@ FCarlaActor* SvcRobotLogic::SpawnAndAttachSensor(UCarlaEpisode* Episode, const T
 // 	}
 // }
 
-FString SvcRobotLogic::BuildResultJson(bool bOk, const FString& Error, int32 VehicleId, const TArray<TTuple<FString,int32,FString>>& SensorInfos)
+FString SvcRobotLogic::BuildResultJson(bool bResult, const FString& Error, int32 VehicleId, const TArray<TTuple<FString,int32,FString>>& SensorInfos)
 {
     TSharedPtr<FJsonObject> out = MakeShared<FJsonObject>();
-    out->SetBoolField(TEXT("ok"), bOk);
-    if (!bOk)
+    out->SetBoolField(TEXT("ok"), bResult);
+    if (!bResult)
 	{
         out->SetStringField(TEXT("error"), TEXT("spawn_failed"));
         out->SetStringField(TEXT("message"), Error);

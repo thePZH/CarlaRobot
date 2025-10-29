@@ -52,5 +52,5 @@ private:
 	// static void ApplyVehiclePhysicsIfAny(UCarlaEpisode* Episode, FCarlaActor* Vehicle, const TSharedPtr<FJsonObject>& VehicleObj);
 
 	// 构建返回结果JSON
-	static FString BuildResultJson(bool bOk, const FString& Error, int32 VehicleId, const TArray<TTuple<FString,int32,FString>>& SensorInfos);
+	static FString BuildResultJson(bool bResult, const FString& Error, int32 VehicleId, const TArray<TTuple<FString,int32,FString>>& SensorInfos);
 };

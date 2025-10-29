@@ -685,6 +685,7 @@ void ASceneCaptureSensor::BeginPlay()
   if (bEnablePostProcessingEffects)
   {
     CaptureRenderTarget->TargetGamma = TargetGamma;
+  	UE_LOG(LogTemp, Log, TEXT("ASceneCaptureSensor::BeginPlay()::CaptureRenderTarget->TargetGamma: %f"), CaptureRenderTarget->TargetGamma);
   }
 
   check(IsValid(CaptureComponent2D) && IsValidChecked(CaptureComponent2D));

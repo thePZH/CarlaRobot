@@ -3234,7 +3234,6 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
         ECC_Visibility,
         Params
     );
-    DrawDebugLine(World, RayStart, RayEnd, FColor::Red, false,  30.f, 0, 1.0f);
   
     // Create result JSON
     TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
@@ -3361,7 +3360,6 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 
 	        FHitResult HitResult;
 	        bool bHit = World->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_Visibility, Params);
-	        DrawDebugLine(World, RayStart, RayEnd, FColor::Red, false, 30.0f, 0, 1.0f);
 
 	        TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
 	        ResultObject->SetBoolField(TEXT("hit"), bHit);

@@ -1698,6 +1698,9 @@ void UActorBlueprintFunctionLibrary::SetCamera(
         ActorAttributeToBool(
         Description.Variations["enable_postprocess_effects"],
         true));
+  	FString BoolAsString = ActorAttributeToBool(Description.Variations["enable_postprocess_effects"],true) ? TEXT("True") : TEXT("False");
+  	UE_LOG(LogTemp, Log, TEXT("SetCamera::enable_postprocess_effects: %s"), *BoolAsString);
+  	
     Camera->SetTargetGamma(
         RetrieveActorAttributeToFloat("gamma", Description.Variations, 1.0f));
     Camera->SetMotionBlurIntensity(

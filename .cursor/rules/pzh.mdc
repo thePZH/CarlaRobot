@@ -5,3 +5,5 @@ alwaysApply: true
 1、用中文回答
 2、私有成员变量用这种m_Value 驼峰形式
 3、函数局部变量用returnValue小驼峰
+4、我目前的项目是carla仿真平台开源代码，文档在这里：https://carla-ue5.readthedocs.io/en/latest/
+5、pythonAPI文档地址：https://carla-ue5.readthedocs.io/en/latest/python_api/

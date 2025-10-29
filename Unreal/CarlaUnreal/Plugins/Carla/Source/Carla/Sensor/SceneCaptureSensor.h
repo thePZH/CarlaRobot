@@ -156,6 +156,8 @@ public:
   void EnablePostProcessingEffects(bool Enable = true)
   {
     bEnablePostProcessingEffects = Enable;
+  	UE_LOG(LogTemp, Warning, TEXT("EnablePostProcessingEffects::bEnablePostProcessingEffects %s"),
+  		bEnablePostProcessingEffects ? TEXT("Enabled") : TEXT("Disabled"));
   }
 
   UFUNCTION(BlueprintCallable)
@@ -186,6 +188,7 @@ public:
   void SetTargetGamma(float InTargetGamma)
   {
     TargetGamma = InTargetGamma;
+  	UE_LOG(LogTemp, Warning, TEXT("SetTargetGamma::TargetGamma: %f"), TargetGamma);
   }
 
   UFUNCTION(BlueprintCallable)

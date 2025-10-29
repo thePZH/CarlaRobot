@@ -4,30 +4,39 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
 #include "Misc/CString.h"
+#include "Engine/Engine.h"
 
 void USvcPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    UWorld* world = GetGameInstance()->GetWorld();
-    if (!world)
-        return;
-
-    FActorSpawnParameters spawnParams;
-    spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
-    AActor* m_PixelStreamingActor = world->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, spawnParams);
-	if (!m_PixelStreamingActor)
-		return;
-
-    m_PixelInputComponent = NewObject<UPixelStreamingInput>(m_PixelStreamingActor);
-	if (!m_PixelInputComponent)
-		return;
+    // 延迟到世界初始化后再执行，避免打包环境下 GetWorld 为 null
+	TWeakObjectPtr<USvcPixelStreamingSubsystem> WeakThis(this);
 	
-    m_PixelInputComponent->RegisterComponent();
-	m_PixelStreamingActor->AddInstanceComponent(m_PixelInputComponent);
+    m_InitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda(
+        [WeakThis](UWorld* World, const UWorld::InitializationValues)
+        {
+        	if (!WeakThis.IsValid() || !World || (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE))
 
-    BindInputComponent();
+            FWorldDelegates::OnPostWorldInitialization.Remove(WeakThis->m_InitHandle);
+
+            FActorSpawnParameters spawnParams;
+            spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+            WeakThis->m_PixelStreamingActor = World->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, spawnParams);
+            if (!WeakThis->m_PixelStreamingActor)
+                return;
+
+            WeakThis->m_PixelInputComponent = NewObject<UPixelStreamingInput>(WeakThis->m_PixelStreamingActor);
+            if (!WeakThis->m_PixelInputComponent)
+                return;
+
+            WeakThis->m_PixelInputComponent->RegisterComponent();
+            WeakThis->m_PixelStreamingActor->AddInstanceComponent(WeakThis->m_PixelInputComponent);
+        	
+            WeakThis->BindInputComponent();
+        }
+    );
 }
 
 void USvcPixelStreamingSubsystem::Deinitialize()
@@ -53,14 +62,12 @@ void USvcPixelStreamingSubsystem::SendNotify(const FString& name, const FString&
 	SendMessageToWeb(jsonString);
 }
 
-void USvcPixelStreamingSubsystem::SendResponse(const FString& requestId, const FString& name, bool result, const FString& payloadJson, const FString& errorMessage)
+void USvcPixelStreamingSubsystem::SendResponse(const FString& name, const FString& payloadJson)
 {
 	FString payload = payloadJson.IsEmpty() ? TEXT("{}") : payloadJson;
-	FString escapedError = errorMessage.ReplaceCharWithEscapedChar();
-	
 	FString jsonString = FString::Format(
-		TEXT("{\"type\":\"response\",\"request_id\":{0},\"name\":\"{1}\",\"result\":{2},\"payload\":{3},\"error_message\":\"{4}\"}"),
-		{ requestId, name, result ? TEXT("true") : TEXT("false"), payload, escapedError }
+		TEXT("{\"type\":\"response\",\"name\":\"{0}\",\"payload\":{1}}"),
+		{ name, payload }
 	);
 
 	SendMessageToWeb(jsonString);

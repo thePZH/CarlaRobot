@@ -395,7 +395,8 @@ class KeyboardControl(object):
                     # 彻底销毁当前小车及其传感器
                     try:
                         if world is not None:
-                            world.destroy()
+                            # world.destroy()
+                            world.world.destroy_robot(world.player.id)
                     except Exception as e:
                         print(f"cleanup failed: {e}")
                     
@@ -416,19 +417,26 @@ class KeyboardControl(object):
                                 "name": "FrontRGB",
                                 "blueprint": "sensor.camera.rgb",
                                 "attributes": {
-                                    "image_size_x": "1280",
-                                    "image_size_y": "720",
-                                    "gamma": "2.2"
+                                    "image_size_x": 1280,
+                                    "image_size_y": 720
+                                }
+                            },
+                            {
+                                "name": "FrontDepthRaw",
+                                "blueprint": "sensor.camera.depth",
+                                "attributes": {
+                                    "image_size_x": 1280,
+                                    "image_size_y": 720
                                 }
                             },
                             {
                                 "name": "LidarRayCast",
                                 "blueprint": "sensor.lidar.ray_cast",
                                 "attributes": {
-                                    "range": "200",
-                                    "upper_fov": "15.0",
-                                    "lower_fov": "-15",
-                                    "horizontal_fov": "180.0"
+                                    "range": 200,
+                                    "upper_fov": 15.0,
+                                    "lower_fov": -15.0,
+                                    "horizontal_fov": 180
                                 }
                             }
                         ]
@@ -1094,7 +1102,7 @@ class CameraManager(object):
 
         self.transform_index = 1
         self.sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
+            ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {'enable_postprocess_effects':'True', 'gamma':'5.5'}],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)', {}],
             ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
             ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '200', 'upper_fov': '15.0', 'lower_fov': '-15', 'horizontal_fov': '180.0'}],

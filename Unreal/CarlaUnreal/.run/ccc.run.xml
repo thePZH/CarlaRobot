@@ -110,7 +110,7 @@
       <option name="CURRENT_LAUNCH_PROFILE" value="Local" />
       <option name="EXECUTABLE_PATH" value="$PROJECT_DIR$/../../../UnrealEngine5_carla/Engine/Binaries/Linux/UnrealEditor-Linux-DebugGame" />
       <option name="MANDATORY_PROGRAM_PARAMETERS" value=" &quot;$PROJECT_DIR$/CarlaUnreal.uproject&quot;" />
-      <option name="CUSTOM_PROGRAM_PARAMETERS" value="--ros2" />
+      <option name="CUSTOM_PROGRAM_PARAMETERS" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../../../UnrealEngine5_carla" />
       <option name="PASS_PARENT_ENVS" value="1" />
       <option name="USE_EXTERNAL_CONSOLE" value="0" />

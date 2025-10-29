@@ -1,4 +1,6 @@
 #include "SevnceActorLogic.h"
+#include "Carla/Actor/ActorDescription.h"
+#include "Carla/Actor/ActorAttribute.h"
 
 FCarlaActor* SvcActorLogic::SpawnActor(UCarlaEpisode* Episode, const carla::rpc::ActorDescription& Description, const carla::rpc::Transform& Transform)
 {
@@ -8,7 +10,22 @@ FCarlaActor* SvcActorLogic::SpawnActor(UCarlaEpisode* Episode, const carla::rpc:
         return nullptr;
     }
 
-    auto result = Episode->SpawnActorWithInfo(Transform, const_cast<carla::rpc::ActorDescription&>(Description));
+    // 转换 carla::rpc::ActorDescription 到 FActorDescription
+    FActorDescription ActorDesc;
+    ActorDesc.UId = Description.uid;
+    ActorDesc.Id = FString(UTF8_TO_TCHAR(Description.id.c_str()));
+    
+    // 转换属性
+    for (const auto& attr : Description.attributes)
+    {
+        FActorAttribute UeAttr;
+        UeAttr.Id = FString(UTF8_TO_TCHAR(attr.id.c_str()));
+        UeAttr.Type = static_cast<EActorAttributeType>(static_cast<uint8>(attr.type));
+        UeAttr.Value = FString(UTF8_TO_TCHAR(attr.value.c_str()));
+        ActorDesc.Variations.Add(UeAttr.Id, UeAttr);
+    }
+    
+    auto result = Episode->SpawnActorWithInfo(Transform, ActorDesc);
 
     if (result.Key != EActorSpawnResultStatus::Success)
     {
@@ -34,8 +51,23 @@ FCarlaActor* SvcActorLogic::SpawnActorWithParent(UCarlaEpisode* Episode, const c
         return nullptr;
     }
 
+    // 转换 carla::rpc::ActorDescription 到 FActorDescription
+    FActorDescription ActorDesc;
+    ActorDesc.UId = Description.uid;
+    ActorDesc.Id = FString(UTF8_TO_TCHAR(Description.id.c_str()));
+    
+    // 转换属性
+    for (const auto& attr : Description.attributes)
+    {
+        FActorAttribute UeAttr;
+        UeAttr.Id = FString(UTF8_TO_TCHAR(attr.id.c_str()));
+        UeAttr.Type = static_cast<EActorAttributeType>(static_cast<uint8>(attr.type));
+        UeAttr.Value = FString(UTF8_TO_TCHAR(attr.value.c_str()));
+        ActorDesc.Variations.Add(UeAttr.Id, UeAttr);
+    }
+    
     // 先生成Actor
-    auto result = Episode->SpawnActorWithInfo(Transform, const_cast<carla::rpc::ActorDescription&>(Description));
+    auto result = Episode->SpawnActorWithInfo(Transform, ActorDesc);
     if (result.Key != EActorSpawnResultStatus::Success)
     {
         UE_LOG(LogCarla, Error, TEXT("SvcActorLogic::SpawnActorWithParent: Actor not Spawned - %s"), *FActorSpawnResult::StatusToString(result.Key));
