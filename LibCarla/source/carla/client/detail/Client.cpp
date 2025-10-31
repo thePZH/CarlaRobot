@@ -789,6 +789,32 @@ namespace detail {
     return _pimpl->CallAndWait<std::string>("line_trace_multiple", json_params);
   }
 
+  // Geometry drawer RPCs
+  std::string Client::DrawGeometryPoint(const std::string& json)
+  {
+    return _pimpl->CallAndWait<std::string>("draw_geometry_point", json);
+  }
+
+  std::string Client::DrawGeometryLine(const std::string& json)
+  {
+    return _pimpl->CallAndWait<std::string>("draw_geometry_line", json);
+  }
+
+  std::string Client::DrawGeometryCube(const std::string& json)
+  {
+    return _pimpl->CallAndWait<std::string>("draw_geometry_cube", json);
+  }
+
+  std::string Client::RemoveGeometryObject(const std::string& json)
+  {
+    return _pimpl->CallAndWait<std::string>("remove_geometry_object", json);
+  }
+
+  std::string Client::ClearGeometryObjects(const std::string& json)
+  {
+    return _pimpl->CallAndWait<std::string>("clear_geometry_objects", json);
+  }
+
 } // namespace detail
 } // namespace client
 } // namespace carla

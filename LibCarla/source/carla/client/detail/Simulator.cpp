@@ -494,6 +494,7 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     return _client.LineTraceMultiple(json_params);
   }
 
+
 } // namespace detail
 } // namespace client
 } // namespace carla

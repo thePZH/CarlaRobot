@@ -15,7 +15,7 @@ void USvcCubeDrawer::Initialize(AActor* InHostActor)
 	}
 }
 
-UPrimitiveComponent* USvcCubeDrawer::Draw(const FVector& Center, const FVector& Extent, const FLinearColor& Color)
+UPrimitiveComponent* USvcCubeDrawer::Draw(const FVector& Center, const FVector& Scale, const FLinearColor& Color)
 {
 	if (!m_HostActor)
 		return nullptr;
@@ -28,7 +28,7 @@ UPrimitiveComponent* USvcCubeDrawer::Draw(const FVector& Center, const FVector& 
 	MeshComp->SetStaticMesh(m_CubeMesh);
 
 	MeshComp->SetWorldLocation(Center);
-	MeshComp->SetWorldScale3D(Extent); //  cube 尺寸 100
+	MeshComp->SetWorldScale3D(Scale); //  cube 尺寸 100
 
 	UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(m_CubeMaterial, MeshComp);
 	DynMat->SetVectorParameterValue("Color", Color);

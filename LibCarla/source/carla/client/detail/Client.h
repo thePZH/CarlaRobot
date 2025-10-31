@@ -473,6 +473,13 @@ namespace detail {
     /// Perform multiple line traces and return results as JSON string
     std::string LineTraceMultiple(const std::string& json_params) const;
 
+    // Geometry drawer RPCs
+    std::string DrawGeometryPoint(const std::string& json);
+    std::string DrawGeometryLine(const std::string& json);
+    std::string DrawGeometryCube(const std::string& json);
+    std::string RemoveGeometryObject(const std::string& json);
+    std::string ClearGeometryObjects(const std::string& json);
+
   private:
 
     class Pimpl;

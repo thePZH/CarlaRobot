@@ -96,6 +96,9 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "Services/SevnceRobotLogic.h"
 
+// Geometry drawer subsystem
+#include "SvcGeometryDrawerSubsystem.h"
+
 template <typename T>
 using R = carla::rpc::Response<T>;
 
@@ -3388,6 +3391,75 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
 
 	    return std::string(TCHAR_TO_UTF8(*OutputString));
 	};
+
+  // ~~ Geometry Drawer (points/lines/cubes) via JSON ~~~~~~~~~~~~~~~~~~~~~~~~~~
+  BIND_SYNC(draw_geometry_point) << [this](const std::string& json) -> R<std::string>
+  {
+    REQUIRE_CARLA_EPISODE();
+    UCarlaGameInstance* GameInstance = UCarlaStatics::GetGameInstance(Episode->GetWorld());
+    if (!GameInstance)
+    	return std::string(R"({"ok":false,"error":"no GameInstance"})");
+    if (USvcGeometryDrawerSubsystem* Subsys = GameInstance->GetSubsystem<USvcGeometryDrawerSubsystem>())
+    {
+      FString Id = Subsys->DrawPointJson(UTF8_TO_TCHAR(json.c_str()));
+      return std::string(TCHAR_TO_UTF8(*Id));
+    }
+  	return std::string(R"({"ok":false,"error":"subsystem missing"})");
+  };
+
+  BIND_SYNC(draw_geometry_line) << [this](const std::string& json) -> R<std::string>
+  {
+    REQUIRE_CARLA_EPISODE();
+    UCarlaGameInstance* GameInstance = UCarlaStatics::GetGameInstance(Episode->GetWorld());
+    if (!GameInstance)
+    	return std::string(R"({"ok":false,"error":"no GameInstance"})");
+    if (USvcGeometryDrawerSubsystem* Subsys = GameInstance->GetSubsystem<USvcGeometryDrawerSubsystem>())
+    {
+      FString Id = Subsys->DrawLineJson(UTF8_TO_TCHAR(json.c_str()));
+      return std::string(TCHAR_TO_UTF8(*Id));
+    }
+  	return std::string(R"({"ok":false,"error":"subsystem missing"})");
+  };
+
+  BIND_SYNC(draw_geometry_cube) << [this](const std::string& json) -> R<std::string>
+  {
+	REQUIRE_CARLA_EPISODE();
+	UCarlaGameInstance* GameInstance = UCarlaStatics::GetGameInstance(Episode->GetWorld());
+	if (!GameInstance)
+	    return std::string(R"({"ok":false,"error":"no GameInstance"})");
+	if (USvcGeometryDrawerSubsystem* Subsys = GameInstance->GetSubsystem<USvcGeometryDrawerSubsystem>())
+	{
+		FString Id = Subsys->DrawCubeJson(UTF8_TO_TCHAR(json.c_str()));
+		return std::string(TCHAR_TO_UTF8(*Id));
+	}
+	return std::string(R"({"ok":false,"error":"subsystem missing"})");
+  };
+
+  BIND_SYNC(remove_geometry_object) << [this](const std::string& json) -> R<std::string>
+  {
+  	REQUIRE_CARLA_EPISODE();
+  	UCarlaGameInstance* GameInstance = UCarlaStatics::GetGameInstance(Episode->GetWorld());
+  	if (!GameInstance)
+  		return std::string(R"({"ok":false,"error":"no GameInstance"})");
+  	if (USvcGeometryDrawerSubsystem* Subsys = GameInstance->GetSubsystem<USvcGeometryDrawerSubsystem>())
+  	{
+  		return TCHAR_TO_UTF8(*Subsys->RemoveJson(UTF8_TO_TCHAR(json.c_str())));
+  	}
+  	return std::string(R"({"ok":false,"error":"subsystem missing"})");
+  };
+
+  BIND_SYNC(clear_geometry_objects) << [this](const std::string& json) ->  R<std::string>
+  {
+  	REQUIRE_CARLA_EPISODE();
+  	UCarlaGameInstance* GameInstance = UCarlaStatics::GetGameInstance(Episode->GetWorld());
+  	if (!GameInstance)
+  		return std::string(R"({"ok":false,"error":"no GameInstance"})");
+  	if (USvcGeometryDrawerSubsystem* Subsys = GameInstance->GetSubsystem<USvcGeometryDrawerSubsystem>())
+  	{
+  		return TCHAR_TO_UTF8(*Subsys->ClearJson(UTF8_TO_TCHAR(json.c_str())));
+  	}
+  	return std::string(R"({"ok":false,"error":"subsystem missing"})");
+  };
 }
 
 // =============================================================================

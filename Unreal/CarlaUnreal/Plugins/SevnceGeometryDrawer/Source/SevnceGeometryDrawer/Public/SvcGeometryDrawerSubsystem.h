@@ -30,13 +30,29 @@ public:
 public:
 	/** 绘制接口 - 返回绘制对象ID */
 	UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer")
-	FString DrawLine(const TArray<FVector>& Positions, const FLinearColor& Color = FLinearColor::Red, float Thickness = 2.0f);
+	FString DrawLine(const TArray<FVector>& Positions, const FLinearColor& Color = FLinearColor::Red, float Scale = 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer")
-	FString DrawPoint(const FVector& Location, const FLinearColor& Color = FLinearColor::Green, float Size = 10.0f);
+	FString DrawPoint(const FVector& Location, const FLinearColor& Color = FLinearColor::Green, float Scale = 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer")
-	FString DrawCube(const FVector& Center, const FVector& Extent = FVector(50.f), const FLinearColor& Color = FLinearColor::Blue);
+	FString DrawCube(const FVector& Center, const FVector& Scale = FVector(1.f), const FLinearColor& Color = FLinearColor::Blue);
+
+    // JSON 接口：解析后调用上面的非 JSON 接口
+    UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer|JSON")
+    FString DrawPointJson(const FString& Json);
+
+    UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer|JSON")
+    FString DrawLineJson(const FString& Json);
+
+    UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer|JSON")
+    FString DrawCubeJson(const FString& Json);
+
+    UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer|JSON")
+    FString RemoveJson(const FString& Json);
+
+    UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer|JSON")
+    FString ClearJson(const FString& Json);
 
 	/** 删除一个绘制对象 */
 	UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer")

@@ -41,12 +41,16 @@ public:
 	void InitializeManager(UWorld* InWorld);
 	void DeinitializeManager();
 
-	FString DrawLine(const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness);
-	FString DrawPoint(const FVector& Location, const FLinearColor& Color, float Size);
-	FString DrawCube(const FVector& Center, const FVector& Extent, const FLinearColor& Color);
+	FString DrawLine(const TArray<FVector>& Positions, const FLinearColor& Color, float Scale);
+	FString DrawPoint(const FVector& Location, const FLinearColor& Color, float Scale);
+	FString DrawCube(const FVector& Center, const FVector& Scale, const FLinearColor& Color);
 
 	bool RemoveDrawObject(const FString& ObjectId);
 	bool ClearDrawObjects(EGeometryDrawType Type);
+
+    // 提供 Hook Actor 获取接口，便于相机忽略该绘制容器
+    UFUNCTION(BlueprintCallable, Category="Sevnce|GeometryDrawer")
+    AActor* GetHookActor() const { return m_HookActor; }
 
 private:
 	UPROPERTY()

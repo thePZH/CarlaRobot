@@ -429,5 +429,31 @@ namespace client {
     return _episode.Lock()->LineTraceMultiple(json_params);
   }
 
+  // Geometry drawer
+  std::string World::DrawGeometryPoint(const std::string& json)
+  {
+    return _episode.Lock()->DrawGeometryPoint(json);
+  }
+
+  std::string World::DrawGeometryLine(const std::string& json)
+  {
+    return _episode.Lock()->DrawGeometryLine(json);
+  }
+
+  std::string World::DrawGeometryCube(const std::string& json)
+  {
+    return _episode.Lock()->DrawGeometryCube(json);
+  }
+
+  std::string World::RemoveGeometryObject(const std::string& json)
+  {
+    return _episode.Lock()->RemoveGeometryObject(json);
+  }
+
+  std::string World::ClearGeometryObjects(const std::string& json)
+  {
+    return _episode.Lock()->ClearGeometryObjects(json);
+  }
+
 } // namespace client
 } // namespace carla

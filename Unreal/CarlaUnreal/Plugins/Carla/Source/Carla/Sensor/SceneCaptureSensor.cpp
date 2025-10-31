@@ -9,6 +9,10 @@
 #include "Carla.h"
 #include "Carla/Game/CarlaStatics.h"
 
+// Geometry Drawer subsystem for debug primitives (points/lines/cubes)
+#include "SvcGeometryDrawerSubsystem.h"
+#include "SvcGeometryDrawerManager.h"
+
 #include <util/ue-header-guard-begin.h>
 #include "Actor/ActorBlueprintFunctionLibrary.h"
 #include "Engine/PostProcessVolume.h"
@@ -700,6 +704,24 @@ void ASceneCaptureSensor::BeginPlay()
 
   CaptureComponent2D->UpdateContent();
   CaptureComponent2D->Activate();
+
+  // 忽略 GeometryDrawer 子系统的 HookActor，从 RGB 等 SceneCapture 中排除调试几何
+  {
+    UCarlaGameInstance* GameInstance = UCarlaStatics::GetGameInstance(GetWorld());
+    if (GameInstance)
+    {
+      if (USvcGeometryDrawerSubsystem* DrawerSubsystem = GameInstance->GetSubsystem<USvcGeometryDrawerSubsystem>())
+      {
+        if (USvcGeometryDrawerManager* DrawerManager = DrawerSubsystem->GetManager())
+        {
+          if (AActor* HookActor = DrawerManager->GetHookActor())
+          {
+            CaptureComponent2D->HiddenActors.AddUnique(HookActor);
+          }
+        }
+      }
+    }
+  }
 
   // Make sure that there is enough time in the render queue.
   UKismetSystemLibrary::ExecuteConsoleCommand(

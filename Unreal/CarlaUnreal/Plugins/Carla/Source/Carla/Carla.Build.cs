@@ -122,7 +122,7 @@ public class Carla :
       "NavigationSystem",
 	  "AIModule",
 	  "AnimGraphRuntime",
-	  "Json"
+	  "SevnceGeometryDrawer"
     });
 
     PublicDependencyModuleNames.AddRange(new string[]

@@ -7,13 +7,13 @@ void USvcPointDrawer::Initialize(AActor* InHostActor)
 {
 	m_HostActor = InHostActor;
 	
-	m_Mesh = LoadObject<UStaticMesh>(nullptr, TEXT("/SevnceGeometryDrawer/Mats/SM_Sphere.SM_Sphere"));
+	m_Mesh = LoadObject<UStaticMesh>(nullptr, TEXT("/SevnceGeometryDrawer/SMs/SM_Sphere.SM_Sphere"));
 	m_Mat = LoadObject<UMaterial>(nullptr, TEXT("/SevnceGeometryDrawer/Mats/M_PointLine.M_PointLine"));
 	if (!m_Mat || !m_Mesh)
 		UE_LOG(LogTemp, Error, TEXT("USvcCubeDrawer::Initialize Failed"));
 }
 
-UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinearColor& Color, float Size)
+UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinearColor& Color, float Scale)
 {
 	if (!m_HostActor)
 		return nullptr;
@@ -27,7 +27,7 @@ UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinea
 	MeshComp->SetStaticMesh(m_Mesh);
 
 	MeshComp->SetWorldLocation(Location);
-	MeshComp->SetWorldScale3D(FVector(Size));
+	MeshComp->SetWorldScale3D(FVector(Scale));
 
 	UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(m_Mat, MeshComp);
 	DynMat->SetVectorParameterValue("Color", Color);

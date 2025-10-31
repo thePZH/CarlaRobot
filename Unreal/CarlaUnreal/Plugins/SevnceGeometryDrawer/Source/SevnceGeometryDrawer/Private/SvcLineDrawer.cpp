@@ -13,7 +13,7 @@ void USvcLineDrawer::Initialize(AActor* InActor)
     	UE_LOG(LogTemp, Error, TEXT("USvcCubeDrawer::Initialize Failed"));
 }
 
-UPrimitiveComponent* USvcLineDrawer::Draw(const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness) const
+UPrimitiveComponent* USvcLineDrawer::Draw(const TArray<FVector>& Positions, const FLinearColor& Color, float Scale) const
 {
     if (!m_HookActor || Positions.Num() < 2 || !m_LineMesh || !m_LineMaterial)
     {
@@ -53,7 +53,8 @@ UPrimitiveComponent* USvcLineDrawer::Draw(const TArray<FVector>& Positions, cons
         const FVector& StartTangent = pointTangents[i];
         const FVector& EndTangent = pointTangents[i + 1];
 		
-        USplineMeshComponent* MeshComp = NewObject<USplineMeshComponent>(m_HookActor);
+        // 以 rootContainer 作为 Outer，这样销毁 rootContainer 会级联销毁所有段组件
+        USplineMeshComponent* MeshComp = NewObject<USplineMeshComponent>(rootContainer);
         MeshComp->RegisterComponent();
         MeshComp->SetMobility(EComponentMobility::Movable);
         MeshComp->AttachToComponent(rootContainer, FAttachmentTransformRules::KeepRelativeTransform);
@@ -63,8 +64,8 @@ UPrimitiveComponent* USvcLineDrawer::Draw(const TArray<FVector>& Positions, cons
         MeshComp->SetStaticMesh(m_LineMesh);
         MeshComp->SetMaterial(0, dynMat);
     	
-        MeshComp->SetStartScale(FVector2D(Thickness));
-        MeshComp->SetEndScale(FVector2D(Thickness));
+        MeshComp->SetStartScale(FVector2D(Scale));
+        MeshComp->SetEndScale(FVector2D(Scale));
     }
 
     // 5. 返回根容器

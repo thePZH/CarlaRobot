@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class SevnceGeometryDrawer : ModuleRules
+public class SevnceWeatherSystem : ModuleRules
 {
-	public SevnceGeometryDrawer(ReadOnlyTargetRules Target) : base(Target)
+	public SevnceWeatherSystem(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -38,8 +38,6 @@ public class SevnceGeometryDrawer : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"Json",
-				"JsonUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

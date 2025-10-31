@@ -17,7 +17,8 @@ void USvcPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collectio
         [WeakThis](UWorld* World, const UWorld::InitializationValues)
         {
         	if (!WeakThis.IsValid() || !World || (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE))
-
+				return;
+        	
             FWorldDelegates::OnPostWorldInitialization.Remove(WeakThis->m_InitHandle);
 
             FActorSpawnParameters spawnParams;

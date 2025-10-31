@@ -2,6 +2,7 @@
 
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SceneComponent.h"
 
 #include "SvcPointDrawer.h"
 #include "SvcLineDrawer.h"
@@ -17,6 +18,13 @@ void USvcGeometryDrawerManager::InitializeManager(UWorld* in_world)
 	
 	m_HookActor = in_world->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
 	m_HookActor->SetActorEnableCollision(false);
+	// 确保有有效根组件，方便子组件 Attach
+	if (!m_HookActor->GetRootComponent())
+	{
+		USceneComponent* Root = NewObject<USceneComponent>(m_HookActor);
+		Root->RegisterComponent();
+		m_HookActor->SetRootComponent(Root);
+	}
 	
 	m_LineDrawer  = NewObject<USvcLineDrawer>(this, USvcLineDrawer::StaticClass());
 	m_PointDrawer = NewObject<USvcPointDrawer>(this, USvcPointDrawer::StaticClass());
@@ -46,7 +54,7 @@ void USvcGeometryDrawerManager::DeinitializeManager()
 	UE_LOG(LogTemp, Log, TEXT("[SvcGeometryDrawerManager] Deinitialized"));
 }
 
-FString USvcGeometryDrawerManager::DrawLine(const TArray<FVector>& positions, const FLinearColor& color, float thickness)
+FString USvcGeometryDrawerManager::DrawLine(const TArray<FVector>& positions, const FLinearColor& color, float Scale)
 {
 	if (!m_LineDrawer)
 	{
@@ -54,7 +62,7 @@ FString USvcGeometryDrawerManager::DrawLine(const TArray<FVector>& positions, co
 		return TEXT("");
 	}
 
-	UPrimitiveComponent* comp = m_LineDrawer->Draw(positions, color, thickness);
+	UPrimitiveComponent* comp = m_LineDrawer->Draw(positions, color, Scale);
 	if (!comp) return TEXT("");
 
 	const FString new_id = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
@@ -65,7 +73,7 @@ FString USvcGeometryDrawerManager::DrawLine(const TArray<FVector>& positions, co
 	return new_id;
 }
 
-FString USvcGeometryDrawerManager::DrawPoint(const FVector& location, const FLinearColor& color, float size)
+FString USvcGeometryDrawerManager::DrawPoint(const FVector& location, const FLinearColor& color, float Scale)
 {
 	if (!m_PointDrawer)
 	{
@@ -73,7 +81,7 @@ FString USvcGeometryDrawerManager::DrawPoint(const FVector& location, const FLin
 		return TEXT("");
 	}
 
-	UPrimitiveComponent* comp = m_PointDrawer->Draw(location, color, size);
+	UPrimitiveComponent* comp = m_PointDrawer->Draw(location, color, Scale);
 	if (!comp) return TEXT("");
 
 	const FString new_id = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
@@ -84,7 +92,7 @@ FString USvcGeometryDrawerManager::DrawPoint(const FVector& location, const FLin
 	return new_id;
 }
 
-FString USvcGeometryDrawerManager::DrawCube(const FVector& center, const FVector& extent, const FLinearColor& color)
+FString USvcGeometryDrawerManager::DrawCube(const FVector& Center, const FVector& Scale, const FLinearColor& Color)
 {
 	if (!m_CubeDrawer)
 	{
@@ -92,7 +100,7 @@ FString USvcGeometryDrawerManager::DrawCube(const FVector& center, const FVector
 		return TEXT("");
 	}
 
-	UPrimitiveComponent* comp = m_CubeDrawer->Draw(center, extent, color);
+	UPrimitiveComponent* comp = m_CubeDrawer->Draw(Center, Scale, Color);
 	if (!comp) return TEXT("");
 
 	const FString new_id = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
@@ -109,6 +117,21 @@ bool USvcGeometryDrawerManager::RemoveDrawObject(const FString& object_id)
 	{
 		if (IsValid(comp))
 		{
+	      // 先销毁子组件（例如线段的 USplineMeshComponent 段）
+	      if (USceneComponent* SceneComp = Cast<USceneComponent>(comp))
+	      {
+	        TArray<USceneComponent*> Children = SceneComp->GetAttachChildren();
+	        for (USceneComponent* Child : Children)
+	        {
+	          if (IsValid(Child))
+	          {
+	            if (UActorComponent* AsActorComp = Cast<UActorComponent>(Child))
+	            {
+	              AsActorComp->DestroyComponent();
+	            }
+	          }
+	        }
+	      }
 			comp->DestroyComponent();
 		}
 		m_DrawObjects.Remove(object_id);

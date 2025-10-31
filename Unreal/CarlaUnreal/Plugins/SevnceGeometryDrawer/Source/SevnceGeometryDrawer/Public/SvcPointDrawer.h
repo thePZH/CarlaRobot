@@ -11,10 +11,14 @@ class USvcPointDrawer : public UObject
 
 public:
 	void Initialize(AActor* InHostActor);
-	UPrimitiveComponent* Draw(const FVector& Location, const FLinearColor& Color, float Size);
+	UPrimitiveComponent* Draw(const FVector& Location, const FLinearColor& Color, float Scale);
 
 private:
+	UPROPERTY()
+	
 	AActor* m_HostActor = nullptr;
+	UPROPERTY()
 	UMaterialInterface* m_Mat = nullptr;
+	UPROPERTY()
 	UStaticMesh* m_Mesh = nullptr;
 };

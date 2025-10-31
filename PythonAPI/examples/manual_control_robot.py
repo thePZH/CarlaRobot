@@ -49,6 +49,9 @@ import numpy as np
 import json
 import sys
 
+# --- 提前插入工具函数 ---
+
+
 try:
     import pygame
     from pygame.locals import KMOD_CTRL
@@ -56,6 +59,7 @@ try:
     from pygame.locals import K_DOWN
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_F1
+    from pygame.locals import K_F2
     from pygame.locals import K_LEFT
     from pygame.locals import K_RIGHT
     from pygame.locals import K_SPACE
@@ -360,7 +364,67 @@ class KeyboardControl(object):
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_F1:
-                    world.hud.toggle_info()
+                    # world.hud.toggle_info()
+                    try:
+                        # 点
+                        p_json = {
+                            "location": {"x": 0.0, "y": 0.0, "z": 2.0},
+                            "color": {"r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0},
+                            "scale": 1
+                        }
+                        resp = world.world.draw_point(json.dumps(p_json))
+                        print("draw_point resp:", resp)
+                        try:
+                            pid = json.loads(resp).get("id")
+                            if pid:
+                                self.uuids.append(pid)
+                        except Exception as e:
+                            print("parse point id failed", e, ", resp:", resp)
+                        # 线
+                        l_json = {
+                            "locations": [
+                                {"x": -1.0, "y": -1.0, "z": 1.0},
+                                {"x": 1.0, "y": 1.0, "z": 1.0}
+                            ],
+                            "color": {"r": 0.0, "g": 1.0, "b": 0.0, "a": 1.0},
+                            "scale": 1
+                        }
+                        resp = world.world.draw_line(json.dumps(l_json))
+                        print("draw_line resp:", resp)
+                        try:
+                            lid = json.loads(resp).get("id")
+                            if lid:
+                                self.uuids.append(lid)
+                        except Exception as e:
+                            print("parse line id failed", e, ", resp:", resp)
+                        # 立方体
+                        c_json = {
+                            "location": {"x": 1.0, "y": 0.0, "z": 0.5},
+                            "scale": {"x": 1, "y": 1, "z": 1},
+                            "color": {"r": 0.0, "g": 0.5, "b": 1.0, "a": 1.0}
+                        }
+                        resp = world.world.draw_cube(json.dumps(c_json))
+                        print("draw_cube resp:", resp)
+                        try:
+                            cid = json.loads(resp).get("id")
+                            if cid:
+                                self.uuids.append(cid)
+                        except Exception as e:
+                            print("parse cube id failed", e, ", resp:", resp)
+
+                        print("[F1] 绘制后缓存的uuid:", self.uuids)
+                    except Exception as e:
+                        print("draw geometry failed:", e)
+                elif event.key == K_F2:
+                    print("[F2] 当前将要删除uuids:", self.uuids)
+                    try:
+                        for uid in list(self.uuids):
+                            resp = world.world.remove_draw_object(json.dumps({"id": uid}))
+                            print("remove resp:", resp)
+                        self.uuids = []
+                        print("Cleared all drawn geometries")
+                    except Exception as e:
+                        print("clear geometry failed:", e)
                 elif event.key == K_h:
                     world.hud.help.toggle()
                 elif event.key == K_n:

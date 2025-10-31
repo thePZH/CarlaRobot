@@ -13,7 +13,8 @@ class USvcLineDrawer : public UObject
 public:
 	void Initialize(AActor* InActor);
 
-	UPrimitiveComponent* Draw(const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness) const;
+	// mesh直径为2cm
+	UPrimitiveComponent* Draw(const TArray<FVector>& Positions, const FLinearColor& Color, float Scale) const;
 
 private:
 	UPROPERTY()
