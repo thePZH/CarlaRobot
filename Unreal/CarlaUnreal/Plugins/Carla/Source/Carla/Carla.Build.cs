@@ -124,7 +124,8 @@ public class Carla :
 	  "AnimGraphRuntime",
 	  "SevnceGeometryDrawer",
 	  "SevnceLineTrace",
-	  "SevnceMapManager"
+	  "SevnceMapManager",
+	  "Niagara"
     });
 
     PublicDependencyModuleNames.AddRange(new string[]

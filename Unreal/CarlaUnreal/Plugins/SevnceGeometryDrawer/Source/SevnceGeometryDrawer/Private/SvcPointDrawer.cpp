@@ -22,7 +22,6 @@ UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinea
 	MeshComp->RegisterComponent();
 	MeshComp->SetMobility(EComponentMobility::Movable);
 	MeshComp->AttachToComponent(m_HostActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-
 	
 	MeshComp->SetStaticMesh(m_Mesh);
 
@@ -32,6 +31,6 @@ UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinea
 	UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(m_Mat, MeshComp);
 	DynMat->SetVectorParameterValue("Color", Color);
 	MeshComp->SetMaterial(0, DynMat);
-
+	MeshComp->SetTranslucentSortPriority(100);
 	return MeshComp;
 }

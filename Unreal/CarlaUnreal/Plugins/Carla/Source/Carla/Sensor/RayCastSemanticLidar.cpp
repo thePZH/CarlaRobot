@@ -264,10 +264,11 @@ bool ARayCastSemanticLidar::ShootLaser(const float VerticalAngle, const float Ho
     HitInfo,
     startTrace,
     EndTrace,
-    ECC_GameTraceChannel2,
+    ECC_GameTraceChannel5,		// GS channel
     TraceParams,
     FCollisionResponseParams::DefaultResponseParam
   );
+	
 
   if (HitInfo.bBlockingHit) {
     HitResult = HitInfo;

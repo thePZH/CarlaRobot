@@ -246,7 +246,7 @@ class World(object):
             self.player = None
         
         # 使用 create_robot 创建机器人和传感器
-        spawn_point = carla.Transform(carla.Location(x=-0.04, y=1.71, z=0.5))
+        spawn_point = carla.Transform(carla.Location(x=-0.04, y=1.71, z=0.7))
         json_params = {
             "robot": {
                 "blueprint": "vehicle.robot.01",
@@ -574,29 +574,22 @@ class KeyboardControl(object):
                         print("draw geometry failed:", e)
                 elif event.key == K_F2:
                     print("[F2] 当前将要删除uuids:", self.uuids)
-                    try:
-                        for uid in list(self.uuids):
-                            resp = world.world.remove_draw_object(json.dumps({"id": uid}))
-                            print("remove resp:", resp)
-                        self.uuids = []
-                        print("Cleared all drawn geometries")
-                    except Exception as e:
-                        print("clear geometry failed:", e)
+                    # try:
+                    #     for uid in list(self.uuids):
+                    #         resp = world.world.remove_draw_object(json.dumps({"id": uid}))
+                    #         print("remove resp:", resp)
+                    #     self.uuids = []
+                    #     print("Cleared all drawn geometries")
+                    # except Exception as e:
+                    #     print("clear geometry failed:", e)
+                    
+                    world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
-                    path = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/lijia.lcc'
+                    path = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/ljgc_01.lcc'
                     world.world.load_map(path)
                     
                 elif event.key == K_n:
-                    # 准备 JSON 参数
-                    json_params = json.dumps({
-                        "screen_x": 960, 
-                        "screen_y": 540
-                    })
-                    
-                    # 调用 API
-                    result_json = world.world.line_trace_single_from_player_camera(json_params)
-                    print(f"line_trace_single return_value: {result_json}")
-                    #world.camera_manager.next_sensor()
+                    world.camera_manager.next_sensor()
                 elif event.key == K_q:
                     if world.camera_manager is None or world.camera_manager.sensor is None:
                         print("Camera sensor not available")
@@ -864,7 +857,7 @@ class KeyboardControl(object):
         if keys[K_y] and not self.key_pressed[K_y]:
             self.key_pressed[K_y] = True
             category = "fire"
-            location = (5, 0, 0)
+            location = (-0.04, 1.71, 0.7)
             rotation = (0, 0, 0)
             scale = (1, 1, 1)
             effect_json = {

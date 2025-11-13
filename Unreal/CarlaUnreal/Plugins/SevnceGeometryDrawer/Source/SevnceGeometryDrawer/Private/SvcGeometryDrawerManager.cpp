@@ -155,7 +155,7 @@ bool USvcGeometryDrawerManager::ClearDrawObjects(EGeometryDrawType type)
 		{
 			if (IsValid(pair.Value))
 			{
-				pair.Value->DestroyComponent();
+				pair.Value->DestroyComponent(true);
 			}
 		}
 		m_DrawObjects.Empty();

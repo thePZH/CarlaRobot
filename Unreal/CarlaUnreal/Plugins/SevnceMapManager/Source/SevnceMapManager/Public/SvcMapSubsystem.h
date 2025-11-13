@@ -26,7 +26,15 @@ public:
 
 private:
 	ALCCActor* GetOrCreateLCCActor();
+	AActor* GetOrCreateMeshActor();
+	void LoadAndAttachQueryMesh(const FString& DataSetFileName);
+	void LoadAndAttachNaviMesh(const FString& DataSetFileName);
+
 	TWeakObjectPtr<ALCCActor> m_LccActor;
+	TWeakObjectPtr<AActor> m_MeshActor; // 放碰撞
+	TMap<FString, FString> m_MapToComplexCollision;
+	TMap<FString, FString> m_MapToSimpleCollision;
+
 };
 
 

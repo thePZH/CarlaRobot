@@ -79,7 +79,7 @@
 #include "Misc/FileHelper.h"
 #include "Animation/PoseSnapshot.h"
 #include "Animation/AnimInstance.h"
-
+#include "NiagaraComponent.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -904,6 +904,15 @@ void FCarlaServer::FPimpl::BindActions()
 			return std::string();
 
 		spawnedActor->SetActorScale3D(scale);
+		TSet<UActorComponent*> componentsSet = spawnedActor->GetComponents();
+
+		for (auto& comp : componentsSet)
+		{
+			if (auto niagaraComp = Cast<UNiagaraComponent>(comp))
+			{
+				niagaraComp->TranslucencySortPriority = 50;
+			}
+		}
 
 		FString uuidFStr = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 		Episode->CreatedActorMap.Add(uuidFStr, spawnedActor);
