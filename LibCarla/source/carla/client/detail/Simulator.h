@@ -844,6 +844,9 @@ namespace detail {
     /// Perform multiple line traces and return results as JSON string
     std::string LineTraceMultiple(const std::string& json_params) const;
 
+    /// Perform a single line trace from player camera and return result as JSON string
+    std::string LineTraceSingleFromPlayerCamera(const std::string& json_params) const;
+
     // Geometry drawer
     std::string DrawGeometryPoint(const std::string& json)
     {
@@ -866,7 +869,15 @@ namespace detail {
         return _client.ClearGeometryObjects(json);
     }
 
-    /// @}
+    // Map Manager RPCs
+    bool LoadMap(const std::string& path)
+    {
+        return _client.LoadMap(path);
+    }
+    bool UnloadMap()
+    {
+        return _client.UnloadMap();
+    }
 
   private:
 

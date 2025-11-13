@@ -789,6 +789,11 @@ namespace detail {
     return _pimpl->CallAndWait<std::string>("line_trace_multiple", json_params);
   }
 
+  std::string Client::LineTraceSingleFromPlayerCamera(const std::string& json_params) const
+  {
+    return _pimpl->CallAndWait<std::string>("line_trace_single_from_player_camera", json_params);
+  }
+
   // Geometry drawer RPCs
   std::string Client::DrawGeometryPoint(const std::string& json)
   {
@@ -814,7 +819,14 @@ namespace detail {
   {
     return _pimpl->CallAndWait<std::string>("clear_geometry_objects", json);
   }
-
+	bool Client::LoadMap(const std::string& path)
+	{
+  		return _pimpl->CallAndWait<bool>("load_map", path);
+	}
+	bool Client::UnloadMap()
+	{
+		return _pimpl->CallAndWait<bool>("unload_map");
+	}
 } // namespace detail
 } // namespace client
 } // namespace carla

@@ -9,8 +9,7 @@
 void USvcPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-
-    // 延迟到世界初始化后再执行，避免打包环境下 GetWorld 为 null
+	
 	TWeakObjectPtr<USvcPixelStreamingSubsystem> WeakThis(this);
 	
     m_InitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda(

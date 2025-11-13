@@ -122,7 +122,9 @@ public class Carla :
       "NavigationSystem",
 	  "AIModule",
 	  "AnimGraphRuntime",
-	  "SevnceGeometryDrawer"
+	  "SevnceGeometryDrawer",
+	  "SevnceLineTrace",
+	  "SevnceMapManager"
     });
 
     PublicDependencyModuleNames.AddRange(new string[]

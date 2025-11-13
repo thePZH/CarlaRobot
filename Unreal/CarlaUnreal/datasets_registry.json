@@ -1,0 +1,17 @@
+{
+  "datasets": 
+  [
+    {
+        "id": "lijia_1030",
+        "meta_path": "/mnt/ssd1t/其域创新/lcc礼嘉1030/LCC_Results/礼嘉工场1.lcc"
+    },
+    {
+        "id": "xinjiang_1103", 
+        "meta_path": "/mnt/ssd1t/其域创新/lcc-新疆室内-1103/LCC_Results/新疆哈密室内.lcc"
+    },
+    {
+        "id": "xinjiang1-1103", 
+        "meta_path": "/mnt/ssd1t/其域创新/lcc_新疆小场景室外1-1103/LCC_Results/小场景室外1.lcc"
+    }
+  ]
+}

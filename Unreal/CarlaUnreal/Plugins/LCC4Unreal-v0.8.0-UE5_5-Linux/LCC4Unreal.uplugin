@@ -1,0 +1,110 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.8.0",
+	"FriendlyName": "LCC4Unreal",
+	"Description": "Adds support for importing, processing and rendering of LCC format 3D Gaussian Splatting.",
+	"Category": "Rendering",
+	"CreatedBy": "XGrids",
+	"CreatedByURL": "https://www.xgrids.cn",
+	"DocsURL": "https://developer.xgrids.com/#/",
+	"MarketplaceURL": "",
+	"SupportURL": "https://developer.xgrids.com/#/",
+	"EngineVersion": "5.5.0",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "LCC4UnrealRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			],
+			"PlatformDenyList": [
+				"Mac",
+				"Android",
+				"IOS"
+			],
+			"TargetConfigurationAllowList": [
+				"Debug",
+				"DebugGame",
+				"Development",
+				"Shipping"
+			]
+		},
+		{
+			"Name": "LCC4UnrealCesium",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			],
+			"PlatformDenyList": [
+				"Mac",
+				"Android",
+				"IOS"
+			],
+			"TargetConfigurationAllowList": [
+				"Debug",
+				"DebugGame",
+				"Development",
+				"Shipping"
+			]
+		},
+		{
+			"Name": "LCC4UnrealEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			],
+			"PlatformDenyList": [
+				"Mac",
+				"Android",
+				"IOS"
+			],
+			"TargetConfigurationAllowList": [
+				"Debug",
+				"DebugGame",
+				"Development",
+				"Shipping"
+			]
+		},
+		{
+			"Name": "PlyConverter",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			],
+			"PlatformDenyList": [
+				"Mac",
+				"Android",
+				"IOS"
+			],
+			"TargetConfigurationAllowList": [
+				"Debug",
+				"DebugGame",
+				"Development",
+				"Shipping"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "GeoReferencing",
+			"Enabled": true
+		},
+		{
+			"Name": "CesiumForUnreal",
+			"Enabled": true,
+			"Optional": true
+		}
+	]
+}

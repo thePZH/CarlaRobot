@@ -38,6 +38,10 @@
   	{
 	  	"Name": "SevnceGeometryDrawer",
 		"Enabled": true	
-  	}
+  	},
+	{
+	  "Name": "SevnceLineTrace",
+	  "Enabled": true
+	}
   ]
 }

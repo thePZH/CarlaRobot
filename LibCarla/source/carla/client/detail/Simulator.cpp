@@ -494,6 +494,10 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     return _client.LineTraceMultiple(json_params);
   }
 
+  std::string Simulator::LineTraceSingleFromPlayerCamera(const std::string& json_params) const {
+    return _client.LineTraceSingleFromPlayerCamera(json_params);
+  }
+
 
 } // namespace detail
 } // namespace client

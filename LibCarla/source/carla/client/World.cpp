@@ -429,6 +429,10 @@ namespace client {
     return _episode.Lock()->LineTraceMultiple(json_params);
   }
 
+  std::string World::LineTraceSingleFromPlayerCamera(const std::string& json_params) const {
+    return _episode.Lock()->LineTraceSingleFromPlayerCamera(json_params);
+  }
+
   // Geometry drawer
   std::string World::DrawGeometryPoint(const std::string& json)
   {
@@ -454,6 +458,15 @@ namespace client {
   {
     return _episode.Lock()->ClearGeometryObjects(json);
   }
+	bool World::LoadMap(const std::string& path)
+	{
+		return _episode.Lock()->LoadMap(path);
+	}
+
+	bool World::UnloadMap()
+	{
+		return _episode.Lock()->UnloadMap();
+	}
 
 } // namespace client
 } // namespace carla

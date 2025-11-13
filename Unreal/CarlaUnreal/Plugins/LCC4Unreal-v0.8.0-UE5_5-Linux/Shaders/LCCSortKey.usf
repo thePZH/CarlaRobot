@@ -1,0 +1,20 @@
+// Copyright XGrids, Inc. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+
+uint TotalNum;
+float3 CameraPosition;
+half ImportScale;
+ByteAddressBuffer SplatBuffer;
+RWBuffer<uint> IndexBuffer;
+RWBuffer<uint> SortKeys;
+
+[numthreads(THREADS_X, 1, 1)]
+void MainSortKey(
+    uint3 DispatchThreadId : SV_DispatchThreadID,
+    uint3 GroupThreadID : SV_GroupThreadID,
+    uint3 GroupID : SV_GroupID,
+    uint GroupIndex : SV_GroupIndex)
+{
+    LIXEL_LCC_GENKEY_IMPLE
+}

@@ -105,6 +105,10 @@
 		{
 			"Name": "SevncePixelStreaming",
 			"Enabled": true
+		},
+		{
+			"Name": "SevnceWeatherSystem",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

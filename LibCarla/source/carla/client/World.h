@@ -254,13 +254,17 @@ namespace client {
     /// Perform multiple line traces and return results as JSON string
     std::string LineTraceMultiple(const std::string& json_params) const;
 
+    /// Perform a single line trace from player camera and return result as JSON string
+    std::string LineTraceSingleFromPlayerCamera(const std::string& json_params) const;
+
     // Geometry drawer APIs (JSON-based)
     std::string DrawGeometryPoint(const std::string& json);
     std::string DrawGeometryLine(const std::string& json);
     std::string DrawGeometryCube(const std::string& json);
     std::string RemoveGeometryObject(const std::string& json);
     std::string ClearGeometryObjects(const std::string& json);
-
+  	bool LoadMap(const std::string& path);
+  	bool UnloadMap();
   private:
 
     detail::EpisodeProxy _episode;
