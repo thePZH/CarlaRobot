@@ -587,16 +587,13 @@ class KeyboardControl(object):
                     world.world.load_map(path)
                     
                 elif event.key == K_n:
-                    # 准备 JSON 参数
-                    json_params = json.dumps({
-                        "screen_x": 960, 
-                        "screen_y": 540
-                    })
-                    
-                    # 调用 API
-                    result_json = world.world.line_trace_single_from_player_camera(json_params)
-                    print(f"line_trace_single return_value: {result_json}")
-                    #world.camera_manager.next_sensor()
+                    # json_params = json.dumps({
+                    #     "screen_x": 960, 
+                    #     "screen_y": 540
+                    # })
+                    # result_json = world.world.line_trace_single_from_player_camera(json_params)
+                    # print(f"line_trace_single return_value: {result_json}")
+                    world.camera_manager.next_sensor()
                 elif event.key == K_q:
                     if world.camera_manager is None or world.camera_manager.sensor is None:
                         print("Camera sensor not available")
