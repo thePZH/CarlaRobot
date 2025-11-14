@@ -33,5 +33,7 @@ UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinea
 	DynMat->SetVectorParameterValue("Color", Color);
 	MeshComp->SetMaterial(0, DynMat);
 
+	MeshComp->SetTranslucentSortPriority(100);
+
 	return MeshComp;
 }

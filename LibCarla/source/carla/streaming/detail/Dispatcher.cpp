@@ -84,7 +84,8 @@ namespace detail {
         return true;
       }
     }
-    log_error("Invalid session: no stream available with id", session->get_stream_id());
+	// TODO: 暂时屏蔽
+    // log_error("Invalid session: no stream available with id", session->get_stream_id());
     return false;
   }
 

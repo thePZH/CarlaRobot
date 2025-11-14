@@ -66,6 +66,8 @@ UPrimitiveComponent* USvcLineDrawer::Draw(const TArray<FVector>& Positions, cons
     	
         MeshComp->SetStartScale(FVector2D(Scale));
         MeshComp->SetEndScale(FVector2D(Scale));
+    	// 解决3DGS显示问题
+    	MeshComp->SetTranslucentSortPriority(100);
     }
 
     // 5. 返回根容器
