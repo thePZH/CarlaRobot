@@ -11,6 +11,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "LCCActor.h"
 #include "LCCComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 
 void USvcMapSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -30,13 +31,14 @@ void USvcMapSubsystem::Deinitialize()
 
 bool USvcMapSubsystem::LoadMap(const FString& Path)
 {
+	
 	UWorld* world = GetWorld();
 	if (!world)
 	{
 		return false;
 	}
 
-	ALCCActor* lccActor = GetOrCreateLCCActor();
+	ALCCActor* lccActor = InitLCCActor();
 	if (!IsValid(lccActor))
 	{
 		return false;
@@ -81,22 +83,67 @@ bool USvcMapSubsystem::Unload()
     return true;
 }
 
-ALCCActor* USvcMapSubsystem::GetOrCreateLCCActor()
+ALCCActor* USvcMapSubsystem::InitLCCActor()
 {
-	ALCCActor* lccActor = m_LccActor.Get();
-    
-	if (!IsValid(lccActor))
-	{
-		UWorld* world = GetWorld();
-		if (world)
-		{
-			lccActor = world->SpawnActor<ALCCActor>({0,0,0}, {0,0,0});
-			lccActor->GetLCCComponent()->SetLCCCollisionEnable(false);
-			m_LccActor = lccActor;
-		}
-	}
-    
-	return lccActor;
+	if (!GetWorld())
+		return nullptr;
+	
+	FStringAssetReference BlueprintPath(TEXT("/SevnceMapManager/BPs/BP_LCCActor.BP_LCCActor_C"));
+	UClass* actorClass = Cast<UClass>(BlueprintPath.TryLoad());
+	
+	AActor* actor = UGameplayStatics::GetActorOfClass(GetWorld(), actorClass);
+	if (!actor)
+		return nullptr;
+	
+	m_LccActor = Cast<ALCCActor>(actor);
+	return m_LccActor.Get();
+	// FStringAssetReference BlueprintPath(TEXT("/SevnceMapManager/BPs/BP_LCCActor.BP_LCCActor_C"));
+	// UClass* actorClass = Cast<UClass>(BlueprintPath.TryLoad());
+	//
+	// if (!IsValid(actorClass))
+	// {
+	// 	UE_LOG(LogTemp, Error, TEXT("无法加载蓝图类，请检查路径 /SevnceMapManager/BPs/BP_LCCActor.BP_LCCActor_C"));
+	// 	return nullptr; // 或者返回一个错误码
+	// }
+	//
+	// if (!IsValid(m_LccActor.Get()))
+	// {
+	// 	UWorld* world = GetWorld();
+	// 	if (world)
+	// 	{
+	// 		FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
+	// 		FRotator SpawnRotation = FRotator::ZeroRotator;
+	//
+	// 		AActor* actor = world->SpawnActor(actorClass, &SpawnLocation, &SpawnRotation);
+	// 		
+	// 		m_LccActor = Cast<ALCCActor>(actor);
+	//
+	// 		// 关键：检查转换是否成功
+	// 		if (IsValid(m_LccActor.Get()))
+	// 		{
+	// 			ULCCComponent* LCCComp = m_LccActor->GetLCCComponent();
+	// 			if (IsValid(LCCComp))
+	// 			{
+	// 				LCCComp->SetLCCCollisionEnable(false);
+	// 				UE_LOG(LogTemp, Log, TEXT("LCCActor生成并初始化成功！"));
+	// 			}
+	// 			else
+	// 			{
+	// 				UE_LOG(LogTemp, Error, TEXT("LCCActor生成成功，但获取LCCComponent失败！"));
+	// 				// 这里可能需要清理掉已经生成的无效Actor
+	// 				m_LccActor->Destroy();
+	// 				m_LccActor = nullptr;
+	// 			}
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG(LogTemp, Error, TEXT("生成的Actor无法转换为ALCCACtor类型，请检查蓝图基类！"));
+	// 		}
+	// 	}
+	// }
+	//
+	// // 返回最终生成的Actor指针
+	// return m_LccActor.Get();
 }
 
 AActor* USvcMapSubsystem::GetOrCreateMeshActor()

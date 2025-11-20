@@ -25,7 +25,7 @@ public:
     bool Unload();
 
 private:
-	ALCCActor* GetOrCreateLCCActor();
+	ALCCActor* InitLCCActor();
 	AActor* GetOrCreateMeshActor();
 	void LoadAndAttachQueryMesh(const FString& DataSetFileName);
 	void LoadAndAttachNaviMesh(const FString& DataSetFileName);
