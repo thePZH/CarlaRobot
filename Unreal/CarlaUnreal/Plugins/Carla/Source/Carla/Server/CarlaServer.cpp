@@ -954,6 +954,140 @@ void FCarlaServer::FPimpl::BindActions()
 		return true;
 	};
 
+	BIND_SYNC(destroy_objects) << [this](std::string jsonStr) -> R<std::string>
+	{
+		REQUIRE_CARLA_EPISODE();
+		
+		FString JsonString(UTF8_TO_TCHAR(jsonStr.c_str()));
+		TSharedPtr<FJsonObject> JsonObject;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+
+		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+		{
+			TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
+			ResultObject->SetBoolField(TEXT("ok"), false);
+			ResultObject->SetStringField(TEXT("error"), TEXT("Invalid JSON parameters"));
+			FString OutputString;
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+			FJsonSerializer::Serialize(ResultObject.ToSharedRef(), Writer);
+			return std::string(TCHAR_TO_UTF8(*OutputString));
+		}
+
+		FString type;
+		if (!JsonObject->TryGetStringField(TEXT("type"), type))
+		{
+			TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
+			ResultObject->SetBoolField(TEXT("ok"), false);
+			ResultObject->SetStringField(TEXT("error"), TEXT("Missing type field"));
+			FString OutputString;
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+			FJsonSerializer::Serialize(ResultObject.ToSharedRef(), Writer);
+			return std::string(TCHAR_TO_UTF8(*OutputString));
+		}
+
+		int32 destroyedCount = 0;
+
+		// 根据类型构建需要匹配的类集合
+		TArray<TSubclassOf<AActor>> targetClasses;
+		
+		if (type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
+		{
+			// effect 类型包含的所有 category 对应的类
+			TMap<FString, TSubclassOf<AActor>> effectMap;
+			effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Fire.BP_Fire_C")));
+			effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke01.BP_Smoke01_C")));
+			effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke02.BP_Smoke02_C")));
+			effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+			
+			for (const auto& pair : effectMap)
+			{
+				if (pair.Value)
+				{
+					targetClasses.Add(pair.Value);
+				}
+			}
+		}
+		// 如果以后有其他类型，可以在这里添加
+		// else if (type.Equals(TEXT("static"), ESearchCase::IgnoreCase))
+		// {
+		//     // 静态模型的类
+		// }
+
+		if (targetClasses.Num() == 0)
+		{
+			// 类型不支持或无效
+			TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
+			ResultObject->SetBoolField(TEXT("ok"), false);
+			ResultObject->SetStringField(TEXT("error"), TEXT("Unsupported or invalid type"));
+			ResultObject->SetNumberField(TEXT("destroyed_count"), 0);
+			FString OutputString;
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+			FJsonSerializer::Serialize(ResultObject.ToSharedRef(), Writer);
+			return std::string(TCHAR_TO_UTF8(*OutputString));
+		}
+
+		// 收集需要删除的 UUID
+		TArray<FString> uuidsToRemove;
+		
+		for (auto& pair : Episode->CreatedActorMap)
+		{
+			FString uuid = pair.Key;
+			TWeakObjectPtr<AActor> actorPtr = pair.Value;
+
+			// 跳过无效的 Actor
+			if (!actorPtr.IsValid())
+			{
+				uuidsToRemove.Add(uuid);
+				continue;
+			}
+
+			AActor* actor = actorPtr.Get();
+			if (!actor)
+			{
+				uuidsToRemove.Add(uuid);
+				continue;
+			}
+
+			// 检查 Actor 的类是否匹配目标类型
+			bool bMatches = false;
+			UClass* actorClass = actor->GetClass();
+			
+			for (TSubclassOf<AActor> targetClass : targetClasses)
+			{
+				if (actorClass == targetClass || actorClass->IsChildOf(targetClass))
+				{
+					bMatches = true;
+					break;
+				}
+			}
+
+			if (bMatches)
+			{
+				UWorld* world = actor->GetWorld();
+				if (world && world->DestroyActor(actor))
+				{
+					destroyedCount++;
+				}
+				uuidsToRemove.Add(uuid);
+			}
+		}
+
+		// 从 Map 中移除已删除的 UUID
+		for (const FString& uuid : uuidsToRemove)
+		{
+			Episode->CreatedActorMap.Remove(uuid);
+		}
+
+		// 构建返回 JSON
+		TSharedPtr<FJsonObject> ResultObject = MakeShareable(new FJsonObject);
+		ResultObject->SetBoolField(TEXT("ok"), true);
+		ResultObject->SetNumberField(TEXT("destroyed_count"), destroyedCount);
+		FString OutputString;
+		TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+		FJsonSerializer::Serialize(ResultObject.ToSharedRef(), Writer);
+		return std::string(TCHAR_TO_UTF8(*OutputString));
+	};
+
 	BIND_SYNC(destroy_actor) << [this](cr::ActorId ActorId) -> R<bool>
 	{
 		REQUIRE_CARLA_EPISODE();

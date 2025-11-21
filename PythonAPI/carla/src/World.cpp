@@ -335,6 +335,7 @@ void export_world() {
     .def("try_spawn_actor", SPAWN_ACTOR_WITHOUT_GIL(TrySpawnActor))
 	.def("create_object", CALL_WITHOUT_GIL_1(cc::World, CreateObject, std::string), (arg("json")))
 	.def("destroy_object", CALL_WITHOUT_GIL_1(cc::World, DestroyObject, std::string), (arg("uuid")))
+	.def("destroy_objects", CALL_WITHOUT_GIL_1(cc::World, DestroyObjects, std::string), (arg("json")))
 	.def("load_map", CALL_WITHOUT_GIL_1(cc::World, LoadMap, std::string), (arg("path")))
 	.def("unload_map", &cc::World::UnloadMap)
     .def("wait_for_tick", &WaitForTick, (arg("seconds")=0.0))

@@ -480,7 +480,6 @@ class KeyboardControl(object):
     """Class that handles keyboard input."""
     def __init__(self, world):
         self._world = world
-        self.key_pressed = {K_y : False, K_u: False}
         self.uuids = []
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
@@ -625,11 +624,88 @@ class KeyboardControl(object):
                         world.restart()
                     except Exception as e:
                         print(f"Failed to restart robot: {e}")
-                    
+                elif event.key == K_y:
+                    try:
+                        # 获取玩家当前位置作为参考点
+                        player_transform = world.player.get_transform()
+                        player_location = player_transform.location
+                        
+                        # 定义5个相对位置（相对于玩家位置）
+                        fire_locations = [
+                            (0.0, 0.0, 0.0),      # 玩家位置
+                            (2.0, 0.0, 0.0),      # 前方2米
+                            (-2.0, 0.0, 0.0),     # 后方2米
+                            (0.0, 2.0, 0.0),      # 右侧2米
+                            (0.0, -2.0, 0.0),     # 左侧2米
+                        ]
+                        
+                        created_count = 0
+                        for i, (dx, dy, dz) in enumerate(fire_locations):
+                            # 计算世界坐标位置
+                            fire_location = (
+                                player_location.x + dx,
+                                player_location.y + dy,
+                                player_location.z + dz
+                            )
+                            
+                            effect_json = {
+                                "type": "effect",
+                                "params": {
+                                    "category": "fire",
+                                    "transform": {
+                                        "location": {"x": fire_location[0], "y": fire_location[1], "z": fire_location[2]},
+                                        "rotation": {"pitch": 0, "yaw": 0, "roll": 0},
+                                        "scale": {"x": 1, "y": 1, "z": 1}
+                                    }
+                                }
+                            }
+                            json_str = json.dumps(effect_json)
+                            uuid = world.world.create_object(json_str)
+                            if uuid:
+                                self.uuids.append(uuid)
+                                created_count += 1
+                                print(f"[K_y] Created fire #{i+1} at ({fire_location[0]:.2f}, {fire_location[1]:.2f}, {fire_location[2]:.2f}), uuid: {uuid}")
+                            else:
+                                print(f"[K_y] Failed to create fire #{i+1}")
+                        
+                        world.hud.notification(f'Created {created_count}/5 fire effects')
+                        print(f"[K_y] Total created: {created_count}/5 fires")
+                    except Exception as e:
+                        print(f"[K_y] Failed to create fire effects: {e}")
+                        world.hud.error(f'Failed to create fires: {e}')
+                elif event.key == K_u:
+                # 批量销毁所有 effect 类型的对象
+                    try:
+                        # 使用新的 JSON 格式的 destroy_objects 接口
+                        destroy_json = {
+                            "type": "effect"
+                        }
+                        json_str = json.dumps(destroy_json)
+                        result_str = world.world.destroy_objects(json_str)
+                        
+                        # 解析返回的 JSON 结果
+                        try:
+                            result = json.loads(result_str)
+                            if result.get("ok", False):
+                                destroyed_count = result.get("destroyed_count", 0)
+                                world.hud.notification(f'Destroyed {destroyed_count} effect objects')
+                                print(f"[K_u] Successfully destroyed {destroyed_count} effect objects")
+                                # 清空本地 UUID 列表（因为服务器端已经删除了）
+                                self.uuids = []
+                            else:
+                                error_msg = result.get("error", "Unknown error")
+                                world.hud.error(f'Destroy failed: {error_msg}')
+                                print(f"[K_u] Destroy failed: {error_msg}")
+                        except json.JSONDecodeError as e:
+                            print(f"[K_u] Failed to parse destroy_objects result: {e}, raw: {result_str}")
+                            world.hud.error('Failed to parse destroy result')
+                    except Exception as e:
+                        print(f"[K_u] Failed to destroy effects: {e}")
+                        world.hud.error(f'Failed to destroy: {e}')
                 
                 if isinstance(self._control, carla.VehicleControl):
                     pass #车辆事件
-
+            
         if isinstance(self._control, carla.VehicleControl):
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
             self._parse_sensor_keys(pygame.key.get_pressed(), clock.get_time(), world)
@@ -853,46 +929,6 @@ class KeyboardControl(object):
                 print("  World:", bone.world)
                 print("  Component:", bone.component)
                 print("  Relative:", bone.relative)
-
-        if keys[K_y] and not self.key_pressed[K_y]:
-            self.key_pressed[K_y] = True
-            category = "fire"
-            location = (-0.04, 1.71, 0.7)
-            rotation = (0, 0, 0)
-            scale = (1, 1, 1)
-            effect_json = {
-                "type": "effect",
-                "params": {
-                    "category": category,
-                    "transform": {
-                        "location": {"x": location[0], "y": location[1], "z": location[2]},
-                        "rotation": {"pitch": rotation[0], "yaw": rotation[1], "roll": rotation[2]},
-                        "scale": {"x": scale[0], "y": scale[1], "z": scale[2]}
-                    }
-                }
-            }
-            json_str = json.dumps(effect_json)
-            uuid = world.world.create_object(json_str)
-            if uuid:
-                self.uuids.append(uuid)
-                print(f"create success. uuid: {uuid}")
-            else:
-                print("create failed")
-        elif not keys[K_y]:
-            self.key_pressed[K_y] = False
-
-        if keys[K_u] and not self.key_pressed[K_u]:
-            self.key_pressed[K_u] = True
-            if self.uuids:
-                uuid_to_destroy = self.uuids.pop()
-                if world.world.destroy_object(uuid_to_destroy):
-                    print(f"destroy success. uuid: {uuid_to_destroy}")
-                else:
-                    print(f"destroy failed. uuid: {uuid_to_destroy}")
-            else:
-                print("No effect to destroy")
-        elif not keys[K_u]:
-            self.key_pressed[K_u] = False
             
     @staticmethod
     def _is_quit_shortcut(key):
