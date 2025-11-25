@@ -178,6 +178,11 @@ namespace client {
 		return _episode.Lock()->DestroyObjects(json);
 	}
 
+  std::string World::ControlMainCamera(const std::string &json)
+  {
+    return _episode.Lock()->ControlMainCamera(json);
+  }
+
   WorldSnapshot World::WaitForTick(time_duration timeout) const {
     time_duration local_timeout = timeout.milliseconds() == 0 ?
         _episode.Lock()->GetNetworkingTimeout() : timeout;

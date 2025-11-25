@@ -125,6 +125,7 @@ public class Carla :
 	  "SevnceGeometryDrawer",
 	  "SevnceLineTrace",
 	  "SevnceMapManager",
+	  "SevnceCameraSystem",
 	  "Niagara"
     });
 

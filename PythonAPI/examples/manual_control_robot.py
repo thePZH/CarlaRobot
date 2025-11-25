@@ -60,6 +60,9 @@ try:
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_F1
     from pygame.locals import K_F2
+    from pygame.locals import K_F5
+    from pygame.locals import K_F6
+    from pygame.locals import K_F7
     from pygame.locals import K_LEFT
     from pygame.locals import K_RIGHT
     from pygame.locals import K_SPACE
@@ -624,6 +627,10 @@ class KeyboardControl(object):
                         world.restart()
                     except Exception as e:
                         print(f"Failed to restart robot: {e}")
+                elif event.key == K_F5:
+                    self._control_main_camera_free(world)
+                elif event.key == K_F6:
+                    self._control_main_camera_fixed(world)
                 elif event.key == K_y:
                     try:
                         # 获取玩家当前位置作为参考点
@@ -930,6 +937,44 @@ class KeyboardControl(object):
                 print("  Component:", bone.component)
                 print("  Relative:", bone.relative)
             
+
+    def _control_main_camera_free(self, world):
+        player = world.player
+        if player is None:
+            world.hud.error("Player actor not available for camera control")
+            return
+
+        transform = player.get_transform()
+        desired_location = carla.Location(
+            x=transform.location.x - 5.0,
+            y=transform.location.y,
+            z=transform.location.z + 3.0
+        )
+        payload = {
+            "mode": "free",
+            "transform": {
+                "location": {"x": desired_location.x, "y": desired_location.y, "z": desired_location.z},
+                "rotation": {"pitch": transform.rotation.pitch, "yaw": transform.rotation.yaw, "roll": 0.0}
+            }
+        }
+        world.world.control_main_camera(json.dumps(payload))
+        
+    def _control_main_camera_fixed(self, world):
+        player = world.player
+        if player is None:
+            world.hud.error("Player actor not available for camera control")
+            return
+
+        payload = {
+            "mode": "fixed",
+            "robot_id": player.id,
+            "relative_transform": {
+                "location": {"x": -2, "y": -2, "z": 2},
+                "rotation": {"pitch": -30.0, "yaw": 0.0, "roll": 0.0}
+            }
+        }
+        world.world.control_main_camera(json.dumps(payload))          
+        
     @staticmethod
     def _is_quit_shortcut(key):
         return (key == K_ESCAPE)
