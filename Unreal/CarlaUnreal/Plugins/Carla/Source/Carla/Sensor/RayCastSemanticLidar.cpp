@@ -142,7 +142,9 @@ void ARayCastSemanticLidar::SimulateLidar(const float DeltaTime)
 
       for (auto idxPtsOneLaser = 0u; idxPtsOneLaser < PointsToScanWithOneLaser; idxPtsOneLaser++) {
         FHitResult HitResult;
+      	// 当前激光的垂直方向上的角度，天顶角
         const float VertAngle = LaserAngles[idxChannel];
+      	// 如果频率太快，一帧扫描范围大于水平视场角，取模会让其从起点继续
         const float HorizAngle = std::fmod(CurrentHorizontalAngle + AngleDistanceOfLaserMeasure
             * idxPtsOneLaser, Description.HorizontalFov) - Description.HorizontalFov / 2;
         const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];

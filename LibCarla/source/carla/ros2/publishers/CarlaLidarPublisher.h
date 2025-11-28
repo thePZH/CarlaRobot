@@ -26,10 +26,16 @@ namespace ros2 {
       bool Init();
       bool Publish();
       void SetData(int32_t seconds, uint32_t nanoseconds, size_t height, size_t width, float* data);
+      void SetDataWithRingAndTime(int32_t seconds, uint32_t nanoseconds, size_t height, size_t width, float* data, 
+                                   const std::vector<uint32_t>& points_per_channel, float rotation_time = 0.0f);
+      void SetDataWithRingAndTimeFromUE(int32_t seconds, uint32_t nanoseconds, size_t height, size_t width, float* data,
+                                         const uint16_t* rings, const float* times);
       const char* type() const override { return "lidar"; }
 
     private:
       void SetData(int32_t seconds, uint32_t nanoseconds, size_t height, size_t width, std::vector<uint8_t>&& data);
+      void SetDataWithRingAndTime(int32_t seconds, uint32_t nanoseconds, size_t height, size_t width, std::vector<uint8_t>&& data,
+                                   const std::vector<uint32_t>& points_per_channel, float rotation_time = 0.0f);
 
     private:
       std::shared_ptr<CarlaLidarPublisherImpl> _impl;

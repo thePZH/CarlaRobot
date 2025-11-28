@@ -53,13 +53,19 @@ namespace data {
     public:
       geom::Location point;
       float intensity;
+      uint16_t ring;  // 激光线号（通道ID），默认为0
+      float time;     // 点的时间戳（相对于扫描开始的时间，秒），默认为0.0f
 
       LidarDetection() :
-          point(0.0f, 0.0f, 0.0f), intensity{0.0f} { }
+          point(0.0f, 0.0f, 0.0f), intensity{0.0f}, ring{0}, time{0.0f} { }
       LidarDetection(float x, float y, float z, float intensity) :
-          point(x, y, z), intensity{intensity} { }
+          point(x, y, z), intensity{intensity}, ring{0}, time{0.0f} { }
       LidarDetection(geom::Location p, float intensity) :
-          point(p), intensity{intensity} { }
+          point(p), intensity{intensity}, ring{0}, time{0.0f} { }
+      LidarDetection(float x, float y, float z, float intensity, uint16_t ring_id, float point_time) :
+          point(x, y, z), intensity{intensity}, ring{ring_id}, time{point_time} { }
+      LidarDetection(geom::Location p, float intensity, uint16_t ring_id, float point_time) :
+          point(p), intensity{intensity}, ring{ring_id}, time{point_time} { }
 
       void WritePlyHeaderInfo(std::ostream& out) const{
         out << "property float32 x\n" \
@@ -93,6 +99,12 @@ namespace data {
 
       _points.clear();
       _points.reserve(total_points * 4);
+      
+      // 可选：为ring和time分配内存（如果使用扩展格式）
+      _rings.clear();
+      _times.clear();
+      _rings.reserve(total_points);
+      _times.reserve(total_points);
     }
 
     void WritePointSync(LidarDetection &detection) {
@@ -100,6 +112,16 @@ namespace data {
       _points.emplace_back(detection.point.y);
       _points.emplace_back(detection.point.z);
       _points.emplace_back(detection.intensity);
+      
+      // 如果detection包含ring和time信息，存储它们
+      _rings.emplace_back(detection.ring);
+      _times.emplace_back(detection.time);
+    }
+    
+    // 检查是否包含ring和time信息
+    bool HasRingAndTime() const {
+      const size_t point_count = _points.size() / 4;
+      return (_rings.size() == point_count && _times.size() == point_count);
     }
 
     virtual void WritePointSync(SemanticLidarDetection &detection) {
@@ -109,6 +131,8 @@ namespace data {
 
   private:
     std::vector<float> _points;
+    std::vector<uint16_t> _rings;  // 可选的ring信息，与_points中的点一一对应
+    std::vector<float> _times;    // 可选的时间信息，与_points中的点一一对应
 
     friend class s11n::LidarSerializer;
     friend class s11n::LidarHeaderView;

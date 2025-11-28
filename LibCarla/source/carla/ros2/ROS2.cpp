@@ -815,7 +815,30 @@ void ROS2::ProcessDataFromLidar(
     std::shared_ptr<CarlaLidarPublisher> publisher = std::dynamic_pointer_cast<CarlaLidarPublisher>(sensors.first);
     size_t width = data._points.size();
     size_t height = 1;
-    publisher->SetData(_seconds, _nanoseconds, height, width, (float*)data._points.data());
+    
+    // 检查数据是否包含ring和time信息（从UE端生成）
+    if (data.HasRingAndTime() && !data._rings.empty() && !data._times.empty()) {
+      // 使用UE端提供的ring和time信息（更准确）
+      publisher->SetDataWithRingAndTimeFromUE(_seconds, _nanoseconds, height, width, 
+                                              (float*)data._points.data(),
+                                              data._rings.data(), data._times.data());
+    } else {
+      // 回退到计算方式：从_header中提取通道信息
+      const uint32_t channel_count = data.GetChannelCount();
+      std::vector<uint32_t> points_per_channel;
+      points_per_channel.reserve(channel_count);
+      
+      // 从_header中提取每个通道的点数（跳过前2个元素：HorizontalAngle和ChannelCount）
+      const size_t header_offset = 2; // Index::SIZE = 2
+      for (uint32_t ch = 0; ch < channel_count; ++ch) {
+        points_per_channel.push_back(data._header[header_offset + ch]);
+      }
+      
+      // 使用计算方式生成ring和time
+      // rotation_time参数：雷达旋转一周的时间（秒），0表示使用默认值0.1秒
+      publisher->SetDataWithRingAndTime(_seconds, _nanoseconds, height, width, (float*)data._points.data(), 
+                                         points_per_channel, 0.0f);
+    }
     publisher->Publish();
   }
   if (sensors.second) {
