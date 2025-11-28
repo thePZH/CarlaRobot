@@ -22,7 +22,6 @@ UPrimitiveComponent* USvcPointDrawer::Draw(const FVector& Location, const FLinea
 	MeshComp->RegisterComponent();
 	MeshComp->SetMobility(EComponentMobility::Movable);
 	MeshComp->AttachToComponent(m_HostActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-
 	
 	MeshComp->SetStaticMesh(m_Mesh);
 

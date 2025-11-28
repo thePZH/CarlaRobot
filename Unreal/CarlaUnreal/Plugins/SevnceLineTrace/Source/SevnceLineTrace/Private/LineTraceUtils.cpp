@@ -58,14 +58,23 @@ FLineTraceResult ULineTraceUtils::LineTraceSingle(
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(LineTraceSingle), true);
 	Params.bReturnPhysicalMaterial = false;
 
-	bool bHit = World->LineTraceSingleByChannel(
-		HitResult,
-		RayStartOffseted,
-		RayEnd,
-		ECC_Visibility,
-		Params
+	// bool bHit = World->LineTraceSingleByChannel(
+	// 	HitResult,
+	// 	RayStartOffseted,
+	// 	RayEnd,
+	// 	ECC_Visibility,
+	// 	Params
+	// );
+	FCollisionObjectQueryParams ObjectQueryParams; 
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_GameTraceChannel4);
+	bool bHit = World->LineTraceSingleByObjectType(
+		HitResult,                  
+		RayStartOffseted,           
+		RayEnd,                     
+		ObjectQueryParams,          
+		Params                 
 	);
-
+	
 	// Debug: draw ray and impact point
 #if WITH_EDITOR
 	const FVector DebugEnd = bHit ? HitResult.Location : RayEnd;

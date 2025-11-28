@@ -155,9 +155,8 @@ public:
   UFUNCTION(BlueprintCallable)
   void EnablePostProcessingEffects(bool Enable = true)
   {
-    bEnablePostProcessingEffects = Enable;
-  	UE_LOG(LogTemp, Warning, TEXT("EnablePostProcessingEffects::bEnablePostProcessingEffects %s"),
-  		bEnablePostProcessingEffects ? TEXT("Enabled") : TEXT("Disabled"));
+  	bEnablePostProcessingEffects = true;
+  	UE_LOG(LogTemp, Warning, TEXT("EnablePostProcessingEffects 强制保持开启"));
   }
 
   UFUNCTION(BlueprintCallable)
@@ -516,7 +515,7 @@ protected:
   USceneCaptureComponent2D_CARLA *CaptureComponent2D = nullptr;
 
   UPROPERTY(EditAnywhere)
-  float TargetGamma = 2.4f;
+  float TargetGamma = 1.0f;
 
   /// Image width in pixels.
   UPROPERTY(EditAnywhere)

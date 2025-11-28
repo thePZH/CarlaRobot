@@ -102,10 +102,18 @@ float ASceneCaptureSensor::GetFOVAngle() const
   return CaptureComponent2D->FOVAngle;
 }
 
+namespace
+{
+  void LogPostProcessMutationBlocked(const TCHAR *FunctionName)
+  {
+    UE_LOG(LogCarla, Verbose, TEXT("%s: 后处理参数调整已被禁用"), FunctionName);
+  }
+}
+
 void ASceneCaptureSensor::SetExposureMethod(EAutoExposureMethod Method)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.AutoExposureMethod = Method;
+  LogPostProcessMutationBlocked(TEXT("SetExposureMethod"));
 }
 
 EAutoExposureMethod ASceneCaptureSensor::GetExposureMethod() const
@@ -117,13 +125,7 @@ EAutoExposureMethod ASceneCaptureSensor::GetExposureMethod() const
 void ASceneCaptureSensor::SetExposureCompensation(float Compensation)
 {
   check(CaptureComponent2D != nullptr);
-#if PLATFORM_LINUX
-  // Looks like Windows and Linux have different outputs with the
-  // same exposure compensation, this fixes it.
-  CaptureComponent2D->PostProcessSettings.AutoExposureBias = Compensation + 0.0f;
-#else
-  CaptureComponent2D->PostProcessSettings.AutoExposureBias = Compensation;
-#endif
+  LogPostProcessMutationBlocked(TEXT("SetExposureCompensation"));
 }
 
 float ASceneCaptureSensor::GetExposureCompensation() const
@@ -135,7 +137,7 @@ float ASceneCaptureSensor::GetExposureCompensation() const
 void ASceneCaptureSensor::SetShutterSpeed(float Speed)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.CameraShutterSpeed = Speed;
+  LogPostProcessMutationBlocked(TEXT("SetShutterSpeed"));
 }
 
 float ASceneCaptureSensor::GetShutterSpeed() const
@@ -147,7 +149,7 @@ float ASceneCaptureSensor::GetShutterSpeed() const
 void ASceneCaptureSensor::SetISO(float ISO)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.CameraISO = ISO;
+  LogPostProcessMutationBlocked(TEXT("SetISO"));
 }
 
 float ASceneCaptureSensor::GetISO() const
@@ -159,7 +161,7 @@ float ASceneCaptureSensor::GetISO() const
 void ASceneCaptureSensor::SetAperture(float Aperture)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldFstop = Aperture;
+  LogPostProcessMutationBlocked(TEXT("SetAperture"));
 }
 
 float ASceneCaptureSensor::GetAperture() const
@@ -171,7 +173,7 @@ float ASceneCaptureSensor::GetAperture() const
 void ASceneCaptureSensor::SetSensorWidth(float Width)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldSensorWidth = Width;
+  LogPostProcessMutationBlocked(TEXT("SetSensorWidth"));
 }
 
 float ASceneCaptureSensor::GetSensorWidth() const
@@ -183,7 +185,7 @@ float ASceneCaptureSensor::GetSensorWidth() const
 void ASceneCaptureSensor::SetFocalDistance(float Distance)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldFocalDistance = Distance;
+  LogPostProcessMutationBlocked(TEXT("SetFocalDistance"));
 }
 
 float ASceneCaptureSensor::GetFocalDistance() const
@@ -195,7 +197,7 @@ float ASceneCaptureSensor::GetFocalDistance() const
 void ASceneCaptureSensor::SetDepthBlurAmount(float Amount)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldDepthBlurAmount = Amount;
+  LogPostProcessMutationBlocked(TEXT("SetDepthBlurAmount"));
 }
 
 float ASceneCaptureSensor::GetDepthBlurAmount() const
@@ -207,7 +209,7 @@ float ASceneCaptureSensor::GetDepthBlurAmount() const
 void ASceneCaptureSensor::SetDepthBlurRadius(float Radius)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldDepthBlurRadius = Radius;
+  LogPostProcessMutationBlocked(TEXT("SetDepthBlurRadius"));
 }
 
 float ASceneCaptureSensor::GetDepthBlurRadius() const
@@ -219,7 +221,7 @@ float ASceneCaptureSensor::GetDepthBlurRadius() const
 void ASceneCaptureSensor::SetDepthOfFieldMinFstop(float MinFstop)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldMinFstop = MinFstop;
+  LogPostProcessMutationBlocked(TEXT("SetDepthOfFieldMinFstop"));
 }
 
 float ASceneCaptureSensor::GetDepthOfFieldMinFstop() const
@@ -231,7 +233,7 @@ float ASceneCaptureSensor::GetDepthOfFieldMinFstop() const
 void ASceneCaptureSensor::SetBladeCount(int Count)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.DepthOfFieldBladeCount = Count;
+  LogPostProcessMutationBlocked(TEXT("SetBladeCount"));
 }
 
 int ASceneCaptureSensor::GetBladeCount() const
@@ -243,7 +245,7 @@ int ASceneCaptureSensor::GetBladeCount() const
 void ASceneCaptureSensor::SetFilmSlope(float Slope)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.FilmSlope = Slope;
+  LogPostProcessMutationBlocked(TEXT("SetFilmSlope"));
 }
 
 float ASceneCaptureSensor::GetFilmSlope() const
@@ -255,7 +257,7 @@ float ASceneCaptureSensor::GetFilmSlope() const
 void ASceneCaptureSensor::SetFilmToe(float Toe)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.FilmToe = Toe; // FilmToeAmount?
+  LogPostProcessMutationBlocked(TEXT("SetFilmToe"));
 }
 
 float ASceneCaptureSensor::GetFilmToe() const
@@ -267,7 +269,7 @@ float ASceneCaptureSensor::GetFilmToe() const
 void ASceneCaptureSensor::SetFilmShoulder(float Shoulder)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.FilmShoulder = Shoulder;
+  LogPostProcessMutationBlocked(TEXT("SetFilmShoulder"));
 }
 
 float ASceneCaptureSensor::GetFilmShoulder() const
@@ -279,7 +281,7 @@ float ASceneCaptureSensor::GetFilmShoulder() const
 void ASceneCaptureSensor::SetFilmBlackClip(float BlackClip)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.FilmBlackClip = BlackClip;
+  LogPostProcessMutationBlocked(TEXT("SetFilmBlackClip"));
 }
 
 float ASceneCaptureSensor::GetFilmBlackClip() const
@@ -291,7 +293,7 @@ float ASceneCaptureSensor::GetFilmBlackClip() const
 void ASceneCaptureSensor::SetFilmWhiteClip(float WhiteClip)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.FilmWhiteClip = WhiteClip;
+  LogPostProcessMutationBlocked(TEXT("SetFilmWhiteClip"));
 }
 
 float ASceneCaptureSensor::GetFilmWhiteClip() const
@@ -303,7 +305,7 @@ float ASceneCaptureSensor::GetFilmWhiteClip() const
 void ASceneCaptureSensor::SetExposureMinBrightness(float Brightness)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.AutoExposureMinBrightness = Brightness;
+  LogPostProcessMutationBlocked(TEXT("SetExposureMinBrightness"));
 }
 
 float ASceneCaptureSensor::GetExposureMinBrightness() const
@@ -315,7 +317,7 @@ float ASceneCaptureSensor::GetExposureMinBrightness() const
 void ASceneCaptureSensor::SetExposureMaxBrightness(float Brightness)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.AutoExposureMaxBrightness = Brightness;
+  LogPostProcessMutationBlocked(TEXT("SetExposureMaxBrightness"));
 }
 
 float ASceneCaptureSensor::GetExposureMaxBrightness() const
@@ -327,7 +329,7 @@ float ASceneCaptureSensor::GetExposureMaxBrightness() const
 void ASceneCaptureSensor::SetExposureSpeedDown(float Speed)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.AutoExposureSpeedDown = Speed;
+  LogPostProcessMutationBlocked(TEXT("SetExposureSpeedDown"));
 }
 
 float ASceneCaptureSensor::GetExposureSpeedDown() const
@@ -339,7 +341,7 @@ float ASceneCaptureSensor::GetExposureSpeedDown() const
 void ASceneCaptureSensor::SetExposureSpeedUp(float Speed)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.AutoExposureSpeedUp = Speed;
+  LogPostProcessMutationBlocked(TEXT("SetExposureSpeedUp"));
 }
 
 float ASceneCaptureSensor::GetExposureSpeedUp() const
@@ -351,7 +353,7 @@ float ASceneCaptureSensor::GetExposureSpeedUp() const
 void ASceneCaptureSensor::SetExposureCalibrationConstant(float Constant)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.AutoExposureCalibrationConstant_DEPRECATED = Constant;
+  LogPostProcessMutationBlocked(TEXT("SetExposureCalibrationConstant"));
 }
 
 float ASceneCaptureSensor::GetExposureCalibrationConstant() const
@@ -363,7 +365,7 @@ float ASceneCaptureSensor::GetExposureCalibrationConstant() const
 void ASceneCaptureSensor::SetMotionBlurIntensity(float Intensity)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.MotionBlurAmount = Intensity;
+  LogPostProcessMutationBlocked(TEXT("SetMotionBlurIntensity"));
 }
 
 float ASceneCaptureSensor::GetMotionBlurIntensity() const
@@ -375,7 +377,7 @@ float ASceneCaptureSensor::GetMotionBlurIntensity() const
 void ASceneCaptureSensor::SetMotionBlurMaxDistortion(float MaxDistortion)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.MotionBlurMax = MaxDistortion;
+  LogPostProcessMutationBlocked(TEXT("SetMotionBlurMaxDistortion"));
 }
 
 float ASceneCaptureSensor::GetMotionBlurMaxDistortion() const
@@ -387,7 +389,7 @@ float ASceneCaptureSensor::GetMotionBlurMaxDistortion() const
 void ASceneCaptureSensor::SetMotionBlurMinObjectScreenSize(float ScreenSize)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.MotionBlurPerObjectSize = ScreenSize;
+  LogPostProcessMutationBlocked(TEXT("SetMotionBlurMinObjectScreenSize"));
 }
 
 float ASceneCaptureSensor::GetMotionBlurMinObjectScreenSize() const
@@ -399,7 +401,7 @@ float ASceneCaptureSensor::GetMotionBlurMinObjectScreenSize() const
 void ASceneCaptureSensor::SetLensFlareIntensity(float Intensity)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.LensFlareIntensity = Intensity;
+  LogPostProcessMutationBlocked(TEXT("SetLensFlareIntensity"));
 }
 
 float ASceneCaptureSensor::GetLensFlareIntensity() const
@@ -411,7 +413,7 @@ float ASceneCaptureSensor::GetLensFlareIntensity() const
 void ASceneCaptureSensor::SetBloomIntensity(float Intensity)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.BloomIntensity = Intensity;
+  LogPostProcessMutationBlocked(TEXT("SetBloomIntensity"));
 }
 
 float ASceneCaptureSensor::GetBloomIntensity() const
@@ -423,7 +425,7 @@ float ASceneCaptureSensor::GetBloomIntensity() const
 void ASceneCaptureSensor::SetWhiteTemp(float Temp)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.WhiteTemp = Temp;
+  LogPostProcessMutationBlocked(TEXT("SetWhiteTemp"));
 }
 
 float ASceneCaptureSensor::GetWhiteTemp() const
@@ -435,7 +437,7 @@ float ASceneCaptureSensor::GetWhiteTemp() const
 void ASceneCaptureSensor::SetWhiteTint(float Tint)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.WhiteTint = Tint;
+  LogPostProcessMutationBlocked(TEXT("SetWhiteTint"));
 }
 
 float ASceneCaptureSensor::GetWhiteTint() const
@@ -447,7 +449,7 @@ float ASceneCaptureSensor::GetWhiteTint() const
 void ASceneCaptureSensor::SetChromAberrIntensity(float Intensity)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.SceneFringeIntensity = Intensity;
+  LogPostProcessMutationBlocked(TEXT("SetChromAberrIntensity"));
 }
 
 float ASceneCaptureSensor::GetChromAberrIntensity() const
@@ -459,7 +461,7 @@ float ASceneCaptureSensor::GetChromAberrIntensity() const
 void ASceneCaptureSensor::SetChromAberrOffset(float ChromAberrOffset)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.ChromaticAberrationStartOffset = ChromAberrOffset;
+  LogPostProcessMutationBlocked(TEXT("SetChromAberrOffset"));
 }
 
 float ASceneCaptureSensor::GetChromAberrOffset() const
@@ -471,7 +473,7 @@ float ASceneCaptureSensor::GetChromAberrOffset() const
 void ASceneCaptureSensor::SetColorSaturation(FVector4 ColorSaturation)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.ColorSaturation = ColorSaturation;
+  LogPostProcessMutationBlocked(TEXT("SetColorSaturation"));
 }
 
 FVector4 ASceneCaptureSensor::GetColorSaturation() const
@@ -483,7 +485,7 @@ FVector4 ASceneCaptureSensor::GetColorSaturation() const
 void ASceneCaptureSensor::SetColorContrast(FVector4 ColorContrast)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.ColorContrast = ColorContrast;
+  LogPostProcessMutationBlocked(TEXT("SetColorContrast"));
 }
 
 FVector4 ASceneCaptureSensor::GetColorContrast() const
@@ -495,7 +497,7 @@ FVector4 ASceneCaptureSensor::GetColorContrast() const
 void ASceneCaptureSensor::SetColorGamma(FVector4 ColorGamma)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.ColorGamma = ColorGamma;
+  LogPostProcessMutationBlocked(TEXT("SetColorGamma"));
 }
 
 FVector4 ASceneCaptureSensor::GetColorGamma() const
@@ -507,7 +509,7 @@ FVector4 ASceneCaptureSensor::GetColorGamma() const
 void ASceneCaptureSensor::SetHighlightsGamma(FVector4 HighlightsGamma)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.ColorGammaHighlights = HighlightsGamma;
+  LogPostProcessMutationBlocked(TEXT("SetHighlightsGamma"));
 }
 
 FVector4 ASceneCaptureSensor::GetHighlightsGamma() const
@@ -519,7 +521,7 @@ FVector4 ASceneCaptureSensor::GetHighlightsGamma() const
 void ASceneCaptureSensor::SetToneCurveAmount(float ToneCurveAmount)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.ToneCurveAmount = ToneCurveAmount;
+  LogPostProcessMutationBlocked(TEXT("SetToneCurveAmount"));
 }
 
 float ASceneCaptureSensor::GetToneCurveAmount() const
@@ -531,7 +533,7 @@ float ASceneCaptureSensor::GetToneCurveAmount() const
 void ASceneCaptureSensor::SetSceneColorTint(FLinearColor SceneColorTint)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.SceneColorTint = SceneColorTint;
+  LogPostProcessMutationBlocked(TEXT("SetSceneColorTint"));
 }
 
 FLinearColor ASceneCaptureSensor::GetSceneColorTint() const
@@ -543,7 +545,7 @@ FLinearColor ASceneCaptureSensor::GetSceneColorTint() const
 void ASceneCaptureSensor::SetVignetteIntensity(float VignetteIntensity)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.VignetteIntensity = VignetteIntensity;
+  LogPostProcessMutationBlocked(TEXT("SetVignetteIntensity"));
 }
 
 float ASceneCaptureSensor::GetVignetteIntensity() const
@@ -555,7 +557,7 @@ float ASceneCaptureSensor::GetVignetteIntensity() const
 void ASceneCaptureSensor::SetHighlightContrastScale(float HighlightContrastScale)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.LocalExposureHighlightContrastScale = HighlightContrastScale;
+  LogPostProcessMutationBlocked(TEXT("SetHighlightContrastScale"));
 }
 
 float ASceneCaptureSensor::GetHighlightContrastScale() const
@@ -567,7 +569,7 @@ float ASceneCaptureSensor::GetHighlightContrastScale() const
 void ASceneCaptureSensor::SetShadowContrastScale(float ShadowContrastScale)
 {
   check(CaptureComponent2D != nullptr);
-  CaptureComponent2D->PostProcessSettings.LocalExposureShadowContrastScale = ShadowContrastScale;
+  LogPostProcessMutationBlocked(TEXT("SetShadowContrastScale"));
 }
 
 float ASceneCaptureSensor::GetShadowContrastScale() const
@@ -583,84 +585,8 @@ void ASceneCaptureSensor::UpdatePostProcessConfig(
 
 bool ASceneCaptureSensor::ApplyPostProcessVolumeToSensor(APostProcessVolume* Origin, ASceneCaptureSensor* Dest, bool bOverrideCurrentCamera)
 {
-  if(!IsValid(Origin) || !IsValid(Dest))
-  {
-    return false;
-  }
-
-  if(!bOverrideCurrentCamera)
-  {
-    //Cache postprocesssettings
-    float CacheGamma = Dest->GetTargetGamma();
-    EAutoExposureMethod CacheAutoExposureMethod = Dest->GetExposureMethod();
-    float CacheEC = Dest->GetExposureCompensation();
-    float CacheSS = Dest->GetShutterSpeed();
-    float CacheISO = Dest->GetISO();
-    float CacheA = Dest->GetAperture();
-    float CacheFD = Dest->GetFocalDistance();
-    float CacheDBA = Dest->GetDepthBlurAmount();
-    float CacheDBR = Dest->GetDepthBlurRadius();
-    float CacheBC = Dest->GetBladeCount();
-    float CacheDFMinFStop = Dest->GetDepthOfFieldMinFstop();
-    float CacheFS = Dest->GetFilmSlope();
-    float CacheFT = Dest->GetFilmToe();
-    float CacheFShoulder = Dest->GetFilmShoulder();
-    float CacheFBC = Dest->GetFilmBlackClip();
-    float CacheFWC = Dest->GetFilmWhiteClip();
-    float CacheEMinB = Dest->GetExposureMinBrightness();
-    float CacheEMaxB = Dest->GetExposureMaxBrightness();
-    float CacheESDown = Dest->GetExposureSpeedDown();
-    float CacheESUp = Dest->GetExposureSpeedUp();
-    float CacheCC = Dest->GetExposureCalibrationConstant();
-    float CacheMBI = Dest->GetMotionBlurIntensity();
-    float CacheMBMaxD = Dest->GetMotionBlurMaxDistortion();
-    float CacheMBMinOSS = Dest->GetMotionBlurMinObjectScreenSize();
-    float CacheLFI = Dest->GetLensFlareIntensity();
-    float CacheBI = Dest->GetBloomIntensity();
-    float CacheWTemp = Dest->GetWhiteTemp();
-    float CacheWTint = Dest->GetWhiteTint();
-    float CacheCAI = Dest->GetChromAberrIntensity();
-    float CacheCAO = Dest->GetChromAberrOffset();
-
-    Dest->CaptureComponent2D->PostProcessSettings = Origin->Settings;
-  
-    Dest->SetTargetGamma(CacheGamma);
-    Dest->SetExposureMethod(CacheAutoExposureMethod);
-    Dest->SetExposureCompensation(CacheEC);
-    Dest->SetShutterSpeed(CacheSS);
-    Dest->SetISO(CacheISO);
-    Dest->SetAperture(CacheA);
-    Dest->SetFocalDistance(CacheFD);
-    Dest->SetDepthBlurAmount(CacheDBA);
-    Dest->SetDepthBlurRadius(CacheDBR);
-    Dest->SetBladeCount(CacheBC);
-    Dest->SetDepthOfFieldMinFstop(CacheDFMinFStop);
-    Dest->SetFilmSlope(CacheFS);
-    Dest->SetFilmToe(CacheFT);
-    Dest->SetFilmShoulder(CacheFShoulder);
-    Dest->SetFilmBlackClip(CacheFBC);
-    Dest->SetFilmWhiteClip(CacheFWC);
-    Dest->SetExposureMinBrightness(CacheEMinB);
-    Dest->SetExposureMaxBrightness(CacheEMaxB);
-    Dest->SetExposureSpeedDown(CacheESDown);
-    Dest->SetExposureSpeedUp(CacheESUp);
-    Dest->SetExposureCalibrationConstant(CacheCC);
-    Dest->SetMotionBlurIntensity(CacheMBI);
-    Dest->SetMotionBlurMaxDistortion(CacheMBMaxD);
-    Dest->SetMotionBlurMinObjectScreenSize(CacheMBMinOSS);
-    Dest->SetLensFlareIntensity(CacheLFI);
-    Dest->SetBloomIntensity(CacheBI);
-    Dest->SetWhiteTemp(CacheWTemp);
-    Dest->SetWhiteTint(CacheWTint);
-    Dest->SetChromAberrIntensity(CacheCAI);
-    Dest->SetChromAberrOffset(CacheCAO);
-  }
-  else
-  {
-    Dest->CaptureComponent2D->PostProcessSettings = Origin->Settings;
-  }
-
-  return true;
+  UE_LOG(LogCarla, Warning, TEXT("ApplyPostProcessVolumeToSensor: 后处理拷贝已禁用"));
+  return false;
 }
 
 void ASceneCaptureSensor::EnqueueRenderSceneImmediate() {
@@ -677,8 +603,9 @@ void ASceneCaptureSensor::BeginPlay()
 {
   using namespace SceneCaptureSensor_local_ns;
 
+  bEnablePostProcessingEffects = true;
   // Determine the gamma of the player.
-  const bool bInForceLinearGamma = !bEnablePostProcessingEffects;
+  const bool bInForceLinearGamma = false;
 
   CaptureRenderTarget->InitCustomFormat(
       ImageWidth,
@@ -686,11 +613,8 @@ void ASceneCaptureSensor::BeginPlay()
       bEnable16BitFormat ? PF_FloatRGBA : PF_B8G8R8A8,
       bInForceLinearGamma);
 
-  if (bEnablePostProcessingEffects)
-  {
-    CaptureRenderTarget->TargetGamma = TargetGamma;
-  	UE_LOG(LogTemp, Log, TEXT("ASceneCaptureSensor::BeginPlay()::CaptureRenderTarget->TargetGamma: %f"), CaptureRenderTarget->TargetGamma);
-  }
+  CaptureRenderTarget->TargetGamma = TargetGamma;
+  UE_LOG(LogTemp, Log, TEXT("ASceneCaptureSensor::BeginPlay()::CaptureRenderTarget->TargetGamma: %f"), CaptureRenderTarget->TargetGamma);
 
   check(IsValid(CaptureComponent2D) && IsValidChecked(CaptureComponent2D));
 

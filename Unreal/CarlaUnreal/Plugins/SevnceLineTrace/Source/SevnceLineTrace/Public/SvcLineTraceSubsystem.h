@@ -25,9 +25,9 @@ public:
 
 	/**
 	 * 执行单次射线检测（从指定位置和方向）
-	 * @param RayStart 射线起点（世界坐标，单位：米）
+	 * @param RayStart 射线起点（世界坐标）
 	 * @param RayDirection 射线方向（世界空间，已归一化）
-	 * @param MaxDistance 最大距离（单位：米）
+	 * @param MaxDistance 最大距离
 	 * @return 射线检测结果
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sevnce|LineTrace")
@@ -39,9 +39,9 @@ public:
 
 	/**
 	 * 执行多次射线检测（从指定位置和方向数组）
-	 * @param RayStart 射线起点（世界坐标，单位：米）
+	 * @param RayStart 射线起点（世界坐标）
 	 * @param RayDirections 射线方向数组（世界空间，已归一化）
-	 * @param MaxDistance 最大距离（单位：米）
+	 * @param MaxDistance 最大距离
 	 * @return 射线检测结果数组
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sevnce|LineTrace")
@@ -53,14 +53,14 @@ public:
 
 	/**
 	 * 从相机参数和UV坐标执行单次射线检测
-	 * @param CameraLocation 相机位置（世界坐标，单位：米）
+	 * @param CameraLocation 相机位置（世界坐标）
 	 * @param CameraRotation 相机旋转
 	 * @param FOV 视场角（度）
 	 * @param ImageWidth 图像宽度（像素）
 	 * @param ImageHeight 图像高度（像素）
 	 * @param U UV坐标U（像素）
 	 * @param V UV坐标V（像素）
-	 * @param MaxDistance 最大距离（单位：米）
+	 * @param MaxDistance 最大距离
 	 * @return 射线检测结果
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sevnce|LineTrace")
@@ -77,13 +77,13 @@ public:
 
 	/**
 	 * 从相机参数和UV坐标数组执行多次射线检测
-	 * @param CameraLocation 相机位置（世界坐标，单位：米）
+	 * @param CameraLocation 相机位置（世界坐标）
 	 * @param CameraRotation 相机旋转
 	 * @param FOV 视场角（度）
 	 * @param ImageWidth 图像宽度（像素）
 	 * @param ImageHeight 图像高度（像素）
 	 * @param UVs UV坐标数组，每个元素包含U和V（像素）
-	 * @param MaxDistance 最大距离（单位：米）
+	 * @param MaxDistance 最大距离
 	 * @return 射线检测结果数组
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sevnce|LineTrace")
@@ -139,7 +139,7 @@ public:
 	 * @param PlayerController 玩家控制器（如果为null，则自动获取本地玩家控制器）
 	 * @param ScreenX 屏幕X坐标（像素）
 	 * @param ScreenY 屏幕Y坐标（像素）
-	 * @param MaxDistance 最大距离（单位：米）
+	 * @param MaxDistance 最大距离
 	 * @return 射线检测结果
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sevnce|LineTrace|PlayerCamera")
@@ -169,7 +169,7 @@ public:
 	 * @param PlayerController 玩家控制器（如果为null，则自动获取本地玩家控制器）
 	 * @param ScreenX 屏幕X坐标（像素）
 	 * @param ScreenY 屏幕Y坐标（像素）
-	 * @param MaxDistance 最大距离（单位：米）
+	 * @param MaxDistance 最大距离
 	 * @return 射线检测结果JSON字符串
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sevnce|LineTrace|PlayerCamera|JSON")

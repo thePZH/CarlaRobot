@@ -35,7 +35,6 @@ TArray<FString> UCarlaStatics::GetAllPluginContentPaths()
   return OutContentDirs;
 }
 
-
 TArray<FString> UCarlaStatics::GetAllMapNames()
 {
   TArray<FString> TmpStrList, MapNameList;

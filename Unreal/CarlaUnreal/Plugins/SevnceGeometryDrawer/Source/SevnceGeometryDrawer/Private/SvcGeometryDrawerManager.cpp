@@ -8,6 +8,35 @@
 #include "SvcLineDrawer.h"
 #include "SvcCubeDrawer.h"
 
+namespace
+{
+	static void DestroyComponentWithChildren(UPrimitiveComponent* inComponent)
+	{
+		if (!IsValid(inComponent))
+		{
+			return;
+		}
+
+		if (USceneComponent* sceneComponent = Cast<USceneComponent>(inComponent))
+		{
+			TArray<USceneComponent*> children;
+			sceneComponent->GetChildrenComponents(true, children);
+			for (USceneComponent* child : children)
+			{
+				if (IsValid(child))
+				{
+					if (UActorComponent* asActorComponent = Cast<UActorComponent>(child))
+					{
+						asActorComponent->DestroyComponent();
+					}
+				}
+			}
+		}
+
+		inComponent->DestroyComponent(true);
+	}
+}
+
 void USvcGeometryDrawerManager::InitializeManager(UWorld* in_world)
 {
 	if (!in_world)
@@ -115,25 +144,7 @@ bool USvcGeometryDrawerManager::RemoveDrawObject(const FString& object_id)
 {
 	if (UPrimitiveComponent* comp = m_DrawObjects.FindRef(object_id))
 	{
-		if (IsValid(comp))
-		{
-	      // 先销毁子组件（例如线段的 USplineMeshComponent 段）
-	      if (USceneComponent* SceneComp = Cast<USceneComponent>(comp))
-	      {
-	        TArray<USceneComponent*> Children = SceneComp->GetAttachChildren();
-	        for (USceneComponent* Child : Children)
-	        {
-	          if (IsValid(Child))
-	          {
-	            if (UActorComponent* AsActorComp = Cast<UActorComponent>(Child))
-	            {
-	              AsActorComp->DestroyComponent();
-	            }
-	          }
-	        }
-	      }
-			comp->DestroyComponent();
-		}
+		DestroyComponentWithChildren(comp);
 		m_DrawObjects.Remove(object_id);
 
 		for (auto& pair : m_TypeGroups)
@@ -153,10 +164,7 @@ bool USvcGeometryDrawerManager::ClearDrawObjects(EGeometryDrawType type)
 	{
 		for (auto& pair : m_DrawObjects)
 		{
-			if (IsValid(pair.Value))
-			{
-				pair.Value->DestroyComponent();
-			}
+			DestroyComponentWithChildren(pair.Value);
 		}
 		m_DrawObjects.Empty();
 		m_TypeGroups.Empty();
@@ -165,14 +173,12 @@ bool USvcGeometryDrawerManager::ClearDrawObjects(EGeometryDrawType type)
 
 	if (FIdArrayWrapper* wrapper = m_TypeGroups.Find(type))
 	{
-		for (const FString& id : wrapper->IDs)
+		TArray<FString> idsToRemove = wrapper->IDs;
+		for (const FString& id : idsToRemove)
 		{
 			if (UPrimitiveComponent* comp = m_DrawObjects.FindRef(id))
 			{
-				if (IsValid(comp))
-				{
-					comp->DestroyComponent();
-				}
+				DestroyComponentWithChildren(comp);
 				m_DrawObjects.Remove(id);
 			}
 		}

@@ -394,6 +394,16 @@ namespace detail {
 		return _pimpl->CallAndWait<bool>("destroy_object", uuid);
 	}
 
+	std::string Client::DestroyObjects(const std::string& json)
+	{
+		return _pimpl->CallAndWait<std::string>("destroy_objects", json);
+	}
+
+std::string Client::ControlMainCamera(const std::string &json)
+{
+  return _pimpl->CallAndWait<std::string>("control_main_camera", json);
+}
+
   bool Client::DestroyActor(rpc::ActorId actor) {
     try {
       return _pimpl->CallAndWait<bool>("destroy_actor", actor);

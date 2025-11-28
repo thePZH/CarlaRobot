@@ -137,6 +137,10 @@ namespace client {
 
 	bool DestroyObject(const std::string& uuid);
 
+	std::string DestroyObjects(const std::string& json);
+
+    std::string ControlMainCamera(const std::string &json);
+
     // Destroy robot (vehicle + attached sensors) by root actor id
     bool DestroyRobot(ActorId robot_id);
 

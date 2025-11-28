@@ -63,7 +63,8 @@ UPrimitiveComponent* USvcLineDrawer::Draw(const TArray<FVector>& Positions, cons
         
         MeshComp->SetStaticMesh(m_LineMesh);
         MeshComp->SetMaterial(0, dynMat);
-    	
+    	MeshComp->SetTranslucentSortPriority(100);
+
         MeshComp->SetStartScale(FVector2D(Scale));
         MeshComp->SetEndScale(FVector2D(Scale));
     	// 解决3DGS显示问题

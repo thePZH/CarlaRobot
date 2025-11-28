@@ -386,6 +386,16 @@ namespace detail {
 	{
 		return _client.DestroyObject(uuid);	
 	}
+
+	std::string DestroyObjects(const std::string& json)
+	{
+		return _client.DestroyObjects(json);
+	}
+
+	std::string ControlMainCamera(const std::string& json)
+	{
+		return _client.ControlMainCamera(json);
+	}
 	
 	bool DestroyRobot(ActorId robot_id)
 	{

@@ -76,10 +76,11 @@
 #include <util/ue-header-guard-begin.h>
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "Misc/FileHelper.h"
 #include "Animation/PoseSnapshot.h"
 #include "Animation/AnimInstance.h"
-
+#include "NiagaraComponent.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -95,6 +96,7 @@
 #include "Sensor/RayCastLidar.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "Services/SevnceRobotLogic.h"
+#include "SevnceCameraSubsystem.h"
 
 // Geometry drawer subsystem
 #include "SvcGeometryDrawerSubsystem.h"
@@ -117,6 +119,46 @@ template <typename T, typename Other>
 static std::vector<T> MakeVectorFromTArray(const TArray<Other> &Array)
 {
   return {Array.GetData(), Array.GetData() + Array.Num()};
+}
+
+static bool ParseJsonString(const std::string &InJson, TSharedPtr<FJsonObject> &OutObject, FString &OutError)
+{
+  if (InJson.empty())
+  {
+    OutError = TEXT("Empty JSON payload");
+    return false;
+  }
+
+  const FString JsonString = UTF8_TO_TCHAR(InJson.c_str());
+  TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+  if (!FJsonSerializer::Deserialize(Reader, OutObject) || !OutObject.IsValid())
+  {
+    OutError = TEXT("Invalid JSON payload");
+    return false;
+  }
+  return true;
+}
+
+static std::string MakeJsonResponse(bool bOk, const FString& ErrorMessage = FString(), const TFunction<void(TSharedPtr<FJsonObject>)>& OnSuccess = TFunction<void(TSharedPtr<FJsonObject>)>())
+{
+  TSharedPtr<FJsonObject> ResponseObject = MakeShareable(new FJsonObject);
+  ResponseObject->SetBoolField(TEXT("ok"), bOk);
+  if (bOk)
+  {
+    if (OnSuccess)
+    {
+      OnSuccess(ResponseObject);
+    }
+  }
+  else
+  {
+    ResponseObject->SetStringField(TEXT("error"), ErrorMessage);
+  }
+
+  FString OutputString;
+  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+  FJsonSerializer::Serialize(ResponseObject.ToSharedRef(), Writer);
+  return std::string(TCHAR_TO_UTF8(*OutputString));
 }
 
 // =============================================================================
@@ -811,6 +853,12 @@ void FCarlaServer::FPimpl::BindActions()
 		REQUIRE_CARLA_EPISODE();
 		FString JsonString(UTF8_TO_TCHAR(json.c_str()));
 		FString ResultJson = SvcRobotLogic::CreateRobot(Episode, JsonString);
+		FString TrimmedResult(ResultJson);
+		TrimmedResult.TrimStartAndEndInline();
+		if (TrimmedResult.IsEmpty())
+		{
+			return MakeJsonResponse(false, TEXT("create_robot failed"));
+		}
 		return std::string(TCHAR_TO_UTF8(*ResultJson));
 	};
 
@@ -823,40 +871,57 @@ void FCarlaServer::FPimpl::BindActions()
 	
 	BIND_SYNC(create_object) << [this](std::string json) -> R<std::string>
 	{
-		FString jsonStr(UTF8_TO_TCHAR(json.c_str()));
-		TSharedPtr<FJsonObject> jsonObject;
-		TSharedRef<TJsonReader<>> reader = TJsonReaderFactory<>::Create(jsonStr);
-
-		if (!FJsonSerializer::Deserialize(reader, jsonObject) || !jsonObject.IsValid())
-			return std::string();
+		TSharedPtr<FJsonObject> JsonObject;
+		FString ErrorMessage;
+		if (!ParseJsonString(json, JsonObject, ErrorMessage))
+		{
+			return MakeJsonResponse(false, ErrorMessage);
+		}
 		
 		FString type;
-		if (!jsonObject->TryGetStringField(TEXT("type"), type))
-			return std::string();
+		if (!JsonObject->TryGetStringField(TEXT("type"), type))
+		{
+			return MakeJsonResponse(false, TEXT("Missing type field"));
+		}
 		if (!type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
-			return std::string();
+		{
+			return MakeJsonResponse(false, TEXT("Unsupported or invalid type"));
+		}
 		
 		const TSharedPtr<FJsonObject>* paramsObj;
-		if (!jsonObject->TryGetObjectField(TEXT("params"), paramsObj))
-			return std::string();
+		if (!JsonObject->TryGetObjectField(TEXT("params"), paramsObj))
+		{
+			return MakeJsonResponse(false, TEXT("Missing params field"));
+		}
 		
 		FString category;
 		if (!(*paramsObj)->TryGetStringField(TEXT("category"), category))
-			return std::string();
+		{
+			return MakeJsonResponse(false, TEXT("Missing category field"));
+		}
 		
 		const TSharedPtr<FJsonObject>* transformObj;
-		FVector location = FVector::ZeroVector;       // 默认(0,0,0)
-		FRotator rotation = FRotator::ZeroRotator;    // 默认(0,0,0)
-		FVector scale = FVector::OneVector;           // 默认(1,1,1)
+		FVector location = FVector::ZeroVector;
+		FRotator rotation = FRotator::ZeroRotator;
+		FVector scale = FVector::OneVector;
 		if ((*paramsObj)->TryGetObjectField(TEXT("transform"), transformObj))
 		{
 			const TSharedPtr<FJsonObject>* locObj;
 			if ((*transformObj)->TryGetObjectField(TEXT("location"), locObj))
 			{
 				double x, y, z;
-				if ((*locObj)->TryGetNumberField(TEXT("x"), x)) location.X = x*100;	// m -> cm
-				if ((*locObj)->TryGetNumberField(TEXT("y"), y)) location.Y = y*100;
-				if ((*locObj)->TryGetNumberField(TEXT("z"), z)) location.Z = z*100;
+				if ((*locObj)->TryGetNumberField(TEXT("x"), x))
+				{
+					location.X = x * 100.0;
+				}
+				if ((*locObj)->TryGetNumberField(TEXT("y"), y))
+				{
+					location.Y = y * 100.0;
+				}
+				if ((*locObj)->TryGetNumberField(TEXT("z"), z))
+				{
+					location.Z = z * 100.0;
+				}
 			}
 
 			const TSharedPtr<FJsonObject>* rotObj;
@@ -885,31 +950,49 @@ void FCarlaServer::FPimpl::BindActions()
 		effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke03.BP_Smoke03_C")));
 
 		if (!effectMap.Contains(category))
-			return std::string();
+		{
+			return MakeJsonResponse(false, TEXT("Unsupported or invalid category"));
+		}
 
 		TSubclassOf<AActor> effectClass = effectMap[category];
 		if (!effectClass)
-			return std::string();
+		{
+			return MakeJsonResponse(false, TEXT("Unsupported or invalid category"));
+		}
 
 		UWorld* world = GEngine->GetWorldFromContextObjectChecked(GEngine->GetCurrentPlayWorld());
 		if (!world)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("No valid world to spawn actor."));
-			return std::string();
+			return MakeJsonResponse(false, TEXT("No valid world to spawn actor"));
 		}
 
 		FActorSpawnParameters spawnParams;
 		AActor* spawnedActor = world->SpawnActor<AActor>(effectClass, location, rotation, spawnParams);
 		if (!spawnedActor)
-			return std::string();
+		{
+			return MakeJsonResponse(false, TEXT("Failed to spawn actor"));
+		}
 
 		spawnedActor->SetActorScale3D(scale);
+		TSet<UActorComponent*> componentsSet = spawnedActor->GetComponents();
+
+		for (auto& comp : componentsSet)
+		{
+			if (auto niagaraComp = Cast<UNiagaraComponent>(comp))
+			{
+				niagaraComp->TranslucencySortPriority = 50;
+			}
+		}
 
 		FString uuidFStr = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 		Episode->CreatedActorMap.Add(uuidFStr, spawnedActor);
 
 
-		return std::string(TCHAR_TO_UTF8(*uuidFStr));
+		return MakeJsonResponse(true, FString(), [uuidFStr](TSharedPtr<FJsonObject> JsonResponse)
+		{
+			JsonResponse->SetStringField(TEXT("uuid"), uuidFStr);
+		});
 	};
 	
 	BIND_SYNC(destroy_object) << [this](std::string uuidStr) -> R<bool>
@@ -943,6 +1026,118 @@ void FCarlaServer::FPimpl::BindActions()
 		Episode->CreatedActorMap.Remove(uuid);
 
 		return true;
+	};
+
+	BIND_SYNC(destroy_objects) << [this](std::string jsonStr) -> R<std::string>
+	{
+		REQUIRE_CARLA_EPISODE();
+		
+		TSharedPtr<FJsonObject> JsonObject;
+		FString ErrorMessage;
+		if (!ParseJsonString(jsonStr, JsonObject, ErrorMessage))
+		{
+			return MakeJsonResponse(false, ErrorMessage);
+		}
+
+		FString type;
+		if (!JsonObject->TryGetStringField(TEXT("type"), type))
+		{
+			return MakeJsonResponse(false, TEXT("Missing type field"));
+		}
+
+		int32 destroyedCount = 0;
+
+		// 根据类型构建需要匹配的类集合
+		TArray<TSubclassOf<AActor>> targetClasses;
+		
+		if (type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
+		{
+			// effect 类型包含的所有 category 对应的类
+			TMap<FString, TSubclassOf<AActor>> effectMap;
+			effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Fire.BP_Fire_C")));
+			effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke01.BP_Smoke01_C")));
+			effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke02.BP_Smoke02_C")));
+			effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+			
+			for (const auto& pair : effectMap)
+			{
+				if (pair.Value)
+				{
+					targetClasses.Add(pair.Value);
+				}
+			}
+		}
+		// 如果以后有其他类型，可以在这里添加
+		// else if (type.Equals(TEXT("static"), ESearchCase::IgnoreCase))
+		// {
+		//     // 静态模型的类
+		// }
+
+		if (targetClasses.Num() == 0)
+		{
+			return MakeJsonResponse(false, TEXT("Unsupported or invalid type"), [](TSharedPtr<FJsonObject> JsonResponse)
+			{
+				JsonResponse->SetNumberField(TEXT("destroyed_count"), 0);
+			});
+		}
+
+		// 收集需要删除的 UUID
+		TArray<FString> uuidsToRemove;
+		
+		for (auto& pair : Episode->CreatedActorMap)
+		{
+			FString uuid = pair.Key;
+			TWeakObjectPtr<AActor> actorPtr = pair.Value;
+
+			// 跳过无效的 Actor
+			if (!actorPtr.IsValid())
+			{
+				uuidsToRemove.Add(uuid);
+				continue;
+			}
+
+			AActor* actor = actorPtr.Get();
+			if (!actor)
+			{
+				uuidsToRemove.Add(uuid);
+				continue;
+			}
+
+			// 检查 Actor 的类是否匹配目标类型
+			bool bMatches = false;
+			UClass* actorClass = actor->GetClass();
+			
+			for (TSubclassOf<AActor> targetClass : targetClasses)
+			{
+				if (actorClass == targetClass || actorClass->IsChildOf(targetClass))
+				{
+					bMatches = true;
+					break;
+				}
+			}
+
+			if (bMatches)
+			{
+				UWorld* world = actor->GetWorld();
+				if (world && world->DestroyActor(actor))
+				{
+					destroyedCount++;
+				}
+				uuidsToRemove.Add(uuid);
+			}
+		}
+
+		// 从 Map 中移除已删除的 UUID
+		for (const FString& uuid : uuidsToRemove)
+		{
+			Episode->CreatedActorMap.Remove(uuid);
+		}
+
+		// 构建返回 JSON
+		return MakeJsonResponse(true, FString(), [destroyedCount](TSharedPtr<FJsonObject> JsonResponse)
+		{
+			JsonResponse->SetNumberField(TEXT("destroyed_count"), destroyedCount);
+		});
 	};
 
 	BIND_SYNC(destroy_actor) << [this](cr::ActorId ActorId) -> R<bool>
@@ -1109,6 +1304,49 @@ void FCarlaServer::FPimpl::BindActions()
 			// single-gpu
 			return StreamingServer.IsEnabledForROS(sensor_id);
 		}
+	};
+
+	// ~~ Main camera control (JSON based) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	BIND_SYNC(control_main_camera) << [this](std::string json_str) -> R<std::string>
+	{
+		CARLA_ENSURE_GAME_THREAD();
+		if (Episode == nullptr)
+		{
+			return MakeJsonResponse(false, TEXT("episode not ready"));
+		}
+
+		UWorld* World = Episode->GetWorld();
+		FString JsonString = UTF8_TO_TCHAR(json_str.c_str());
+		
+		// 仅解析 JSON 以获取 robot_id（如果存在）
+		AActor* TargetActor = nullptr;
+		FString ErrorMessage;
+		TSharedPtr<FJsonObject> RootObject;
+		if (ParseJsonString(json_str, RootObject, ErrorMessage))
+		{
+			double RobotIdValue = 0.0;
+			if (RootObject->TryGetNumberField(TEXT("robot_id"), RobotIdValue))
+			{
+				const cr::ActorId RobotId = static_cast<cr::ActorId>(RobotIdValue);
+				FCarlaActor* CarlaActor = Episode->FindCarlaActor(RobotId);
+				if (CarlaActor != nullptr)
+				{
+					TargetActor = CarlaActor->GetActor();
+				}
+			}
+		}
+		
+		// 获取相机子系统，将 JSON 字符串和 Actor 一起传入
+		if (UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			if (USevnceCameraSubsystem* CameraSubsystem = GameInstance->GetSubsystem<USevnceCameraSubsystem>())
+			{
+				FString ResponseString = CameraSubsystem->ControlMainCameraFromJson(JsonString, TargetActor);
+				return std::string(TCHAR_TO_UTF8(*ResponseString));
+			}
+		}
+		return MakeJsonResponse(false, TEXT("SevnceCameraSubsystem not found"));
 	};
 
 	// ~~ Actor physics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3406,13 +3644,11 @@ void FCarlaServer::FPimpl::BindActions()
 	{
 		REQUIRE_CARLA_EPISODE();
 		
-		FString JsonStr(UTF8_TO_TCHAR(json_params.c_str()));
 		TSharedPtr<FJsonObject> JsonObject;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
-		
-		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+		FString ErrorMessage;
+		if (!ParseJsonString(json_params, JsonObject, ErrorMessage))
 		{
-		  return RespondError("line_trace_single", ECarlaServerResponse::Failure, "Invalid JSON parameters");
+		  return RespondError("line_trace_single", ECarlaServerResponse::Failure, ErrorMessage);
 		}
 		
 		double sensorId;
@@ -3509,13 +3745,11 @@ void FCarlaServer::FPimpl::BindActions()
 	{
 	    REQUIRE_CARLA_EPISODE();
  
-	    FString JsonStr(UTF8_TO_TCHAR(json_params.c_str()));
 	    TSharedPtr<FJsonObject> JsonObject;
-	    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
- 
-	    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	    FString ErrorMessage;
+	    if (!ParseJsonString(json_params, JsonObject, ErrorMessage))
 	    {
-	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure, "Invalid JSON parameters");
+	        return RespondError("line_trace_multiple", ECarlaServerResponse::Failure, ErrorMessage);
 	    }
  
 	    double tmpSensorId = 0.0;
@@ -3616,13 +3850,11 @@ void FCarlaServer::FPimpl::BindActions()
 	{
 		REQUIRE_CARLA_EPISODE();
 		
-		FString JsonStr(UTF8_TO_TCHAR(json_params.c_str()));
 		TSharedPtr<FJsonObject> JsonObject;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
-		
-		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+		FString ErrorMessage;
+		if (!ParseJsonString(json_params, JsonObject, ErrorMessage))
 		{
-			return RespondError("line_trace_single_from_player_camera", ECarlaServerResponse::Failure, "Invalid JSON parameters");
+			return RespondError("line_trace_single_from_player_camera", ECarlaServerResponse::Failure, ErrorMessage);
 		}
 		
 		// 解析屏幕坐标

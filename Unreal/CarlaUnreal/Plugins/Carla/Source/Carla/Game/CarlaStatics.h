@@ -37,7 +37,7 @@ public:
 
   UFUNCTION(BlueprintPure, Category="CARLA", meta=(WorldContext="WorldContextObject"))
   static UCarlaEpisode *GetCurrentEpisode(const UObject *WorldContextObject);
-
+	
   UFUNCTION(BlueprintPure, Category="CARLA", meta=(WorldContext="WorldContextObject"))
   static UCarlaSettings *GetCarlaSettings(const UObject *WorldContextObject);
 
@@ -57,6 +57,9 @@ public:
 
   UFUNCTION(BlueprintPure, Category="CARLA", meta=(WorldContext="WorldContextObject"))
   static ALargeMapManager* GetLargeMapManager(const UObject *WorldContextObject);
+
+	UFUNCTION(BlueprintPure, Category="CARLA", meta=(WorldContext="WorldContextObject"))
+	static AActor* FindCarlaActorByID(const FString& CarlaActorID, const UObject *WorldContextObject);
 };
 
 // =============================================================================
@@ -113,4 +116,18 @@ inline ALargeMapManager* UCarlaStatics::GetLargeMapManager(const UObject *WorldC
     return GameMode->GetLMManager();
   }
   return nullptr;
+}
+
+inline AActor* UCarlaStatics::FindCarlaActorByID(const FString& CarlaActorID, const UObject* WorldContextObject)
+{
+	if (auto* Episode = UCarlaStatics::GetCurrentEpisode(WorldContextObject))
+	{
+		const uint32 IntegerID = static_cast<uint32>(FCString::Atoi(*CarlaActorID));
+		FCarlaActor::IdType id = static_cast<FCarlaActor::IdType>(IntegerID);
+		if (FCarlaActor* CarlaActor = Episode->FindCarlaActor(id))
+		{
+			return CarlaActor->GetActor();
+		}
+	}
+    return nullptr;
 }

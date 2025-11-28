@@ -33,6 +33,7 @@ UPrimitiveComponent* USvcCubeDrawer::Draw(const FVector& Center, const FVector& 
 	UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(m_CubeMaterial, MeshComp);
 	DynMat->SetVectorParameterValue("Color", Color);
 	MeshComp->SetMaterial(0, DynMat);
+	MeshComp->SetTranslucentSortPriority(100);
 
 	MeshComp->SetTranslucentSortPriority(100);
 

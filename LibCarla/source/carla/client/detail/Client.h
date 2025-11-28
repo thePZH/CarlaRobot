@@ -205,6 +205,10 @@ namespace detail {
 
 	bool DestroyObject(const std::string& uuid);
 
+	std::string DestroyObjects(const std::string& json);
+
+	std::string ControlMainCamera(const std::string& json);
+
     bool DestroyActor(rpc::ActorId actor);
 
     void SetActorLocation(
