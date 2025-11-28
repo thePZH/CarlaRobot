@@ -18,10 +18,10 @@ void USvcMapSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	m_MapToComplexCollision.Add(TEXT("ljgc_01.lcc"), TEXT("/SevnceMapManager/Statics/LijiaCollisionComplex.LijiaCollisionComplex"));
-	m_MapToComplexCollision.Add(TEXT("nmh_01.lcc"), TEXT(""));
+	m_MapToComplexCollision.Add(TEXT("nmh_01.lcc"), TEXT("/SevnceMapManager/Statics/nmhCollisionComplex.nmhCollisionComplex"));
 
 	m_MapToSimpleCollision.Add(TEXT("ljgc_01.lcc"), TEXT("/SevnceMapManager/Statics/LijiaCollisionSimple.LijiaCollisionSimple"));
-	m_MapToSimpleCollision.Add(TEXT("nmh_01.lcc"), TEXT(""));
+	m_MapToSimpleCollision.Add(TEXT("nmh_01.lcc"), TEXT("/SevnceMapManager/Statics/nmhCollisionSimple.nmhCollisionSimple"));
 }
 
 void USvcMapSubsystem::Deinitialize()
@@ -245,7 +245,6 @@ void USvcMapSubsystem::LoadAndAttachQueryMesh(const FString& DataSetFileName)
     meshComp->SetHiddenInGame(true);
 	
     meshComp->RegisterComponent();
-	meshComp->SetWorldScale3D({-100, -100, 100});
     meshComp->AttachToComponent(targetActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
     targetActor->AddInstanceComponent(meshComp);
 	
@@ -306,7 +305,6 @@ void USvcMapSubsystem::LoadAndAttachNaviMesh(const FString& DataSetFileName)
     naviMeshComp->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     naviMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     naviMeshComp->SetMobility(EComponentMobility::Movable); // 导航网格通常是静态的
-	naviMeshComp->SetWorldScale3D({-1, -1, 1});
     naviMeshComp->SetVisibility(false);
     naviMeshComp->SetHiddenInGame(true);
     naviMeshComp->RegisterComponent();

@@ -6,6 +6,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 
 void USevnceCameraSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -189,7 +190,12 @@ FString USevnceCameraSubsystem::ControlMainCameraFromJson(const FString& JsonStr
 
 	if (TargetActor == nullptr)
 	{
-		return MakeJsonResponse(false, TEXT("TargetActor is null"));
+		// 尝试查找场景中的 BP_Robot
+		TargetActor = FindBPRobotActor();
+		if (TargetActor == nullptr)
+		{
+			return MakeJsonResponse(false, TEXT("TargetActor is null and BP_Robot not found"));
+		}
 	}
 
 	const TSharedPtr<FJsonObject>* RelativeTransformObject = nullptr;
@@ -230,5 +236,65 @@ FString USevnceCameraSubsystem::ControlMainCameraFromJson(const FString& JsonStr
 	CameraPawn->AttachToActorTarget(TargetActor, ECameraAttachmentMode::SpringArm);
 	CameraPawn->SetSpringArmRotation(RelativeTransform.Rotator());
 	return MakeJsonResponse(true, FString(), MakeSuccess);
+}
+
+AActor* USevnceCameraSubsystem::FindBPRobotActor() const
+{
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return nullptr;
+	}
+
+	// 首次调用时，从指定路径加载蓝图类
+	if (m_RobotBlueprintClass == nullptr)
+	{
+		m_RobotBlueprintClass = LoadClass<AActor>(nullptr, RobotBlueprintPath);
+		if (m_RobotBlueprintClass == nullptr)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Failed to load Robot Blueprint from path: %s"), RobotBlueprintPath);
+		}
+	}
+
+	// 使用蓝图类查找
+	if (m_RobotBlueprintClass != nullptr)
+	{
+		TArray<AActor*> FoundActors;
+		UGameplayStatics::GetAllActorsOfClass(World, m_RobotBlueprintClass, FoundActors);
+		
+		// 返回第一个找到的 Actor
+		if (FoundActors.Num() > 0)
+		{
+			return FoundActors[0];
+		}
+	}
+
+	// 回退到名称查找（Actor 名称或类名包含 "BP_Robot"）
+	// TArray<AActor*> AllActors;
+	// UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), AllActors);
+	
+	// for (AActor* Actor : AllActors)
+	// {
+	// 	if (Actor == nullptr)
+	// 	{
+	// 		continue;
+	// 	}
+		
+	// 	// 检查 Actor 名称是否包含 "BP_Robot"
+	// 	FString ActorName = Actor->GetName();
+	// 	if (ActorName.Contains(TEXT("BP_Robot"), ESearchCase::IgnoreCase))
+	// 	{
+	// 		return Actor;
+	// 	}
+		
+	// 	// 检查 Actor 的类名是否包含 "BP_Robot"
+	// 	FString ClassName = Actor->GetClass()->GetName();
+	// 	if (ClassName.Contains(TEXT("BP_Robot"), ESearchCase::IgnoreCase))
+	// 	{
+	// 		return Actor;
+	// 	}
+	// }
+	
+	return nullptr;
 }
 

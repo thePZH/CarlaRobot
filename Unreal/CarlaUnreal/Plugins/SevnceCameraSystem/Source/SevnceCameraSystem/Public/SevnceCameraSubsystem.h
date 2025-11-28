@@ -40,6 +40,12 @@ public:
 	ASevnceMainCameraPawn* FindMainCameraPawn() const;
 
 private:
+	// 用于自动查找的机器人蓝图类（首次调用时从指定路径加载）
+	mutable TSubclassOf<AActor> m_RobotBlueprintClass;
+	
+	// 机器人蓝图类的加载路径（可根据实际情况修改）
+	const TCHAR* RobotBlueprintPath = TEXT("/Game/Carla/Blueprints/Vehicles/1RobotWheeled/BP_4wheeleRobot.BP_4wheeleRobot_C");
+	
 	// JSON 解析辅助函数
 	bool ParseVectorField(const TSharedPtr<FJsonObject>& JsonObject, const TCHAR* FieldName, FVector& OutVector, float UnitScale);
 	bool ParseRotationField(const TSharedPtr<FJsonObject>& JsonObject, const TCHAR* FieldName, FRotator& OutRotation);
@@ -47,5 +53,8 @@ private:
 	
 	// 响应生成函数
 	FString MakeJsonResponse(bool bOk, const FString& ErrorMessage = FString(), const TFunction<void(TSharedPtr<FJsonObject>)>& OnSuccess = TFunction<void(TSharedPtr<FJsonObject>)>());
+	
+	// 查找场景中的 BP_Robot Actor
+	AActor* FindBPRobotActor() const;
 };
 

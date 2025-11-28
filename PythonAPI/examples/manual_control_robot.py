@@ -249,7 +249,7 @@ class World(object):
             self.player = None
         
         # 使用 create_robot 创建机器人和传感器
-        spawn_point = carla.Transform(carla.Location(x=-0.04, y=1.71, z=0.7))
+        spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=0.5))
         json_params = {
             "robot": {
                 "blueprint": "vehicle.robot.01",
@@ -587,7 +587,7 @@ class KeyboardControl(object):
                     
                     world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
-                    path = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/ljgc_01.lcc'
+                    path = '/mnt/ssd1t/3DGSData/nmh/LCC_Results/nmh_01.lcc'
                     world.world.load_map(path)
                     
                 elif event.key == K_n:

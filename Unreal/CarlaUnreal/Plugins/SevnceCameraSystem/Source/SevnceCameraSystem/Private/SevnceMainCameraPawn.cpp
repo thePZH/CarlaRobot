@@ -32,8 +32,7 @@ ASevnceMainCameraPawn::ASevnceMainCameraPawn(const FObjectInitializer& ObjectIni
 	m_SpringArmComponent->bInheritYaw = true;
 	m_SpringArmComponent->bInheritRoll = false;
 	m_SpringArmComponent->bDoCollisionTest = true;
-	m_SpringArmComponent->bEnableCameraRotationLag = true;
-	m_SpringArmComponent->CameraRotationLagSpeed = 10.0f;
+	m_SpringArmComponent->bEnableCameraRotationLag = false;
 
 	// 创建相机组件（默认附加到根组件，在绑定到机器人时会重新附加）
 	m_CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
