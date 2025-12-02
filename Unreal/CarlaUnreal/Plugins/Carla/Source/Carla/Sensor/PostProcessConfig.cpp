@@ -7,7 +7,7 @@
 void FPostProcessConfig::EnablePostProcessingEffects()
 {
   // This block of code {
-  EngineShowFlags.SetLensFlares(true);
+  EngineShowFlags.SetLensFlares(false);
   EngineShowFlags.SetEyeAdaptation(true);
   EngineShowFlags.SetColorGrading(true);
   EngineShowFlags.SetCameraImperfections(true);
