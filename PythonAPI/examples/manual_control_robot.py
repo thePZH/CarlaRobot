@@ -770,10 +770,10 @@ class KeyboardControl(object):
             self._control.brake = 0
 
         if speed < 0.001:
-            if keys[K_a]:
+            if keys[K_a] and not keys[K_w] and not keys[K_s]:
                 self._control.steer = 0.0
                 robot_yaw_delta = -1.0
-            elif keys[K_d]:
+            elif keys[K_d] and not keys[K_w] and not keys[K_s]:
                 self._control.steer = 0.0
                 robot_yaw_delta = +1.0
             else:
