@@ -9,6 +9,7 @@ void FPostProcessConfig::EnablePostProcessingEffects()
   // This block of code {
   EngineShowFlags.SetLensFlares(false);
   EngineShowFlags.SetEyeAdaptation(true);
+  EngineShowFlags.SetBloom(false);
   EngineShowFlags.SetColorGrading(true);
   EngineShowFlags.SetCameraImperfections(true);
   EngineShowFlags.SetDepthOfField(true);
