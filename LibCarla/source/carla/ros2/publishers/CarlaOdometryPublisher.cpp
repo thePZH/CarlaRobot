@@ -80,10 +80,11 @@ namespace ros2
 		}
 
 		efd::TopicQos topicQos = efd::TOPIC_QOS_DEFAULT;
-		std::string topicName;
+		const std::string base { "rt/carla/" };
+		std::string topicName = base;
 		if (!_parent.empty())
 		{
-			topicName = _parent + "/";
+			topicName += _parent + "/";
 		}
 		topicName += _name;
 

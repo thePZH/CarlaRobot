@@ -249,7 +249,7 @@ class World(object):
             self.player = None
         
         # 使用 create_robot 创建机器人和传感器
-        spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=-100))
+        spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=-9))
         json_params = {
             "robot": {
                 "blueprint": "vehicle.robot.01",

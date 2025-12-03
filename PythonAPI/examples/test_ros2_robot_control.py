@@ -258,7 +258,10 @@ def test_robot_control(robot_name='robot01', carla_host='localhost', carla_port=
     
     start_time = time.time()
     last_control_time = time.time()
-    control_interval = 0.1  # 100ms 控制周期
+    # 控制周期：
+    # - 使用 cmd_vel 驱动机器人原地旋转时，高一些的控制频率可以让运动更连续。
+    # - 这里采用约 50Hz 的频率。
+    control_interval = 1.0 / 50.0  # ~20ms 控制周期（约 50Hz）
     
     # 测试阶段状态
     test_stage = 0
@@ -320,44 +323,11 @@ def test_robot_control(robot_name='robot01', carla_host='localhost', carla_port=
                         print(f'[{elapsed:.1f}s] 阶段3: 停止')
                 
                 elif test_stage == 4:
-                    # 阶段4: 原地转圈（速度为0，角速度不为0）
-                    # 使用 set_transform 手动设置 rotation
-                    if robot_actor:
-                        if spin_start_time is None:
-                            spin_start_time = current_time
-                            spin_angular_velocity = 1.0  # rad/s
-                            # 记录初始yaw角度
-                            initial_transform = robot_actor.get_transform()
-                            initial_yaw = initial_transform.rotation.yaw
-                            print(f'[{elapsed:.1f}s] 阶段4: 原地转圈 (使用set_transform, 初始yaw={initial_yaw:.1f}°)')
-                        
-                        # 计算当前应该旋转的总角度（从初始角度开始累积）
-                        spin_elapsed = current_time - spin_start_time
-                        total_rotation_deg = math.degrees(spin_angular_velocity * spin_elapsed)
-                        new_yaw = initial_yaw + total_rotation_deg
-                        
-                        # 获取当前transform（保持位置不变）
-                        current_transform = robot_actor.get_transform()
-                        new_rotation = carla.Rotation(
-                            pitch=current_transform.rotation.pitch,
-                            yaw=new_yaw,
-                            roll=current_transform.rotation.roll
-                        )
-                        
-                        # 设置新的transform（只改变rotation）
-                        new_transform = carla.Transform(
-                            location=current_transform.location,
-                            rotation=new_rotation
-                        )
-                        robot_actor.set_transform(new_transform)
-                        
-                        # 不发送cmd_vel（速度为0）
-                        controller.send_cmd_vel(linear_velocity=0.0, angular_velocity=0.0)
-                    else:
-                        # 如果没有CARLA连接，尝试用cmd_vel（可能不会工作）
-                        controller.send_cmd_vel(linear_velocity=0.0, angular_velocity=1.0)
-                        if int(stage_elapsed) == 0:
-                            print(f'[{elapsed:.1f}s] 阶段4: 原地转圈 (尝试cmd_vel，可能无效)')
+                    # 阶段4: 原地转圈（线速度为 0，角速度不为 0），通过 cmd_vel 驱动
+                    spin_angular_velocity = 1.0  # rad/s
+                    controller.send_cmd_vel(linear_velocity=0.0, angular_velocity=spin_angular_velocity)
+                    if int(stage_elapsed) == 0:
+                        print(f'[{elapsed:.1f}s] 阶段4: 原地转圈 (cmd_vel, ω={spin_angular_velocity:.2f} rad/s)')
                 
                 elif test_stage == 5:
                     # 阶段5: 停止
