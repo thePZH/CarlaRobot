@@ -176,7 +176,8 @@ protected:
   static void SendDataToClient(
     SensorType&& Sensor,                  // The data's owning sensor.
     TArrayView<ElementType> SensorData,   // Data to send to the client.
-    uint64_t FrameIndex                   // Current frame index.
+    uint64_t FrameIndex,                   // Current frame index.
+    bool bSendToROS2 = true
     )
   {
     using carla::sensor::SensorRegistry;
@@ -205,7 +206,7 @@ protected:
 
 #if defined(WITH_ROS2)
     auto ROS2 = carla::ros2::ROS2::GetInstance();
-    if (ROS2->IsEnabled())
+    if (ROS2->IsEnabled() && bSendToROS2)
     {
       TRACE_CPUPROFILER_EVENT_SCOPE_STR("ROS2 SendDataToClient");
       auto StreamId = carla::streaming::detail::token_type(Sensor.GetToken()).get_stream_id();

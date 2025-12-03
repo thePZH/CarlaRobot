@@ -64,6 +64,7 @@ class ROS2
   bool IsEnabled() { return _enabled; }
   void SetFrame(uint64_t frame);
   void SetTimestamp(double timestamp);
+  void GetCurrentTime(int32_t &seconds, uint32_t &nanoseconds) const;
 
   // ros_name managing
   void AddActorRosName(void *actor, std::string ros_name);

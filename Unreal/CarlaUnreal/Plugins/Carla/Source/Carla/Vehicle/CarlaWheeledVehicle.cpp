@@ -18,6 +18,7 @@
 
 #include <util/ue-header-guard-begin.h>
 #include "Components/BoxComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "MovementComponents/DefaultMovementComponent.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -27,6 +28,10 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include <util/ue-header-guard-end.h>
+
+
+#include "carla/ros2/ROS2.h"
+#include "carla/ros2/publishers/CarlaOdometryPublisher.h"
 
 // =============================================================================
 // -- Constructor and destructor -----------------------------------------------
@@ -175,6 +180,9 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
 
   WorldTransformedPose = pose;
 
+#if defined(WITH_ROS2)
+  PublishRos2Odometry();
+#endif
 }
 
 bool ACarlaWheeledVehicle::IsInVehicleRange(const FVector& Location) const
@@ -810,6 +818,9 @@ void ACarlaWheeledVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
   //ShowDebugTelemetry(false);
   Super::EndPlay(EndPlayReason);
+#if defined(WITH_ROS2)
+  Ros2OdometryPublisherInstance.reset();
+#endif
   RemoveReferenceToManager();
 }
 
@@ -893,6 +904,142 @@ void ACarlaWheeledVehicle::CloseDoorPhys(const EVehicleDoor DoorIdx)
     GetMesh(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, true));
   RecordDoorChange(DoorIdx, false);
 }
+
+
+void ACarlaWheeledVehicle::InitializeRos2OdometryPublisher()
+{
+  if (Ros2OdometryPublisherInstance || !bPublishRos2Odometry)
+  {
+    UE_LOG(LogCarla, Verbose, TEXT("InitializeRos2OdometryPublisher: Already initialized or disabled"));
+    return;
+  }
+
+  auto ROS2 = carla::ros2::ROS2::GetInstance();
+  if (!ROS2 || !ROS2->IsEnabled())
+  {
+    UE_LOG(LogCarla, Warning, TEXT("InitializeRos2OdometryPublisher: ROS2 not available or disabled"));
+    return;
+  }
+
+  // 获取当前 actor 的 ros_name 作为 parent
+  // 注意：需要在 actor 的 ros_name 注册之后才能获取
+  std::string actorRosName = ROS2->GetActorRosName(this);
+  if (actorRosName.empty())
+  {
+    // 如果 ros_name 还没有注册，延迟初始化（会在后续 tick 中重试）
+    static int32_t retryCount = 0;
+    if (retryCount < 10) // 只在前10次尝试时记录日志
+    {
+      UE_LOG(LogCarla, Warning, TEXT("InitializeRos2OdometryPublisher: Actor ros_name not yet registered (attempt %d), will retry"), retryCount + 1);
+      retryCount++;
+    }
+    return;
+  }
+
+  const std::string topicName = TCHAR_TO_UTF8(*Ros2OdometryTopicName);
+  UE_LOG(LogCarla, Log, TEXT("InitializeRos2OdometryPublisher: Creating publisher with topic='%s', parent='%s'"), 
+    UTF8_TO_TCHAR(topicName.c_str()), UTF8_TO_TCHAR(actorRosName.c_str()));
+  
+  Ros2OdometryPublisherInstance = std::make_shared<carla::ros2::CarlaOdometryPublisher>(topicName.c_str(), actorRosName.c_str());
+  if (!Ros2OdometryPublisherInstance->Init())
+  {
+    UE_LOG(LogCarla, Error, TEXT("InitializeRos2OdometryPublisher: Failed to initialize publisher"));
+    Ros2OdometryPublisherInstance.reset();
+    return;
+  }
+
+  UE_LOG(LogCarla, Log, TEXT("InitializeRos2OdometryPublisher: Successfully initialized odometry publisher"));
+  Ros2OdometryPublisherInstance->SetHeaderFrameId(TCHAR_TO_UTF8(*Ros2OdometryHeaderFrameId));
+  Ros2OdometryPublisherInstance->SetChildFrameId(TCHAR_TO_UTF8(*Ros2OdometryChildFrameId));
+}
+
+void ACarlaWheeledVehicle::PublishRos2Odometry()
+{
+  if (!bPublishRos2Odometry)
+  {
+    return;
+  }
+
+  auto ROS2 = carla::ros2::ROS2::GetInstance();
+  if (!ROS2 || !ROS2->IsEnabled())
+  {
+    return;
+  }
+
+  InitializeRos2OdometryPublisher();
+  if (!Ros2OdometryPublisherInstance)
+  {
+    static int32_t warnCount = 0;
+    if (warnCount++ % 300 == 0) // 每5秒警告一次（假设60fps）
+    {
+      UE_LOG(LogCarla, Warning, TEXT("PublishRos2Odometry: Publisher instance is null"));
+    }
+    return;
+  }
+
+  UWorld *world = GetWorld();
+  if (!world)
+  {
+    return;
+  }
+
+  const double currentTime = world->GetTimeSeconds();
+  const double minPeriod = Ros2OdometryPublishFrequency > 0.0f ? 1.0 / Ros2OdometryPublishFrequency : 0.0;
+  if ((currentTime - Ros2LastOdometryTimestamp) < minPeriod)
+  {
+    return;
+  }
+  Ros2LastOdometryTimestamp = currentTime;
+
+  int32 seconds = 0;
+  uint32 nanoseconds = 0;
+  ROS2->GetCurrentTime(seconds, nanoseconds);
+
+  constexpr float CM_TO_M = 0.01f;
+  const FVector actorLocationM = GetActorLocation() * CM_TO_M;
+  float location[3] = {
+    static_cast<float>(actorLocationM.X),
+    static_cast<float>(actorLocationM.Y),
+    static_cast<float>(actorLocationM.Z)
+  };
+
+  const FRotator actorRotationDeg = GetActorRotation();
+  float rotation[3] = {
+    static_cast<float>(actorRotationDeg.Roll),
+    static_cast<float>(actorRotationDeg.Pitch),
+    static_cast<float>(actorRotationDeg.Yaw)
+  };
+
+  const FVector velocityMs = GetVelocity() * CM_TO_M;
+
+  FVector angularVelocity = FVector::ZeroVector;
+  if (const auto *rootComponent = Cast<UPrimitiveComponent>(GetRootComponent()))
+  {
+    angularVelocity = rootComponent->GetPhysicsAngularVelocityInRadians();
+  }
+
+  float linearVelocity[3] = {
+    static_cast<float>(velocityMs.X),
+    static_cast<float>(velocityMs.Y),
+    static_cast<float>(velocityMs.Z)
+  };
+
+  float angularVelocityData[3] = {
+    static_cast<float>(angularVelocity.X),
+    static_cast<float>(angularVelocity.Y),
+    static_cast<float>(angularVelocity.Z)
+  };
+
+  Ros2OdometryPublisherInstance->SetData(
+    seconds,
+    nanoseconds,
+    location,
+    rotation,
+    linearVelocity,
+    angularVelocityData);
+  Ros2OdometryPublisherInstance->Publish();
+}
+
 
 void ACarlaWheeledVehicle::RecordDoorChange(const EVehicleDoor DoorIdx, bool bIsOpen)
 {

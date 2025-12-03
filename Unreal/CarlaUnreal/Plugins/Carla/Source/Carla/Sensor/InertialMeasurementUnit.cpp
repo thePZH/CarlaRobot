@@ -147,9 +147,15 @@ carla::geom::Vector3D AInertialMeasurementUnit::ComputeAccelerometer(
 
 carla::geom::Vector3D AInertialMeasurementUnit::ComputeGyroscope()
 {
-  check(GetOwner() != nullptr);
-  const FVector AngularVelocity =
-      FIMU_GetActorAngularVelocityInRadians(*GetOwner());
+  // 优先使用附加的父actor（车辆），如果没有则使用Owner
+  AActor* TargetActor = GetAttachParentActor();
+  if (TargetActor == nullptr)
+  {
+    TargetActor = GetOwner();
+  }
+  
+  check(TargetActor != nullptr);
+  const FVector AngularVelocity = FIMU_GetActorAngularVelocityInRadians(*TargetActor); // local
 
   const FQuat SensorLocalRotation =
       RootComponent->GetRelativeTransform().GetRotation();

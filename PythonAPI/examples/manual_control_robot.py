@@ -249,13 +249,13 @@ class World(object):
             self.player = None
         
         # 使用 create_robot 创建机器人和传感器
-        spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=0.5))
+        spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=-100))
         json_params = {
             "robot": {
                 "blueprint": "vehicle.robot.01",
                 "attributes": {
                     "role_name": self.actor_role_name,
-                    "ros_name": "ego"
+                    "ros_name": "robot01"
                 },
                 "transform": {
                     "location": {"x": spawn_point.location.x, "y": spawn_point.location.y, "z": spawn_point.location.z},
@@ -273,37 +273,22 @@ class World(object):
                     }
                 },
                 {
-                    "name": "FrontDepthRaw",
-                    "blueprint": "sensor.camera.depth",
-                    "attributes": {
-                        "image_size_x": self.hud.dim[0],
-                        "image_size_y": self.hud.dim[1]
-                    }
-                },
-                {
                     "name": "LidarRayCast",
                     "blueprint": "sensor.lidar.ray_cast",
                     "attributes": {
                         "range": "200",
                         "upper_fov": "15.0",
                         "lower_fov": "-15.0",
-                        "horizontal_fov": "180"
+                        "horizontal_fov": "180",
+                        "ros_name": "sensor/lidar/points"
                     }
-                },
-                {
-                    "name": "CollisionSensor",
-                    "blueprint": "sensor.other.collision",
-                    "attributes": {}
-                },
-                {
-                    "name": "GnssSensor",
-                    "blueprint": "sensor.other.gnss",
-                    "attributes": {}
                 },
                 {
                     "name": "IMUSensor",
                     "blueprint": "sensor.other.imu",
-                    "attributes": {}
+                    "attributes": {
+                        "ros_name": "imu/imu_data"
+                    }
                 }
             ]
         }
@@ -359,27 +344,39 @@ class World(object):
         if len(camera_sensors) == 0:
             raise ValueError("No camera sensors found in create_robot result")
         
-        # 初始化传感器包装
-        if "CollisionSensor" not in sensor_dict:
-            raise ValueError("CollisionSensor not found in create_robot result")
-        collision_actor = self.world.get_actor(sensor_dict["CollisionSensor"])
-        if collision_actor is None:
-            raise ValueError("Failed to get CollisionSensor actor")
-        self.collision_sensor = CollisionSensorWrapper(collision_actor, self.hud)
+        # 初始化传感器包装（所有传感器都是可选的）
+        if "CollisionSensor" in sensor_dict:
+            collision_actor = self.world.get_actor(sensor_dict["CollisionSensor"])
+            if collision_actor is not None:
+                self.collision_sensor = CollisionSensorWrapper(collision_actor, self.hud)
+            else:
+                print("Warning: CollisionSensor actor is None")
+                self.collision_sensor = None
+        else:
+            print("Info: CollisionSensor not found in create_robot result, skipping")
+            self.collision_sensor = None
         
-        if "GnssSensor" not in sensor_dict:
-            raise ValueError("GnssSensor not found in create_robot result")
-        gnss_actor = self.world.get_actor(sensor_dict["GnssSensor"])
-        if gnss_actor is None:
-            raise ValueError("Failed to get GnssSensor actor")
-        self.gnss_sensor = GnssSensorWrapper(gnss_actor)
+        if "GnssSensor" in sensor_dict:
+            gnss_actor = self.world.get_actor(sensor_dict["GnssSensor"])
+            if gnss_actor is not None:
+                self.gnss_sensor = GnssSensorWrapper(gnss_actor)
+            else:
+                print("Warning: GnssSensor actor is None")
+                self.gnss_sensor = None
+        else:
+            print("Info: GnssSensor not found in create_robot result, skipping")
+            self.gnss_sensor = None
         
-        if "IMUSensor" not in sensor_dict:
-            raise ValueError("IMUSensor not found in create_robot result")
-        imu_actor = self.world.get_actor(sensor_dict["IMUSensor"])
-        if imu_actor is None:
-            raise ValueError("Failed to get IMUSensor actor")
-        self.imu_sensor = IMUSensorWrapper(imu_actor)
+        if "IMUSensor" in sensor_dict:
+            imu_actor = self.world.get_actor(sensor_dict["IMUSensor"])
+            if imu_actor is not None:
+                self.imu_sensor = IMUSensorWrapper(imu_actor)
+            else:
+                print("Warning: IMUSensor actor is None")
+                self.imu_sensor = None
+        else:
+            print("Info: IMUSensor not found in create_robot result, skipping")
+            self.imu_sensor = None
         
         # 初始化CameraManager并设置为外部传感器模式
         if self.camera_manager is None:
@@ -410,7 +407,8 @@ class World(object):
         self.hud.tick(self, clock)
 
     def render(self, display):
-        self.camera_manager.render(display)
+        if self.camera_manager is not None:
+            self.camera_manager.render(display)
         self.hud.render(display)
 
     def _cleanup_sensors(self):
@@ -591,7 +589,8 @@ class KeyboardControl(object):
                     world.world.load_map(path)
                     
                 elif event.key == K_n:
-                    world.camera_manager.next_sensor()
+                    if world.camera_manager is not None:
+                        world.camera_manager.next_sensor()
                 elif event.key == K_q:
                     if world.camera_manager is None or world.camera_manager.sensor is None:
                         print("Camera sensor not available")
@@ -842,7 +841,7 @@ class KeyboardControl(object):
 
     
     def _parse_sensor_keys(self, keys, milliseconds, world, angle=1):
-        if world.camera_manager.sensor is None:
+        if world.camera_manager is None or world.camera_manager.sensor is None:
             return
         sensor = world.camera_manager.sensor
         

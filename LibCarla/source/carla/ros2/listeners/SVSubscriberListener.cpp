@@ -51,15 +51,20 @@ namespace ros2 {
 
     VehicleControl SVSubscriberListenerImpl::convert_to_vehicle(const geometry_msgs::msg::Twist& message)
 	{
-    	const float linear_x = std::clamp(static_cast<float>(message.linear().x()), -1.0f, 1.0f);
-    	const float angular_z = std::clamp(static_cast<float>(message.angular().z()), -1.0f, 1.0f);
-    	VehicleControl control;
-    	control.throttle = linear_x; // 油门
-    	control.steer = angular_z; 	 // yaw
-    	control.hand_brake = message.linear().x() == 0 ? true : false;
-        control.reverse = message.linear().x() < 0 ? true : false;
-    	control.gear = 1;
-    	control.manual_gear_shift = false;
+		// 直接使用线速度和角速度，不转换为油门和转向比例，不设限制
+		// throttle 字段存储线速度 (m/s)
+		// steer 字段存储角速度 (rad/s)
+		const float linear_velocity = static_cast<float>(message.linear().x());
+		const float angular_velocity = static_cast<float>(message.angular().z());
+
+		VehicleControl control;
+		control.throttle = linear_velocity; // 存储线速度 (m/s)，无限制
+		control.steer = angular_velocity;   // 存储角速度 (rad/s)，无限制
+		control.brake = 0.0f;
+		control.hand_brake = (linear_velocity <= 0.01f) ? true : false; // 速度接近0时手刹
+		control.reverse = false; // 不支持倒车
+		control.gear = 1;
+		control.manual_gear_shift = false;
 		return control;	
 	}
     void SVSubscriberListenerImpl::on_data_available(efd::DataReader* reader)

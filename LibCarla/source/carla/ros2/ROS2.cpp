@@ -155,6 +155,11 @@ void ROS2::SetTimestamp(double timestamp) {
 #endif
 }
 
+void ROS2::GetCurrentTime(int32_t &seconds, uint32_t &nanoseconds) const {
+  seconds = _seconds;
+  nanoseconds = _nanoseconds;
+}
+
 void ROS2::AddActorRosName(void *actor, std::string ros_name) {
   _actor_ros_name.insert({actor, ros_name});
 }
@@ -200,7 +205,7 @@ std::string ROS2::GetActorParentRosName(void *actor) {
     std::string parent_name;
     for (auto parent_it = it->second.cbegin(); parent_it != it->second.cend(); ++parent_it)
     {
-      const std::string name = GetActorRosName(*parent_it);
+      std::string name = GetActorRosName(*parent_it);
       if (name == current_actor_name)
       {
         continue;
@@ -815,30 +820,8 @@ void ROS2::ProcessDataFromLidar(
     std::shared_ptr<CarlaLidarPublisher> publisher = std::dynamic_pointer_cast<CarlaLidarPublisher>(sensors.first);
     size_t width = data._points.size();
     size_t height = 1;
-    
-    // 检查数据是否包含ring和time信息（从UE端生成）
-    if (data.HasRingAndTime() && !data._rings.empty() && !data._times.empty()) {
-      // 使用UE端提供的ring和time信息（更准确）
-      publisher->SetDataWithRingAndTimeFromUE(_seconds, _nanoseconds, height, width, 
-                                              (float*)data._points.data(),
-                                              data._rings.data(), data._times.data());
-    } else {
-      // 回退到计算方式：从_header中提取通道信息
-      const uint32_t channel_count = data.GetChannelCount();
-      std::vector<uint32_t> points_per_channel;
-      points_per_channel.reserve(channel_count);
-      
-      // 从_header中提取每个通道的点数（跳过前2个元素：HorizontalAngle和ChannelCount）
-      const size_t header_offset = 2; // Index::SIZE = 2
-      for (uint32_t ch = 0; ch < channel_count; ++ch) {
-        points_per_channel.push_back(data._header[header_offset + ch]);
-      }
-      
-      // 使用计算方式生成ring和time
-      // rotation_time参数：雷达旋转一周的时间（秒），0表示使用默认值0.1秒
-      publisher->SetDataWithRingAndTime(_seconds, _nanoseconds, height, width, (float*)data._points.data(), 
-                                         points_per_channel, 0.0f);
-    }
+    // 为了稳定性，暂时退回 Carla 原始实现：只发送 xyzI，不在 ROS2 侧扩展 ring/time
+    publisher->SetData(_seconds, _nanoseconds, height, width, (float *)data._points.data());
     publisher->Publish();
   }
   if (sensors.second) {

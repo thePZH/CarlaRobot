@@ -207,50 +207,14 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
     }
 #endif
 
-    // 计算扫描时间（雷达旋转一周的时间）
-    // 根据RotationFrequency计算：如果RotationFrequency是Hz，则每圈时间为1/RotationFrequency秒
-    const float rotation_time = Description.RotationFrequency > 0.0f ? 
-                                (1.0f / Description.RotationFrequency) : 0.1f; // 默认0.1秒（10Hz）
-    
-	// 先遍历一次，统计每个通道内会被保留的点数（用于时间戳计算）
-	TArray<uint32> ValidPointsPerChannel;
-	ValidPointsPerChannel.SetNumZeroed(Description.Channels);
+    // 简化版本：仅保存点的空间位置和强度，ring/time 交给 ROS2 侧在接收后按 header 信息估算
 	for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
 	{
-		uint32& ChannelValidCount = ValidPointsPerChannel[idxChannel];
 		for (auto& hit : RecordedHits[idxChannel])
 		{
 			FDetection Detection = ComputeDetection(hit, SensorTransform);
 			if (PostprocessDetection(Detection))
 			{
-				ChannelValidCount++;
-			}
-		}
-	}
-    
-    // 重新遍历，保存有效点并设置ring和time
-	for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
-	{
-		const uint32 ChannelValidCount = ValidPointsPerChannel[idxChannel];
-		uint32 ChannelPointIndex = 0;
-
-		for (auto& hit : RecordedHits[idxChannel])
-		{
-			FDetection Detection = ComputeDetection(hit, SensorTransform);
-			if (PostprocessDetection(Detection))
-			{
-				// 设置ring和time信息（time 在单个通道内均匀分布）
-				Detection.ring = static_cast<uint16_t>(idxChannel);
-				if (ChannelValidCount > 0)
-				{
-					const float NormalizedIndex = static_cast<float>(ChannelPointIndex) / static_cast<float>(ChannelValidCount);
-					Detection.time = NormalizedIndex * rotation_time;
-				}
-				else
-				{
-					Detection.time = 0.0f;
-				}
-
 				LidarData.WritePointSync(Detection);
 #if WITH_EDITOR
 				if(bSavingDataToDisk)
@@ -258,7 +222,6 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
 					PointCloudWritePointSync(Detection);
 				}
 #endif
-				ChannelPointIndex++;
 			}
 			else
 			{

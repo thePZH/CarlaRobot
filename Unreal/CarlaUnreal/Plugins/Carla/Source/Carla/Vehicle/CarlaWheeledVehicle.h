@@ -38,6 +38,16 @@
 #include <util/ue-header-guard-end.h>
 
 #include <utility>
+#include <memory>
+
+namespace carla
+{
+  namespace ros2
+  {
+    class CarlaOdometryPublisher;
+  }
+}
+
 
 #include "CarlaWheeledVehicle.generated.h"
 
@@ -464,7 +474,6 @@ private:
   void AddReferenceToManager();
   void RemoveReferenceToManager();
 
-
   FTimerHandle TimerHandler;
 public:
   float SpeedAnim { 0.0f };
@@ -482,4 +491,29 @@ public:
 
   UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
   void SetRotationAnim(float Rotation) { RotationAnim = Rotation; }
+
+
+protected:
+  UPROPERTY(Category="ROS2", EditAnywhere, BlueprintReadWrite)
+  bool bPublishRos2Odometry = true;
+
+  UPROPERTY(Category="ROS2", EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bPublishRos2Odometry"))
+  FString Ros2OdometryTopicName = TEXT("odom");
+
+  UPROPERTY(Category="ROS2", EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bPublishRos2Odometry"))
+  FString Ros2OdometryHeaderFrameId = TEXT("odom");
+
+  UPROPERTY(Category="ROS2", EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bPublishRos2Odometry"))
+  FString Ros2OdometryChildFrameId = TEXT("base_link");
+
+  UPROPERTY(Category="ROS2", EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bPublishRos2Odometry", ClampMin="1.0"))
+  float Ros2OdometryPublishFrequency = 20.0f;
+
+private:
+  std::shared_ptr<carla::ros2::CarlaOdometryPublisher> Ros2OdometryPublisherInstance;
+  double Ros2LastOdometryTimestamp = -1.0;
+
+  void InitializeRos2OdometryPublisher();
+  void PublishRos2Odometry();
+
 };

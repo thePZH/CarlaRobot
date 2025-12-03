@@ -323,49 +323,60 @@ static carla::Buffer FWorldObserver_Serialize(
   // Write every actor.
   for (auto& It : Registry)
   {
-    const FCarlaActor* View = It.Value.Get();
-    const FActorInfo* ActorInfo = View->GetActorInfo();
+		const FCarlaActor *View = It.Value.Get();
+		check(View);
 
-    FTransform ActorTransform;
-    FVector Velocity(0.0f);
-    carla::geom::Vector3D AngularVelocity(0.0f, 0.0f, 0.0f);
-    carla::geom::Vector3D Acceleration(0.0f, 0.0f, 0.0f);
-    carla::sensor::data::ActorDynamicState::TypeDependentState State{};
+		const FActorInfo *ActorInfo = View->GetActorInfo();
 
-    check(View);
+		FTransform ActorTransform;
+		FVector Velocity(0.0f);
+		carla::geom::Vector3D AngularVelocity(0.0f, 0.0f, 0.0f);
+		carla::geom::Vector3D Acceleration(0.0f, 0.0f, 0.0f);
+		carla::sensor::data::ActorDynamicState::TypeDependentState State{};
 
-    if(View->IsDormant())
-    {
-      const FActorData* ActorData = View->GetActorData();
-      Velocity = TO_METERS * ActorData->Velocity;
-      AngularVelocity = carla::geom::Vector3D
-      {
-          (float)ActorData->AngularVelocity.X,
-          (float)ActorData->AngularVelocity.Y,
-          (float)ActorData->AngularVelocity.Z
-      };
-      Acceleration = FWorldObserver_GetAcceleration(*View, Velocity, DeltaSeconds);
-      State = FWorldObserver_GetDormantActorState(*View, Registry);
-    }
-    else
-    {
-      Velocity = TO_METERS * View->GetActor()->GetVelocity();
-      AngularVelocity = FWorldObserver_GetAngularVelocity(*View->GetActor());
-      Acceleration = FWorldObserver_GetAcceleration(*View, Velocity, DeltaSeconds);
-      State = FWorldObserver_GetActorState(*View, Registry);
-    }
-    ActorTransform = View->GetActorGlobalTransform();
+		// 有些 Actor 可能已经在本帧中被销毁，但 Registry 里还残留 View，
+		if (View->IsDormant())
+		{
+			const FActorData *ActorData = View->GetActorData();
+			if (ActorData == nullptr)
+			{
+				continue;
+			}
 
-    ActorDynamicState info = {
-      View->GetActorId(),
-      View->GetActorState(),
-      carla::geom::Transform(ActorTransform),
-      carla::geom::Vector3D(Velocity.X, Velocity.Y, Velocity.Z),
-      AngularVelocity,
-      Acceleration,
-      State
-    };
-    write_data(info);
+			Velocity = TO_METERS * ActorData->Velocity;
+			AngularVelocity = carla::geom::Vector3D{
+				(float)ActorData->AngularVelocity.X,
+				(float)ActorData->AngularVelocity.Y,
+				(float)ActorData->AngularVelocity.Z};
+			Acceleration = FWorldObserver_GetAcceleration(*View, Velocity, DeltaSeconds);
+			State = FWorldObserver_GetDormantActorState(*View, Registry);
+		}
+		else
+		{
+			const AActor *Actor = View->GetActor();
+			if (Actor == nullptr)
+			{
+				// 该 CarlaActor 对应的 AActor 已销毁，跳过，避免 GetActorGlobalTransform 里解引用空指针。
+				continue;
+			}
+
+			Velocity = TO_METERS * Actor->GetVelocity();
+			AngularVelocity = FWorldObserver_GetAngularVelocity(*Actor);
+			Acceleration = FWorldObserver_GetAcceleration(*View, Velocity, DeltaSeconds);
+			State = FWorldObserver_GetActorState(*View, Registry);
+		}
+
+		ActorTransform = View->GetActorGlobalTransform();
+
+		ActorDynamicState info = {
+			View->GetActorId(),
+			View->GetActorState(),
+			carla::geom::Transform(ActorTransform),
+			carla::geom::Vector3D(Velocity.X, Velocity.Y, Velocity.Z),
+			AngularVelocity,
+			Acceleration,
+			State};
+		write_data(info);
   }
 
   // Shrink buffer

@@ -69,11 +69,10 @@ namespace ros2 {
     }
 
     efd::TopicQos tqos = efd::TOPIC_QOS_DEFAULT;
-    const std::string base { "rt/carla/" };
-    const std::string publisher_type {"/robot_control_cmd"};
-    std::string topic_name = base;
+    const std::string publisher_type {"/cmd_vel"};
+    std::string topic_name;
     if (!_parent.empty())
-      topic_name += _parent + "/";
+      topic_name = _parent + "/";
     topic_name += _name;
     topic_name += publisher_type;
     _impl->_topic = _impl->_participant->create_topic(topic_name, _impl->_type->getName(), tqos);
