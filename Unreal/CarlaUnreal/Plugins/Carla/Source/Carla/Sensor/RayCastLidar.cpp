@@ -156,9 +156,10 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
 {
   FDetection Detection;
   const FVector HitPoint = HitInfo.ImpactPoint;
-  Detection.point = SensorTransf.Inverse().TransformPosition(HitPoint);
+  const FVector LocalHitPoint = SensorTransf.Inverse().TransformPosition(HitPoint);
+  Detection.SetPoint(carla::geom::Location(LocalHitPoint.X, LocalHitPoint.Y, LocalHitPoint.Z));
 
-  const float Distance = Detection.point.Length();
+  const float Distance = Detection.GetPoint().Length();
 
   const float AttenAtm = Description.AtmospAttenRate;
   const float AbsAtm = exp(-AttenAtm * Distance);
@@ -183,9 +184,11 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
   bool ARayCastLidar::PostprocessDetection(FDetection& Detection) const
   {
     if (Description.NoiseStdDev > std::numeric_limits<float>::epsilon()) {
-      const auto ForwardVector = Detection.point.MakeUnitVector();
+      auto point = Detection.GetPoint();
+      const auto ForwardVector = point.MakeUnitVector();
       const auto Noise = ForwardVector * RandomEngine->GetNormalDistribution(0.0f, Description.NoiseStdDev);
-      Detection.point += Noise;
+      point += Noise;
+      Detection.SetPoint(point);
     }
 
     const float Intensity = Detection.intensity;
@@ -207,12 +210,16 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
     }
 #endif
 
-    // 简化版本：仅保存点的空间位置和强度，ring/time 交给 ROS2 侧在接收后按 header 信息估算
 	for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
 	{
-		for (auto& hit : RecordedHits[idxChannel])
+		auto &channelHits = RecordedHits[idxChannel];
+		auto &channelSamples = RecordedHitSampleIndices[idxChannel];
+		for (auto idxHit = 0u; idxHit < channelHits.size(); ++idxHit)
 		{
-			FDetection Detection = ComputeDetection(hit, SensorTransform);
+			FDetection Detection = ComputeDetection(channelHits[idxHit], SensorTransform);
+			Detection.ring = static_cast<uint16_t>(idxChannel);
+			const uint32_t sampleIndex = idxHit < channelSamples.size() ? channelSamples[idxHit] : 0u;
+			Detection.time = SecondsPerSample > 0.0f ? static_cast<float>(sampleIndex) * SecondsPerSample : 0.0f;
 			if (PostprocessDetection(Detection))
 			{
 				LidarData.WritePointSync(Detection);
@@ -241,8 +248,8 @@ void ARayCastLidar::PointCloudResetMemory()
 
 void ARayCastLidar::PointCloudWritePointSync(const FDetection& Detection)
 {
-  PointCloudLidarData.Emplace(Detection.point.x);
-  PointCloudLidarData.Emplace(Detection.point.y);
-  PointCloudLidarData.Emplace(Detection.point.z);
+  PointCloudLidarData.Emplace(Detection.x);
+  PointCloudLidarData.Emplace(Detection.y);
+  PointCloudLidarData.Emplace(Detection.z);
   PointCloudLidarData.Emplace(Detection.intensity);
 }

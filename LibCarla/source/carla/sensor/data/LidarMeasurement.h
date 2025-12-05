@@ -18,7 +18,7 @@ namespace data {
   /// Measurement produced by a Lidar. Consists of an array of 3D points plus
   /// some extra meta-information about the Lidar.
   class LidarMeasurement : public Array<data::LidarDetection>  {
-    static_assert(sizeof(data::LidarDetection) == 4u * sizeof(float), "Location size missmatch");
+    static_assert(sizeof(data::LidarDetection) == 24u, "LidarDetection size must be 24 bytes (x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4))");
     using Super = Array<data::LidarDetection>;
 
   protected:

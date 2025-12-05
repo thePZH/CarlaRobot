@@ -40,40 +40,69 @@ namespace data {
   ///      Point count of channel n,
   ///    }
   ///
-  /// The points are stored in an array of floats
+  /// The points are stored as an array of LidarDetection structures (24 bytes each)
   ///
   ///    {
-  ///      X0, Y0, Z0, I0
+  ///      X0, Y0, Z0, I0, ring0, padding0, time0
   ///      ...
-  ///      Xn, Yn, Zn, In
+  ///      Xn, Yn, Zn, In, ringn, paddingn, timen
   ///    }
   ///
+  /// Each LidarDetection is 24 bytes: x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4)
+  ///
 
-  // 注意：LidarDetection 的大小必须保持为 4 个 float，
+  // 注意：LidarDetection 的大小必须保持为 24 字节，
   // 以兼容 LidarMeasurement/LidarSerializer 中的内存布局。
+  // 结构：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4) = 24字节
+  // 注意：不使用 geom::Location，而是直接使用三个 float，避免继承带来的对齐问题
+  #pragma pack(push, 1)
   class LidarDetection {
     public:
-      geom::Location point;
+      float x;
+      float y;
+      float z;
       float intensity;
+      uint16_t ring;
+      uint16_t padding;  // 用于对齐，确保 time 的偏移量为 20
+      float time;
+      
+      // 提供 point 访问器以保持兼容性
+      geom::Location GetPoint() const {
+        return geom::Location(x, y, z);
+      }
+      
+      void SetPoint(const geom::Location& p) {
+        x = p.x;
+        y = p.y;
+        z = p.z;
+      }
 
       LidarDetection() :
-          point(0.0f, 0.0f, 0.0f), intensity{0.0f} { }
-      LidarDetection(float x, float y, float z, float intensity) :
-          point(x, y, z), intensity{intensity} { }
+          x(0.0f), y(0.0f), z(0.0f), intensity{0.0f}, ring{0u}, padding{0u}, time{0.0f} { }
+      LidarDetection(float ix, float iy, float iz, float intensity) :
+          x(ix), y(iy), z(iz), intensity{intensity}, ring{0u}, padding{0u}, time{0.0f} { }
       LidarDetection(geom::Location p, float intensity) :
-          point(p), intensity{intensity} { }
+          x(p.x), y(p.y), z(p.z), intensity{intensity}, ring{0u}, padding{0u}, time{0.0f} { }
+      LidarDetection(float ix, float iy, float iz, float intensity, uint16_t ring, float time) :
+          x(ix), y(iy), z(iz), intensity{intensity}, ring{ring}, padding{0u}, time{time} { }
+      LidarDetection(geom::Location p, float intensity, uint16_t ring, float time) :
+          x(p.x), y(p.y), z(p.z), intensity{intensity}, ring{ring}, padding{0u}, time{time} { }
 
       void WritePlyHeaderInfo(std::ostream& out) const{
         out << "property float32 x\n" \
           "property float32 y\n" \
           "property float32 z\n" \
-          "property float32 I";
+          "property float32 I\n" \
+          "property uint16 ring\n" \
+          "property float32 time";
       }
 
       void WriteDetection(std::ostream& out) const{
-        out << point.x << ' ' << point.y << ' ' << point.z << ' ' << intensity;
+        out << x << ' ' << y << ' ' << z << ' ' << intensity 
+            << ' ' << ring << ' ' << time;
       }
   };
+  #pragma pack(pop)
 
   // 这个结构是给UE向LibCarla传信息用的，在ROS2.CPP会解析
   class LidarData : public SemanticLidarData{
@@ -95,38 +124,15 @@ namespace data {
           std::accumulate(points_per_channel.begin(), points_per_channel.end(), 0));
 
       _points.clear();
-      _points.reserve(total_points * 4);
-      
-      // 可选：为 ring 和 time 分配内存（如果上层需要扩展信息）
-      _rings.clear();
-      _times.clear();
-      _rings.reserve(total_points);
-      _times.reserve(total_points);
+      // 每个点 24 字节：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4)
+      _points.reserve(total_points * sizeof(LidarDetection));
     }
 
-    // 仅写入空间位置和强度（兼容旧协议）
+    // 写入点数据（包含 ring 和 time）
     void WritePointSync(LidarDetection &detection) {
-      _points.emplace_back(detection.point.x);
-      _points.emplace_back(detection.point.y);
-      _points.emplace_back(detection.point.z);
-      _points.emplace_back(detection.intensity);
-    }
-
-    // 写入空间位置/强度，同时收集 ring 和 time 信息
-    void WritePointSync(LidarDetection &detection, uint16_t ring, float time) {
-      _points.emplace_back(detection.point.x);
-      _points.emplace_back(detection.point.y);
-      _points.emplace_back(detection.point.z);
-      _points.emplace_back(detection.intensity);
-
-      _rings.emplace_back(ring);
-      _times.emplace_back(time);
-    }
-    
-    // 检查是否包含ring和time信息
-    bool HasRingAndTime() const {
-      const size_t point_count = _points.size() / 4;
-      return (_rings.size() == point_count && _times.size() == point_count);
+      // 直接将 LidarDetection 结构体作为字节追加
+      const uint8_t* detection_bytes = reinterpret_cast<const uint8_t*>(&detection);
+      _points.insert(_points.end(), detection_bytes, detection_bytes + sizeof(LidarDetection));
     }
 
     virtual void WritePointSync(SemanticLidarDetection &detection) {
@@ -135,9 +141,8 @@ namespace data {
     }
 
   private:
-    std::vector<float> _points;   // (x1 y1 z1 i1), (x2 y2 z2 i2)
-    std::vector<uint16_t> _rings;  // 可选的ring信息，与_points中的点一一对应
-    std::vector<float> _times;    // 可选的时间信息，与_points中的点一一对应
+    // 存储为字节数组，每个点 24 字节：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4)
+    std::vector<uint8_t> _points;
 
     friend class s11n::LidarSerializer;
     friend class s11n::LidarHeaderView;

@@ -814,14 +814,57 @@ void ROS2::ProcessDataFromLidar(
     const carla::geom::Transform sensor_transform,
     carla::sensor::data::LidarData &data,
     void *actor) {
-  log_info("Sensor Lidar to ROS data: frame.", _frame, "sensor.", sensor_type, "stream.", stream_id, "points.", data._points.size());
+  const size_t lidar_detection_size = sizeof(carla::sensor::data::LidarDetection);
+  const size_t total_bytes = data._points.size();
+  const size_t point_count = total_bytes / lidar_detection_size;
+  
+  // 检查数据大小是否匹配
+  if (total_bytes % lidar_detection_size != 0) {
+    log_info("Sensor Lidar to ROS data: WARNING - data size mismatch. total_bytes:", total_bytes, 
+             "expected_multiple_of:", lidar_detection_size, "points_calculated:", point_count);
+  }
+  
+  log_info("Sensor Lidar to ROS data: frame.", _frame, "sensor.", sensor_type, "stream.", stream_id, 
+           "points.", point_count, "total_bytes:", total_bytes, "detection_size:", lidar_detection_size);
+  
   auto sensors = GetOrCreateSensor(ESensors::RayCastLidar, stream_id, actor);
   if (sensors.first) {
     std::shared_ptr<CarlaLidarPublisher> publisher = std::dynamic_pointer_cast<CarlaLidarPublisher>(sensors.first);
-    size_t width = data._points.size();
+    
+    if (point_count == 0) {
+      log_info("Sensor Lidar to ROS data: No points to publish");
+      return;
+    }
+    
     size_t height = 1;
-    // 为了稳定性，暂时退回 Carla 原始实现：只发送 xyzI，不在 ROS2 侧扩展 ring/time
-    publisher->SetData(_seconds, _nanoseconds, height, width, (float *)data._points.data());
+    size_t width = point_count * 4;  // 每个点4个float（x, y, z, intensity），用于 SetData
+    
+    // 将 LidarDetection 数组转换为 float 数组（只提取 x, y, z, intensity）
+    std::vector<float> float_data;
+    float_data.reserve(point_count * 4);
+    const carla::sensor::data::LidarDetection* detections = reinterpret_cast<const carla::sensor::data::LidarDetection*>(data._points.data());
+    
+    std::vector<uint16_t> rings;
+    std::vector<float> times;
+    rings.reserve(point_count);
+    times.reserve(point_count);
+    
+    for (size_t i = 0; i < point_count; ++i) {
+      float_data.push_back(detections[i].x);
+      float_data.push_back(detections[i].y);
+      float_data.push_back(detections[i].z);
+      float_data.push_back(detections[i].intensity);
+      rings.push_back(detections[i].ring);
+      times.push_back(detections[i].time);
+    }
+    
+    // 调试：打印前几个点的 ring 和 time 值
+    if (point_count > 0) {
+      log_info("Sensor Lidar sample - first point ring:", rings[0], "time:", times[0], 
+               "last point ring:", rings.back(), "time:", times.back());
+    }
+    
+    publisher->SetDataWithRingAndTimeFromUE(_seconds, _nanoseconds, height, width, float_data.data(), rings.data(), times.data());
     publisher->Publish();
   }
   if (sensors.second) {

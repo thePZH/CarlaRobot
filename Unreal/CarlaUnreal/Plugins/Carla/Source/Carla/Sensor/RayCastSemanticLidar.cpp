@@ -126,6 +126,8 @@ void ARayCastSemanticLidar::SimulateLidar(const float DeltaTime)
   const float AngleDistanceOfTick = Description.RotationFrequency * Description.HorizontalFov
       * DeltaTime;
   const float AngleDistanceOfLaserMeasure = AngleDistanceOfTick / PointsToScanWithOneLaser;
+	SamplesPerChannelThisFrame = PointsToScanWithOneLaser;
+	SecondsPerSample = PointsToScanWithOneLaser > 0u ? DeltaTime / static_cast<float>(PointsToScanWithOneLaser) : 0.0f;
 
   ResetRecordedHits(ChannelCount, PointsToScanWithOneLaser);
   PreprocessRays(ChannelCount, PointsToScanWithOneLaser);
@@ -150,7 +152,7 @@ void ARayCastSemanticLidar::SimulateLidar(const float DeltaTime)
         const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];
 
         if (PreprocessResult && ShootLaser(VertAngle, HorizAngle, HitResult, TraceParams)) {
-          WritePointAsync(idxChannel, HitResult);
+          WritePointAsync(idxChannel, idxPtsOneLaser, HitResult);
         }
       };
     });
@@ -166,12 +168,17 @@ void ARayCastSemanticLidar::SimulateLidar(const float DeltaTime)
 }
 
 void ARayCastSemanticLidar::ResetRecordedHits(uint32_t Channels, uint32_t MaxPointsPerChannel) {
-  RecordedHits.resize(Channels);
+	RecordedHits.resize(Channels);
+	RecordedHitSampleIndices.resize(Channels);
 
-  for (auto& hits : RecordedHits) {
-    hits.clear();
-    hits.reserve(MaxPointsPerChannel);
-  }
+	for (auto idxChannel = 0u; idxChannel < Channels; ++idxChannel) {
+		auto &hits = RecordedHits[idxChannel];
+		auto &samples = RecordedHitSampleIndices[idxChannel];
+		hits.clear();
+		samples.clear();
+		hits.reserve(MaxPointsPerChannel);
+		samples.reserve(MaxPointsPerChannel);
+	}
 }
 
 void ARayCastSemanticLidar::PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) {
@@ -184,10 +191,11 @@ void ARayCastSemanticLidar::PreprocessRays(uint32_t Channels, uint32_t MaxPoints
   }
 }
 
-void ARayCastSemanticLidar::WritePointAsync(uint32_t channel, FHitResult &detection) {
+void ARayCastSemanticLidar::WritePointAsync(uint32_t channel, uint32_t pointIndex, FHitResult &detection) {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__);
-  DEBUG_ASSERT(GetChannelCount() > channel);
-  RecordedHits[channel].emplace_back(detection);
+	DEBUG_ASSERT(GetChannelCount() > channel);
+	RecordedHits[channel].emplace_back(detection);
+	RecordedHitSampleIndices[channel].emplace_back(pointIndex);
 }
 
 void ARayCastSemanticLidar::ComputeAndSaveDetections(const FTransform& SensorTransform) {

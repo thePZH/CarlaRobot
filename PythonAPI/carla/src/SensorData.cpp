@@ -122,10 +122,12 @@ namespace data {
   }
 
   std::ostream &operator<<(std::ostream &out, const LidarDetection &det) {
-    out << "LidarDetection(x=" << std::to_string(det.point.x)
-        << ", y=" << std::to_string(det.point.y)
-        << ", z=" << std::to_string(det.point.z)
+    out << "LidarDetection(x=" << std::to_string(det.x)
+        << ", y=" << std::to_string(det.y)
+        << ", z=" << std::to_string(det.z)
         << ", intensity=" << std::to_string(det.intensity)
+        << ", ring=" << std::to_string(det.ring)
+        << ", time=" << std::to_string(det.time)
         << ')';
     return out;
   }
@@ -512,8 +514,15 @@ void export_sensor_data() {
   ;
 
   class_<csd::LidarDetection>("LidarDetection")
-    .def_readwrite("point", &csd::LidarDetection::point)
+    .def_readwrite("x", &csd::LidarDetection::x)
+    .def_readwrite("y", &csd::LidarDetection::y)
+    .def_readwrite("z", &csd::LidarDetection::z)
+    .add_property("point", 
+                  +[](const csd::LidarDetection &self) { return self.GetPoint(); },
+                  +[](csd::LidarDetection &self, const geom::Location &p) { self.SetPoint(p); })
     .def_readwrite("intensity", &csd::LidarDetection::intensity)
+    .def_readwrite("ring", &csd::LidarDetection::ring)
+    .def_readwrite("time", &csd::LidarDetection::time)
     .def(self_ns::str(self_ns::self))
   ;
 

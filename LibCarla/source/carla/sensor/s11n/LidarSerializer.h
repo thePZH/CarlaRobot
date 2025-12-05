@@ -87,7 +87,7 @@ namespace s11n {
       Buffer &&output) {
     std::array<boost::asio::const_buffer, 2u> seq = {
         boost::asio::buffer(data._header),
-        boost::asio::buffer(data._points)};
+        boost::asio::buffer(data._points)};  // _points 现在是 uint8_t 数组，每个点 24 字节
     output.copy_from(seq);
     return std::move(output);
   }

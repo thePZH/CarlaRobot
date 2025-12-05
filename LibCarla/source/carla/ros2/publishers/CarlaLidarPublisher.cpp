@@ -166,9 +166,9 @@ void CarlaLidarPublisher::SetDataWithRingAndTime(int32_t seconds, uint32_t nanos
     // 计算总点数
     const size_t point_count = width / 4;
     
-    // 新格式：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4) = 22字节/点
+    // 新格式：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4) = 24字节/点
     // 注意：ring后需要2字节padding以对齐到4字节边界，使time的offset为20
-    const size_t new_point_size = 22; // 4+4+4+4+2+2+4 = 22字节
+    const size_t new_point_size = 24; // 4+4+4+4+2+2+4 = 24字节
     const size_t new_data_size = point_count * new_point_size;
     std::vector<uint8_t> new_data;
     new_data.resize(new_data_size);
@@ -241,14 +241,14 @@ void CarlaLidarPublisher::SetDataWithRingAndTime(int32_t seconds, uint32_t nanos
     SetDataWithRingAndTime(seconds, nanoseconds, height, width, std::move(new_data), points_per_channel, rotation_time);
 }
 
-// 最终写 ROS2 消息的函数。不关注 ring/time 的来源，只要拿到已经排好 22 字节一条的数据
+// 最终写 ROS2 消息的函数。不关注 ring/time 的来源，只要拿到已经排好 24 字节一条的数据
 void CarlaLidarPublisher::SetDataWithRingAndTimeFromUE(int32_t seconds, uint32_t nanoseconds, size_t height, size_t width, float* data,
                                                          const uint16_t* rings, const float* times) {
     // 计算总点数
     const size_t point_count = width / 4;
     
-    // 新格式：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4) = 22字节/点
-    const size_t new_point_size = 22;
+    // 新格式：x(4) + y(4) + z(4) + intensity(4) + ring(2) + padding(2) + time(4) = 24字节/点
+    const size_t new_point_size = 24;
     const size_t new_data_size = point_count * new_point_size;
     std::vector<uint8_t> new_data;
     new_data.resize(new_data_size);
@@ -392,7 +392,7 @@ void CarlaLidarPublisher::SetDataWithRingAndTimeFromUE(int32_t seconds, uint32_t
     descriptor6.datatype(sensor_msgs::msg::PointField__FLOAT32);
     descriptor6.count(1);
 
-    const size_t point_size = 22; // 4+4+4+4+2+2(padding)+4 = 22字节
+    const size_t point_size = 24; // 4+4+4+4+2+2(padding)+4 = 24字节
     const size_t point_count = data.size() / point_size;
     
     _impl->_lidar.header(std::move(header));
