@@ -585,7 +585,7 @@ class KeyboardControl(object):
                     
                     world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
-                    path = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/ljgc_01.lcc'
+                    path = '/mnt/ssd1t/3DGSData/nmh/LCC_Results/nmh_01.lcc'
                     world.world.load_map(path)
                     
                 elif event.key == K_n:
@@ -1458,10 +1458,33 @@ class CameraManager(object):
             t = ''
         if (self.use_external and isinstance(t, str) and t.startswith('sensor.lidar')) or (not self.use_external and self.sensors[self.index][0] == 'sensor.lidar.ray_cast'):
             try:
-                points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-                points = np.reshape(points, (int(points.shape[0] / 4), 4))
-                lidar_xy = points[:, :2]
-                scale = min(self.hud.dim) / (2.0 * max(1e-3, float(self.lidar_range)))
+                raw = image.raw_data
+                # 兼容两种布局：
+                # 旧格式：16 字节/点 (x,y,z,intensity float32)
+                # 新格式：24 字节/点 (x,y,z,intensity float32 + ring uint16 + padding uint16 + time float32)
+                stride24 = 24
+                if len(raw) % stride24 == 0 and len(raw) >= stride24:
+                    dtype24 = np.dtype([
+                        ("x", "f4"), ("y", "f4"), ("z", "f4"),
+                        ("intensity", "f4"),
+                        ("ring", "u2"), ("pad", "u2"),
+                        ("time", "f4"),
+                    ])
+                    points = np.frombuffer(raw, dtype=dtype24)
+                    lidar_xy = np.stack([points["x"], points["y"]], axis=1)
+                else:
+                    points = np.frombuffer(raw, dtype=np.dtype('f4'))
+                    points = np.reshape(points, (int(points.shape[0] / 4), 4))
+                    lidar_xy = points[:, :2]
+
+                # 自适应缩放：优先根据本帧点云的最大半径填充视窗，缩放至窗口的 90%；若数据异常再回退用 range。
+                max_radius = np.max(np.abs(lidar_xy)) if lidar_xy.size > 0 else 1.0
+                base_scale = min(self.hud.dim) / (2.0 * max(1e-3, float(self.lidar_range)))
+                if np.isfinite(max_radius) and max_radius > 1e-3:
+                    scale = 0.9 * min(self.hud.dim) / (2.0 * max_radius)
+                else:
+                    scale = base_scale
+
                 lidar_xy = lidar_xy * scale
                 center = np.array([0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1]], dtype=np.float32)
                 lidar_xy = lidar_xy + center
@@ -1470,7 +1493,12 @@ class CameraManager(object):
                 idx = np.clip(lidar_xy.astype(np.int32), [0, 0], [self.hud.dim[0]-1, self.hud.dim[1]-1])
                 lidar_img = np.zeros((self.hud.dim[0], self.hud.dim[1], 3), dtype=np.uint8)
                 if idx.size > 0:
-                    lidar_img[idx[:, 0], idx[:, 1]] = (255, 255, 255)
+                    # 提高可见度：绘制 3x3 点块
+                    for dx in (-1, 0, 1):
+                        for dy in (-1, 0, 1):
+                            px = np.clip(idx[:, 0] + dx, 0, self.hud.dim[0]-1)
+                            py = np.clip(idx[:, 1] + dy, 0, self.hud.dim[1]-1)
+                            lidar_img[px, py] = (255, 255, 255)
                 self.surface = pygame.surfarray.make_surface(lidar_img)
             except Exception:
                 # 出错时清空画面但不中断
