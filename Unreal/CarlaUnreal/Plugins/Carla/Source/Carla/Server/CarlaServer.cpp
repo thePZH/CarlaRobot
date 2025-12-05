@@ -944,10 +944,10 @@ void FCarlaServer::FPimpl::BindActions()
 		}
 		
 		TMap<FString, TSubclassOf<AActor>> effectMap;
-		effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Fire.BP_Fire_C")));
-		effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke01.BP_Smoke01_C")));
-		effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke02.BP_Smoke02_C")));
-		effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+		effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C")));
+		effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C")));
+		effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C")));
+		effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C")));
 
 		if (!effectMap.Contains(category))
 		{
