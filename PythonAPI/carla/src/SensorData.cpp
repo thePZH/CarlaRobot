@@ -519,7 +519,7 @@ void export_sensor_data() {
     .def_readwrite("z", &csd::LidarDetection::z)
     .add_property("point", 
                   +[](const csd::LidarDetection &self) { return self.GetPoint(); },
-                  +[](csd::LidarDetection &self, const geom::Location &p) { self.SetPoint(p); })
+                  +[](csd::LidarDetection &self, const carla::geom::Location &p) { self.SetPoint(p); })
     .def_readwrite("intensity", &csd::LidarDetection::intensity)
     .def_readwrite("ring", &csd::LidarDetection::ring)
     .def_readwrite("time", &csd::LidarDetection::time)

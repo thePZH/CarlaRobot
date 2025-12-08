@@ -276,10 +276,12 @@ class World(object):
                     "name": "LidarRayCast",
                     "blueprint": "sensor.lidar.ray_cast",
                     "attributes": {
-                        "range": "200",
+                        "range": "200", # 距离
                         "upper_fov": "15.0",
                         "lower_fov": "-15.0",
-                        "horizontal_fov": "180",
+                        "horizontal_fov": "360",
+                        "points_per_second": "288000",
+                        "channels": "16",
                         "ros_name": "sensor/lidar/points"
                     }
                 },
@@ -491,7 +493,6 @@ class KeyboardControl(object):
             self._rotation = world.player.get_transform().rotation
         else:
             raise NotImplementedError("Actor type not supported")
-        self._steer_cache = 0.0
         self.current_fov = 90
         # 初始化骨骼旋转状态
         self._bone_rotations = {}
@@ -585,7 +586,7 @@ class KeyboardControl(object):
                     
                     world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
-                    path = '/mnt/ssd1t/3DGSData/nmh/LCC_Results/nmh_01.lcc'
+                    path = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/ljgc_01.lcc'
                     world.world.load_map(path)
                     
                 elif event.key == K_n:
@@ -713,91 +714,79 @@ class KeyboardControl(object):
                     pass #车辆事件
             
         if isinstance(self._control, carla.VehicleControl):
-            self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
+            self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time(), world)
             self._parse_sensor_keys(pygame.key.get_pressed(), clock.get_time(), world)
-            self._control.reverse = self._control.gear < 0
-            # Set automatic control-related vehicle lights
-            if self._control.brake:
-                current_lights |= carla.VehicleLightState.Brake
-            else: # Remove the Brake flag
-                current_lights &= ~carla.VehicleLightState.Brake
-            if self._control.reverse:
-                current_lights |= carla.VehicleLightState.Reverse
-            else: # Remove the Reverse flag
-                current_lights &= ~carla.VehicleLightState.Reverse
-            if current_lights != self._lights: # Change the light state only if necessary
-                world.player.set_light_state(carla.VehicleLightState(current_lights))
-            # Apply control
-            world.player.apply_control(self._control)
 
         elif isinstance(self._control, carla.WalkerControl):
             self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time(), world)
             world.player.apply_control(self._control)
 
-        self._lights = current_lights
-
-    # 机器人移动
-    def _parse_vehicle_keys(self, keys, milliseconds):
-        velocity = self._world.player.get_velocity()
-        speed = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
-
+    # 机器人移动 - W/S 用油门/刹车，A/D 用角速度控制
+    def _parse_vehicle_keys(self, keys, milliseconds, world):
+        # 可调参数
+        max_angular_velocity_deg = 90.0
+        # 低于此速度才算“停稳”，可以安全换挡
+        brake_threshold_speed = 0.5  # m/s
+    
+        # --- 获取车辆当前速度 ---
+        velocity = world.player.get_velocity()
+        current_speed = velocity.length()
+    
+        self._control.throttle = 0.0
+        self._control.brake = 0.0
+        self._control.steer = 0.0
+        self._control.hand_brake = False
+    
+        # W键按下
         if keys[K_w]:
-            if self._control.gear < 0:
-                self._control.brake = 1
-                self._control.throttle = 0
-                if speed < 0.01:
-                    self._control.brake = 0
-                    self._control.gear = 1 
-                    self._control.throttle = 1
+            # 如果车辆当前处于倒车状态，并且还有速度，那就先刹停
+            if self._control.reverse and current_speed > brake_threshold_speed:
+                self._control.throttle = 0.0
+                self._control.brake = 1.0  # 刹车
             else:
-                self._control.throttle = 1
-                self._control.brake = 0
+                self._control.reverse = False
+                self._control.gear = 1
+                self._control.throttle = 1.0
+                self._control.brake = 0.0
+    
         elif keys[K_s]:
-            if self._control.gear > 0 :
-                self._control.brake = 1
-                self._control.throttle = 0
-                if speed < 0.01:
-                    self._control.brake = 0
-                    self._control.gear = -1
-                    self._control.throttle = 1
+            if not self._control.reverse and current_speed > brake_threshold_speed:
+                self._control.throttle = 0.0
+                self._control.brake = 1.0  # 刹车
             else:
-                self._control.throttle = 1
-                self._control.brake = 0
+                self._control.reverse = True
                 self._control.gear = -1
+                self._control.throttle = 1.0
+                self._control.brake = 0.0
+    
         else:
-            self._control.throttle = 0
-            self._control.brake = 0
+            self._control.throttle = 0.0
+            self._control.brake = 0.0
+    
+        # 空格：手刹（优先级最高）
+        if keys[K_SPACE]:
+            self._control.throttle = 0.0
+            self._control.brake = 1.0
+            self._control.hand_brake = True
 
-        if speed < 0.001:
-            if keys[K_a] and not keys[K_w] and not keys[K_s]:
-                self._control.steer = 0.0
-                robot_yaw_delta = -1.0
-            elif keys[K_d] and not keys[K_w] and not keys[K_s]:
-                self._control.steer = 0.0
-                robot_yaw_delta = +1.0
-            else:
-                robot_yaw_delta = 0.0
-            transform = self._world.player.get_transform()
-            yaw = transform.rotation.yaw + robot_yaw_delta
-            transform.rotation.yaw = yaw
-            self._world.player.set_transform(transform)
-        else:
-            # 方向盘
-            if keys[K_a]:
-                if self._steer_cache > 0:
-                    self._steer_cache = 0
-                else:
-                    self._steer_cache = -1
-            elif keys[K_d]:
-                if self._steer_cache < 0:
-                    self._steer_cache = 0
-                else:
-                    self._steer_cache = 1
-            else:
-                self._steer_cache = 0.0
+        world.player.apply_control(self._control)
 
-        self._control.steer = round(self._steer_cache, 1)
-        self._control.hand_brake = keys[K_SPACE]
+        # A/D 使用角速度控制（绕 Z 轴，CARLA API 使用度/秒）
+        angular_velocity_deg = 0.0
+        if keys[K_a]:
+            angular_velocity_deg = -max_angular_velocity_deg 
+        elif keys[K_d]:
+            angular_velocity_deg = max_angular_velocity_deg
+        if keys[K_s]:
+            angular_velocity_deg = -angular_velocity_deg
+
+        world.player.set_target_angular_velocity(
+            carla.Vector3D(0.0, 0.0, angular_velocity_deg)
+        )
+
+        # 手刹时强制角速度归零
+        if keys[K_SPACE]:
+            world.player.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
                 
     def visualize_navigable_points(self, navigable_points):
         # 提取x,y坐标
