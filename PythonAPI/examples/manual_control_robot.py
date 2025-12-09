@@ -196,6 +196,8 @@ class World(object):
         self.show_vehicle_telemetry = False
 
     def restart(self):
+        path = '/media/sevnce/30CC6D4ACC6D0C02/3dgs/MapData/ljgc_01/LCC_Results/ljgc_01.lcc'
+        self.world.load_map(path)
         self.player_max_speed = 1.589
         self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
@@ -269,7 +271,8 @@ class World(object):
                     "attributes": {
                         "image_size_x": self.hud.dim[0],
                         "image_size_y": self.hud.dim[1],
-                        "gamma": str(self._gamma)
+                        "gamma": str(self._gamma),
+                        "sensor_tick": "0.05"
                     }
                 },
                 {
@@ -282,7 +285,12 @@ class World(object):
                         "horizontal_fov": "360",
                         "points_per_second": "288000",
                         "channels": "16",
-                        "ros_name": "sensor/lidar/points"
+                        "ros_name": "sensor/lidar/points",
+                        "dropoff_general_rate": "0.0",
+                        "dropoff_intensity_limit": "0.0",
+                        "dropoff_zero_intensity": "0.0",
+                        "noise_stddev": "0.0",
+                        "sensor_tick": "0.05"
                     }
                 },
                 {
@@ -1537,6 +1545,13 @@ def game_loop(args):
             sim_world.apply_settings(settings)
 
             traffic_manager.set_synchronous_mode(True)
+        else:
+            original_settings = sim_world.get_settings()
+            settings = sim_world.get_settings()
+            settings.synchronous_mode = False
+            # 异步模式下用 fixed_delta_seconds 约束物理/渲染步长，近似限帧
+            settings.fixed_delta_seconds = 0.01
+            sim_world.apply_settings(settings)
 
         display = pygame.display.set_mode(
             (args.width, args.height),
