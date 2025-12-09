@@ -586,7 +586,7 @@ class KeyboardControl(object):
                     
                     world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
-                    path = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/ljgc_01.lcc'
+                    path = '/mnt/ssd1t/3DGSData/nmh/LCC_Results/nmh_01.lcc'
                     world.world.load_map(path)
                     
                 elif event.key == K_n:
@@ -995,6 +995,7 @@ class HUD(object):
     def on_world_tick(self, timestamp):
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
+        print(f"FPS: {self.server_fps}")
         self.frame = timestamp.frame
         self.simulation_time = timestamp.elapsed_seconds
 

@@ -218,7 +218,9 @@ void ARayCastSemanticLidar::ComputeAndSaveDetections(const FTransform& SensorTra
 void ARayCastSemanticLidar::ComputeRawDetection(const FHitResult& HitInfo, const FTransform& SensorTransf, FSemanticDetection& Detection) const
 {
     const FVector HitPoint = HitInfo.ImpactPoint;
-    Detection.point = SensorTransf.Inverse().TransformPosition(HitPoint);
+    // 使用 Location(const FVector &) 构造函数进行单位转换（厘米 -> 米）
+    const FVector LocalHitPoint = SensorTransf.Inverse().TransformPosition(HitPoint);
+    Detection.point = carla::geom::Location(LocalHitPoint);
 
     const FVector VecInc = - (HitPoint - SensorTransf.GetLocation()).GetSafeNormal();
     Detection.cos_inc_angle = FVector::DotProduct(VecInc, HitInfo.ImpactNormal);

@@ -157,7 +157,8 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
   FDetection Detection;
   const FVector HitPoint = HitInfo.ImpactPoint;
   const FVector LocalHitPoint = SensorTransf.Inverse().TransformPosition(HitPoint);
-  Detection.SetPoint(carla::geom::Location(LocalHitPoint.X, LocalHitPoint.Y, LocalHitPoint.Z));
+  // 使用 Location(const FVector &) 构造函数进行单位转换（厘米 -> 米）
+  Detection.SetPoint(carla::geom::Location(LocalHitPoint));
 
   const float Distance = Detection.GetPoint().Length();
 
