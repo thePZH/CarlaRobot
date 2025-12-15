@@ -289,8 +289,7 @@ class World(object):
                         "dropoff_general_rate": "0.0",
                         "dropoff_intensity_limit": "0.0",
                         "dropoff_zero_intensity": "0.0",
-                        "noise_stddev": "0.0",
-                        "sensor_tick": "0.05"
+                        "noise_stddev": "0.0"
                     }
                 },
                 {
@@ -733,7 +732,7 @@ class KeyboardControl(object):
     def _parse_vehicle_keys(self, keys, milliseconds, world):
         # 可调参数
         max_angular_velocity_deg = 1
-        # 低于此速度才算“停稳”，可以安全换挡
+        # 低于此速度才算"停稳"，可以安全换挡
         brake_threshold_speed = 0.5  # m/s
 
         # 若没有任何相关按键被按下，则不触碰控制，避免覆盖外部（ROS）控制
@@ -742,8 +741,19 @@ class KeyboardControl(object):
     
         # --- 获取车辆当前速度 ---
         velocity = world.player.get_velocity()
-        current_speed = velocity.length()
+        current_speed = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
     
+        # 空格：手刹（优先级最高）
+        if keys[K_SPACE]:
+            self._control.throttle = 0.0
+            self._control.brake = 1.0
+            self._control.hand_brake = True
+            world.player.apply_control(self._control)
+            # 手刹时强制角速度归零
+            world.player.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+            return
+    
+        # 初始化控制（手刹已处理，这里不再设置）
         self._control.throttle = 0.0
         self._control.brake = 0.0
         self._control.steer = 0.0
@@ -772,33 +782,25 @@ class KeyboardControl(object):
                 self._control.brake = 0.0
     
         else:
+            # W和S都没按，保持当前状态（不重置油门，让车辆自然减速）
+            # 如果需要立即停止，可以设置刹车
             self._control.throttle = 0.0
             self._control.brake = 0.0
-    
-        # 空格：手刹（优先级最高）
-        if keys[K_SPACE]:
-            self._control.throttle = 0.0
-            self._control.brake = 1.0
-            self._control.hand_brake = True
 
         world.player.apply_control(self._control)
 
         # A/D 使用角速度控制（绕 Z 轴，CARLA API 使用度/秒）
-        angular_velocity_deg = 0.0
+        angular_velocity_rad = 0.0
         if keys[K_a]:
-            angular_velocity_deg = -max_angular_velocity_deg 
+            angular_velocity_rad = -max_angular_velocity_deg 
         elif keys[K_d]:
-            angular_velocity_deg = max_angular_velocity_deg
+            angular_velocity_rad = max_angular_velocity_deg
         if keys[K_s]:
-            angular_velocity_deg = -angular_velocity_deg
+            angular_velocity_rad = -angular_velocity_rad
 
         world.player.set_target_angular_velocity(
-            carla.Vector3D(0.0, 0.0, angular_velocity_deg)
+            carla.Vector3D(0.0, 0.0, angular_velocity_rad)
         )
-
-        # 手刹时强制角速度归零
-        if keys[K_SPACE]:
-            world.player.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
                 
     def visualize_navigable_points(self, navigable_points):
         # 提取x,y坐标
