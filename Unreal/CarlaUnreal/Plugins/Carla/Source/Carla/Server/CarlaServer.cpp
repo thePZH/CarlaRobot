@@ -1054,10 +1054,11 @@ void FCarlaServer::FPimpl::BindActions()
 		{
 			// effect 类型包含的所有 category 对应的类
 			TMap<FString, TSubclassOf<AActor>> effectMap;
-			effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Fire.BP_Fire_C")));
-			effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke01.BP_Smoke01_C")));
-			effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke02.BP_Smoke02_C")));
-			effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+			// 与 create_object 中保持一致的资源路径（/Game/Sevnce/CarVFX/...）
+			effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C")));
+			effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C")));
+			effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C")));
+			effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C")));
 			
 			for (const auto& pair : effectMap)
 			{

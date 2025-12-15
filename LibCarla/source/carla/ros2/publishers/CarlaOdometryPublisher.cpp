@@ -130,11 +130,6 @@ namespace ros2
 
 		if (returnCode == erc::ReturnCodeValue::RETCODE_OK)
 		{
-			static int32_t successCount = 0;
-			if (successCount++ % 300 == 0) // 每5秒打印一次（假设60fps）
-			{
-				std::cout << "[CarlaOdometryPublisher] Publish() success (count: " << successCount << ")" << std::endl;
-			}
 			return true;
 		}
 		if (returnCode == erc::ReturnCodeValue::RETCODE_ERROR)

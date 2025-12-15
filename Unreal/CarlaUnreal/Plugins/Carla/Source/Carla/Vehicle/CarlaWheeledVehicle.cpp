@@ -180,6 +180,45 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
 
   WorldTransformedPose = pose;
 
+  // 每帧应用ROS2角速度，确保即使话题发布频率低也能持续旋转
+  if (m_bRos2AngularVelocityActive)
+  {
+    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
+    if (Episode)
+    {
+      FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
+      if (CarlaActor)
+      {
+        CarlaActor->SetActorTargetAngularVelocity(m_Ros2AngularVelocityRadps);
+
+        // 调试：定期输出目标与当前角速度（单位均为rad/s）
+        static int32 DebugRos2AngCounter = 0;
+        ++DebugRos2AngCounter;
+        if (DebugRos2AngCounter % 60 == 0)
+        {
+          const UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(GetRootComponent());
+          const FVector PhysAngVel = RootComp ? RootComp->GetPhysicsAngularVelocityInRadians() : FVector::ZeroVector;
+          UE_LOG(LogTemp, Warning, TEXT("[ROS2] ang target(rad/s)=%.3f, %.3f, %.3f phys(rad/s)=%.3f, %.3f, %.3f"),
+            m_Ros2AngularVelocityRadps.X, m_Ros2AngularVelocityRadps.Y, m_Ros2AngularVelocityRadps.Z,
+            PhysAngVel.X, PhysAngVel.Y, PhysAngVel.Z);
+        }
+      }
+    }
+  }
+  // 每帧应用ROS2线速度，确保低频发布也能持续生效
+  if (m_bRos2LinearVelocityActive)
+  {
+    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
+    if (Episode)
+    {
+      FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
+      if (CarlaActor)
+      {
+        CarlaActor->SetActorTargetVelocity(m_Ros2LinearVelocityCmps);
+      }
+    }
+  }
+
 #if defined(WITH_ROS2)
   PublishRos2Odometry();
 #endif
@@ -814,6 +853,18 @@ FVector ACarlaWheeledVehicle::GetVelocity() const
   return BaseMovementComponent->GetVelocity();
 }
 
+void ACarlaWheeledVehicle::SetRos2LinearVelocity(const FVector& LinearVelocityCmps)
+{
+  m_Ros2LinearVelocityCmps = LinearVelocityCmps;
+  m_bRos2LinearVelocityActive = true;
+}
+
+void ACarlaWheeledVehicle::SetRos2AngularVelocity(const FVector& AngularVelocityDegps)
+{
+  m_Ros2AngularVelocityRadps = AngularVelocityDegps;
+  m_bRos2AngularVelocityActive = true;
+}
+
 void ACarlaWheeledVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
   //ShowDebugTelemetry(false);
@@ -990,6 +1041,18 @@ void ACarlaWheeledVehicle::PublishRos2Odometry()
     return;
   }
   Ros2LastOdometryTimestamp = currentTime;
+
+  // 保护：仅对已在 Episode 注册的车辆发布里程计
+  UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
+  if (!Episode)
+  {
+    return;
+  }
+  FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
+  if (!CarlaActor)
+  {
+    return;
+  }
 
   int32 seconds = 0;
   uint32 nanoseconds = 0;

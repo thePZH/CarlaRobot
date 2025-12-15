@@ -732,9 +732,13 @@ class KeyboardControl(object):
     # 机器人移动 - W/S 用油门/刹车，A/D 用角速度控制
     def _parse_vehicle_keys(self, keys, milliseconds, world):
         # 可调参数
-        max_angular_velocity_deg = 90.0
+        max_angular_velocity_deg = 1
         # 低于此速度才算“停稳”，可以安全换挡
         brake_threshold_speed = 0.5  # m/s
+
+        # 若没有任何相关按键被按下，则不触碰控制，避免覆盖外部（ROS）控制
+        if not (keys[K_w] or keys[K_s] or keys[K_a] or keys[K_d] or keys[K_SPACE]):
+            return
     
         # --- 获取车辆当前速度 ---
         velocity = world.player.get_velocity()
@@ -1003,7 +1007,6 @@ class HUD(object):
     def on_world_tick(self, timestamp):
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
-        print(f"FPS: {self.server_fps}")
         self.frame = timestamp.frame
         self.simulation_time = timestamp.elapsed_seconds
 
@@ -1545,13 +1548,6 @@ def game_loop(args):
             sim_world.apply_settings(settings)
 
             traffic_manager.set_synchronous_mode(True)
-        else:
-            original_settings = sim_world.get_settings()
-            settings = sim_world.get_settings()
-            settings.synchronous_mode = False
-            # 异步模式下用 fixed_delta_seconds 约束物理/渲染步长，近似限帧
-            settings.fixed_delta_seconds = 0.01
-            sim_world.apply_settings(settings)
 
         display = pygame.display.set_mode(
             (args.width, args.height),

@@ -247,6 +247,12 @@ public:
   UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
   void DeactivateVelocityControl();
 
+  // ROS2线速度控制：设置线速度（cm/s），将在Tick中每帧应用
+  void SetRos2LinearVelocity(const FVector& LinearVelocityCmps);
+
+  // ROS2角速度控制：设置角速度（deg/s），将在Tick中每帧应用
+  void SetRos2AngularVelocity(const FVector& AngularVelocityDegps);
+
   UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
   void ShowDebugTelemetry(bool Enabled);
 
@@ -357,6 +363,13 @@ private:
 
   bool bAckermannControlActive = false;
   FAckermannController AckermannController;
+
+  // ROS2角速度控制：保存最后一次接收到的角速度（deg/s），在Tick中每帧应用
+  FVector m_Ros2AngularVelocityRadps = FVector::ZeroVector;
+  bool m_bRos2AngularVelocityActive = false;
+  // ROS2线速度控制：保存最后一次接收到的线速度（cm/s），在Tick中每帧应用
+  FVector m_Ros2LinearVelocityCmps = FVector::ZeroVector;
+  bool m_bRos2LinearVelocityActive = false;
 
   float RolloverBehaviorForce = 0.35;
   int RolloverBehaviorTracker = 0;

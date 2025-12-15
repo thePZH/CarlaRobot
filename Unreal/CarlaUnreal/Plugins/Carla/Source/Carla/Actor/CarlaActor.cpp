@@ -476,7 +476,7 @@ ECarlaServerResponse FCarlaActor::SetActorTargetAngularVelocity(const FVector& A
     {
       return ECarlaServerResponse::FunctionNotSupported;
     }
-    RootComponent->SetPhysicsAngularVelocityInDegrees(
+    RootComponent->SetPhysicsAngularVelocityInRadians(
         AngularVelocity,
         false,
         "None");

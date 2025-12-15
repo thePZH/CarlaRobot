@@ -139,10 +139,13 @@ carla::geom::Vector3D AInertialMeasurementUnit::ComputeAccelerometer(
 
   // Cast from FVector to our Vector3D to correctly send the data in m/s^2
   // and apply the desired noise function, in this case a normal distribution
-  const carla::geom::Vector3D Accelerometer =
-      ComputeAccelerometerNoise(FVectorAccelerometer);
-
-  return Accelerometer;
+	// 关闭噪声：直接返回原始加速度（含重力分量），不叠加随机扰动
+	return carla::geom::Vector3D
+	{
+		static_cast<float>(FVectorAccelerometer.X),
+		static_cast<float>(FVectorAccelerometer.Y),
+		static_cast<float>(FVectorAccelerometer.Z)
+	};
 }
 
 carla::geom::Vector3D AInertialMeasurementUnit::ComputeGyroscope()
@@ -165,10 +168,13 @@ carla::geom::Vector3D AInertialMeasurementUnit::ComputeGyroscope()
 
   // Cast from FVector to our Vector3D to correctly send the data in rad/s
   // and apply the desired noise function, in this case a normal distribution
-  const carla::geom::Vector3D Gyroscope =
-      ComputeGyroscopeNoise(FVectorGyroscope);
-
-  return Gyroscope;
+	// 关闭噪声与偏置：直接返回原始角速度
+	return carla::geom::Vector3D
+	{
+		static_cast<float>(FVectorGyroscope.X),
+		static_cast<float>(FVectorGyroscope.Y),
+		static_cast<float>(FVectorGyroscope.Z)
+	};
 }
 
 float AInertialMeasurementUnit::ComputeCompass()
