@@ -370,6 +370,10 @@ private:
   // ROS2线速度控制：保存最后一次接收到的线速度（cm/s），在Tick中每帧应用
   FVector m_Ros2LinearVelocityCmps = FVector::ZeroVector;
   bool m_bRos2LinearVelocityActive = false;
+  // ROS2控制超时：若超过该时间未收到新指令，则自动停止持续施加
+  float m_Ros2ControlTimeoutSeconds = 0.5f;
+  double m_LastRos2LinearTimestamp = -1.0;
+  double m_LastRos2AngularTimestamp = -1.0;
 
   float RolloverBehaviorForce = 0.35;
   int RolloverBehaviorTracker = 0;
@@ -448,6 +452,10 @@ public:
   void SetRolloverFlag();
 
   carla::rpc::VehicleFailureState GetFailureState() const;
+
+  /// 判断车辆是否在地面上（简单向下射线检测）
+  UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
+  bool IsOnGround(float TraceDistanceCm = 30.0f) const;
 
   UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
   static FRotator GetPhysicsConstraintAngle(UPhysicsConstraintComponent* Component);

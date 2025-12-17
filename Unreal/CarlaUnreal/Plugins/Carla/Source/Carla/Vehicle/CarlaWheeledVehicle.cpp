@@ -180,7 +180,19 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
 
   WorldTransformedPose = pose;
 
-  // 每帧应用ROS2角速度，确保即使话题发布频率低也能持续旋转
+  const double CurrentTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+
+  // 每帧应用ROS2角速度，确保即使话题发布频率低也能持续旋转；超时自动停止
+  if (m_bRos2AngularVelocityActive)
+  {
+    const bool bRos2AngularTimedOut = (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+      ((CurrentTimeSeconds - m_LastRos2AngularTimestamp) > static_cast<double>(m_Ros2ControlTimeoutSeconds));
+    if (bRos2AngularTimedOut)
+    {
+      m_bRos2AngularVelocityActive = false;
+      m_Ros2AngularVelocityRadps = FVector::ZeroVector;
+    }
+  }
   if (m_bRos2AngularVelocityActive)
   {
     UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
@@ -190,22 +202,20 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
       if (CarlaActor)
       {
         CarlaActor->SetActorTargetAngularVelocity(m_Ros2AngularVelocityRadps);
-
-        // 调试：定期输出目标与当前角速度（单位均为rad/s）
-        static int32 DebugRos2AngCounter = 0;
-        ++DebugRos2AngCounter;
-        if (DebugRos2AngCounter % 60 == 0)
-        {
-          const UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(GetRootComponent());
-          const FVector PhysAngVel = RootComp ? RootComp->GetPhysicsAngularVelocityInRadians() : FVector::ZeroVector;
-          UE_LOG(LogTemp, Warning, TEXT("[ROS2] ang target(rad/s)=%.3f, %.3f, %.3f phys(rad/s)=%.3f, %.3f, %.3f"),
-            m_Ros2AngularVelocityRadps.X, m_Ros2AngularVelocityRadps.Y, m_Ros2AngularVelocityRadps.Z,
-            PhysAngVel.X, PhysAngVel.Y, PhysAngVel.Z);
-        }
       }
     }
   }
-  // 每帧应用ROS2线速度，确保低频发布也能持续生效
+  // 每帧应用ROS2线速度，确保低频发布也能持续生效；超时自动停止
+  if (m_bRos2LinearVelocityActive)
+  {
+    const bool bRos2LinearTimedOut = (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+      ((CurrentTimeSeconds - m_LastRos2LinearTimestamp) > static_cast<double>(m_Ros2ControlTimeoutSeconds));
+    if (bRos2LinearTimedOut)
+    {
+      m_bRos2LinearVelocityActive = false;
+      m_Ros2LinearVelocityCmps = FVector::ZeroVector;
+    }
+  }
   if (m_bRos2LinearVelocityActive)
   {
     UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
@@ -229,6 +239,36 @@ bool ACarlaWheeledVehicle::IsInVehicleRange(const FVector& Location) const
   TRACE_CPUPROFILER_EVENT_SCOPE(ACarlaWheeledVehicle::IsInVehicleRange);
 
   return FoliageBoundingBox.IsInside(Location);
+}
+
+bool ACarlaWheeledVehicle::IsOnGround(float TraceDistanceCm) const
+{
+  UWorld* world = GetWorld();
+  const UPrimitiveComponent* rootComponent = Cast<UPrimitiveComponent>(GetRootComponent());
+  if (!world || !rootComponent)
+  {
+    // 无法判断时，默认认为在地面上，避免误判导致车辆无法移动
+    return true;
+  }
+
+  // 回退：向下射线检测，距离取车体包围盒高度+额外裕量
+  const float halfHeight = rootComponent->Bounds.BoxExtent.Z;
+  const float traceLength = FMath::Max(TraceDistanceCm, halfHeight + TraceDistanceCm);
+  const FVector start = rootComponent->GetComponentLocation();
+  const FVector end = start - FVector(0.0f, 0.0f, traceLength);
+
+  FHitResult hitResult;
+  FCollisionQueryParams queryParams(FName(TEXT("VehicleIsOnGroundTrace")), false, this);
+  queryParams.AddIgnoredActor(this);
+
+  const bool bHit = world->LineTraceSingleByChannel(
+    hitResult,
+    start,
+    end,
+    ECC_WorldStatic,
+    queryParams);
+
+  return bHit && hitResult.bBlockingHit;
 }
 
 void ACarlaWheeledVehicle::UpdateDetectionBox()
@@ -857,12 +897,14 @@ void ACarlaWheeledVehicle::SetRos2LinearVelocity(const FVector& LinearVelocityCm
 {
   m_Ros2LinearVelocityCmps = LinearVelocityCmps;
   m_bRos2LinearVelocityActive = true;
+  m_LastRos2LinearTimestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 }
 
 void ACarlaWheeledVehicle::SetRos2AngularVelocity(const FVector& AngularVelocityDegps)
 {
   m_Ros2AngularVelocityRadps = AngularVelocityDegps;
   m_bRos2AngularVelocityActive = true;
+  m_LastRos2AngularTimestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 }
 
 void ACarlaWheeledVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -1073,18 +1115,24 @@ void ACarlaWheeledVehicle::PublishRos2Odometry()
     static_cast<float>(actorRotationDeg.Yaw)
   };
 
-  const FVector velocityMs = GetVelocity() * CM_TO_M;
-
+  // 线速度：先获取世界空间速度，再转换到车辆本地空间（车体坐标系）
+  FVector worldLinearVelocityMs = GetVelocity() * CM_TO_M;
   FVector angularVelocity = FVector::ZeroVector;
-  if (const auto *rootComponent = Cast<UPrimitiveComponent>(GetRootComponent()))
+  if (auto* rootComponent = Cast<UPrimitiveComponent>(GetRootComponent()))
   {
+    // 优先使用物理组件的速度，保证 set_target_velocity 等直接物理接口能反映到里程计
+    worldLinearVelocityMs = rootComponent->GetPhysicsLinearVelocity() * CM_TO_M;
     angularVelocity = rootComponent->GetPhysicsAngularVelocityInRadians();
   }
 
+  // Unreal 默认速度在世界坐标系，这里转换到车辆本地坐标系：
+  // X：车头方向前为正；Y：车体左为正；Z：车体上为正。
+  const FVector localLinearVelocityMs = actorRotationDeg.UnrotateVector(worldLinearVelocityMs);
+
   float linearVelocity[3] = {
-    static_cast<float>(velocityMs.X),
-    static_cast<float>(velocityMs.Y),
-    static_cast<float>(velocityMs.Z)
+    static_cast<float>(localLinearVelocityMs.X),
+    static_cast<float>(localLinearVelocityMs.Y),
+    static_cast<float>(localLinearVelocityMs.Z)
   };
 
   float angularVelocityData[3] = {

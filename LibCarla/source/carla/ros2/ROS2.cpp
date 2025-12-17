@@ -97,7 +97,6 @@ void ROS2::SetFrame(uint64_t frame) {
       if (_robotController->HasNewMessage()) {
         auto it = _actor_callbacks.find(actor);
         if (it != _actor_callbacks.end()) {
-          std::cout << "SetFrame Get, and send control msg to UE" << std::endl;
           VehicleControl control = _robotController->GetMessage();
           it->second(actor, control);
         }

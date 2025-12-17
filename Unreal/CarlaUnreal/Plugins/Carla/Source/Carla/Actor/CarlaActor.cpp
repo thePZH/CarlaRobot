@@ -450,11 +450,40 @@ ECarlaServerResponse FCarlaActor::SetActorTargetVelocity(const FVector& Velocity
   }
   else
   {
-    auto RootComponent = Cast<UPrimitiveComponent>(GetActor()->GetRootComponent());
+    AActor* actor = GetActor();
+    auto RootComponent = Cast<UPrimitiveComponent>(actor ? actor->GetRootComponent() : nullptr);
     if (RootComponent == nullptr)
     {
       return ECarlaServerResponse::FunctionNotSupported;
     }
+
+    // 若是车辆，则保留当前 Z 轴速度，仅更新水平 XY，且空中不强推
+    if (ACarlaWheeledVehicle* Vehicle = Cast<ACarlaWheeledVehicle>(actor))
+    {
+      // 简化判定：若当前垂直速度较大，认为仍在腾空，避免强行写入线速度
+      if (RootComponent)
+      {
+        const FVector currentPhysVel = RootComponent->GetPhysicsLinearVelocity();
+        constexpr float AirborneZSpeedCmps = 10.0f; // 0.1 m/s 的阈值，过滤微小抖动
+        if (FMath::Abs(currentPhysVel.Z) > AirborneZSpeedCmps)
+        {
+          return ECarlaServerResponse::Success;
+        }
+
+        // 拼接：XY 用目标值，Z 保持当前物理速度
+        const FVector mergedVelocity{Velocity.X, Velocity.Y, currentPhysVel.Z};
+        RootComponent->SetPhysicsLinearVelocity(
+          mergedVelocity,
+          false,
+          "None");
+        return ECarlaServerResponse::Success;
+      }
+      if (!Vehicle->IsOnGround())
+      {
+        return ECarlaServerResponse::Success;
+      }
+    }
+
     RootComponent->SetPhysicsLinearVelocity(
         Velocity,
         false,
@@ -471,11 +500,22 @@ ECarlaServerResponse FCarlaActor::SetActorTargetAngularVelocity(const FVector& A
   }
   else
   {
-    UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(GetActor()->GetRootComponent());
+    AActor* actor = GetActor();
+    UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(actor ? actor->GetRootComponent() : nullptr);
     if (RootComponent == nullptr)
     {
       return ECarlaServerResponse::FunctionNotSupported;
     }
+
+    // 若是车辆且当前不在地面上，则不强制写入角速度，让物理系统自然下落/旋转
+    if (ACarlaWheeledVehicle* Vehicle = Cast<ACarlaWheeledVehicle>(actor))
+    {
+      if (!Vehicle->IsOnGround())
+      {
+        return ECarlaServerResponse::Success;
+      }
+    }
+
     RootComponent->SetPhysicsAngularVelocityInRadians(
         AngularVelocity,
         false,

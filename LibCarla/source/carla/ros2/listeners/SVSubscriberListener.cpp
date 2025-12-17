@@ -69,11 +69,9 @@ namespace ros2 {
 	}
     void SVSubscriberListenerImpl::on_data_available(efd::DataReader* reader)
     {
-		std::cout << "ROS2 msg get" << std::endl;
       efd::SampleInfo info;
       eprosima::fastrtps::types::ReturnCode_t rcode = reader->take_next_sample(&_message, &info);
       if (rcode == erc::ReturnCodeValue::RETCODE_OK) {
-      	std::cout << "ROS2 msg available!!!" << std::endl;
         VehicleControl control = convert_to_vehicle(_message);
         _owner->ForwardMessage(control);
       }

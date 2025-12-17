@@ -174,6 +174,9 @@ class World(object):
         self.sync = args.sync
         self.traffic_manager = traffic_manager
         self.actor_role_name = args.rolename
+        # 车队支持：用于一次创建并控制多辆车
+        self._fleet_ids = []
+        self.fleet_actors = []
         try:
             self.map = self.world.get_map()
         except RuntimeError as error:
@@ -204,6 +207,9 @@ class World(object):
         # Keep same camera config if the camera manager exists.
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
+        
+        # 如果已有车队，先销毁
+        self._destroy_fleet()
         
         # 如果已有机器人，先停止监听，再销毁服务器端，最后清理Python引用
         if self._robot_id is not None:
@@ -404,6 +410,144 @@ class World(object):
         else:
             self.world.wait_for_tick()
         
+    def _destroy_fleet(self):
+        if not self._fleet_ids:
+            return
+        for rid in list(self._fleet_ids):
+            try:
+                self.world.destroy_robot(rid)
+                if self.sync:
+                    self.world.tick()
+                else:
+                    self.world.wait_for_tick()
+            except Exception as e:
+                print(f"Failed to destroy fleet robot {rid}: {e}")
+        self._fleet_ids = []
+        self.fleet_actors = []
+    
+    def spawn_fleet_robots(self):
+        """
+        创建5辆小车，朝向一致，位置不同；若已有车队则先销毁后重建。
+        """
+        # 先清理旧车队
+        self._destroy_fleet()
+        
+        # 取当前玩家朝向作为参考；若不存在则使用默认朝向0度
+        if self.player is not None:
+            base_tf = self.player.get_transform()
+        else:
+            base_tf = carla.Transform(carla.Location(x=5.0, y=2.0, z=1), carla.Rotation(yaw=0.0))
+        
+        # 5个相对位移（米），围绕参考点分布
+        offsets = [
+            (0.0, 0.0, 0.0),
+            (4.0, 0.0, 0.0),
+            (-4.0, 0.0, 0.0),
+            (0.0, 4.0, 0.0),
+            (0.0, -4.0, 0.0),
+        ]
+        
+        yaw_rad = math.radians(base_tf.rotation.yaw)
+        cos_y = math.cos(yaw_rad)
+        sin_y = math.sin(yaw_rad)
+        
+        for idx, (dx, dy, dz) in enumerate(offsets):
+            # 将相对位移旋转到全局坐标，使朝向一致
+            rx = cos_y * dx - sin_y * dy
+            ry = sin_y * dx + cos_y * dy
+            rz = dz
+            
+            spawn_tf = carla.Transform(
+                carla.Location(
+                    x=base_tf.location.x + rx,
+                    y=base_tf.location.y + ry,
+                    z=base_tf.location.z + rz
+                ),
+                carla.Rotation(
+                    pitch=base_tf.rotation.pitch,
+                    yaw=base_tf.rotation.yaw,
+                    roll=base_tf.rotation.roll
+                )
+            )
+            
+            ros_name = f"robot{idx+1:02d}"
+            json_params = {
+                "robot": {
+                    "blueprint": "vehicle.robot.01",
+                    "attributes": {
+                        "role_name": f"{self.actor_role_name}_{ros_name}",
+                        "ros_name": ros_name
+                    },
+                    "transform": {
+                        "location": {"x": spawn_tf.location.x, "y": spawn_tf.location.y, "z": spawn_tf.location.z},
+                        "rotation": {"pitch": spawn_tf.rotation.pitch, "yaw": spawn_tf.rotation.yaw, "roll": spawn_tf.rotation.roll}
+                    }
+                },
+                "sensors": [
+                    {
+                        "name": "FrontRGB",
+                        "blueprint": "sensor.camera.rgb",
+                        "attributes": {
+                            "image_size_x": self.hud.dim[0],
+                            "image_size_y": self.hud.dim[1],
+                            "gamma": str(self._gamma),
+                            "sensor_tick": "0.05"
+                        }
+                    },
+                    {
+                        "name": "LidarRayCast",
+                        "blueprint": "sensor.lidar.ray_cast",
+                        "attributes": {
+                            "range": "200", # 距离
+                            "upper_fov": "15.0",
+                            "lower_fov": "-15.0",
+                            "horizontal_fov": "360",
+                            "points_per_second": "288000",
+                            "channels": "16",
+                            "ros_name": "sensor/lidar/points",
+                            "dropoff_general_rate": "0.0",
+                            "dropoff_intensity_limit": "0.0",
+                            "dropoff_zero_intensity": "0.0",
+                            "noise_stddev": "0.0"
+                        }
+                    },
+                    {
+                        "name": "IMUSensor",
+                        "blueprint": "sensor.other.imu",
+                        "attributes": {
+                            "ros_name": "imu/imu_data"
+                        }
+                    }
+                ]
+            }
+            
+            json_str = self.world.create_robot(json.dumps(json_params))
+            try:
+                result = json.loads(json_str)
+            except Exception as e:
+                print(f"Failed to parse create_robot result for {ros_name}: {e}")
+                continue
+            
+            if not result.get("ok"):
+                print(f"Failed to create robot {ros_name}: {result.get('error', 'Unknown error')}")
+                continue
+            
+            robot_id = int(result.get("robot_id", 0))
+            if not robot_id:
+                print(f"Failed to get robot_id for {ros_name}")
+                continue
+            
+            actor = self.world.get_actor(robot_id)
+            if actor is None:
+                print(f"Failed to get actor for {ros_name}")
+                continue
+            
+            self._fleet_ids.append(robot_id)
+            self.fleet_actors.append(actor)
+        
+        # 车队创建完毕，提示数量
+        self.hud.notification(f"Fleet created: {len(self.fleet_actors)} vehicles")
+
     def modify_vehicle_physics(self, actor):
         #If actor is not a vehicle, we cannot use the physics control
         try:
@@ -483,6 +627,31 @@ class World(object):
             self._cleanup_sensors()
             self.player = None
 
+        # 销毁车队
+        self._destroy_fleet()
+
+    def get_controlled_actors(self):
+        """
+        返回当前应被键盘控制的actor列表：
+        - 总是包含仍然存活的主车 self.player
+        - 若存在车队，则追加所有仍存活的车队车辆
+        """
+        actors = []
+        try:
+            if self.player is not None and getattr(self.player, "is_alive", True):
+                actors.append(self.player)
+        except Exception:
+            pass
+
+        for a in list(self.fleet_actors):
+            try:
+                if a is not None and getattr(a, "is_alive", True):
+                    actors.append(a)
+            except Exception:
+                continue
+
+        return actors
+
 
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
@@ -517,6 +686,15 @@ class KeyboardControl(object):
             # 设置默认值
             self._bone_rotations["Camera"] = carla.Rotation()
             self._bone_rotations["Gimbal"] = carla.Rotation()
+        # 自动随机驾驶（WASD）状态
+        self._auto_drive_enabled = False
+        self._auto_drive_next_change_ms = 0
+        self._auto_drive_cmd = {
+            "throttle": 0.0,
+            "brake": 0.0,
+            "reverse": False,
+            "angular": 0.0,
+        }
 
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
@@ -639,6 +817,18 @@ class KeyboardControl(object):
                     self._control_main_camera_free(world)
                 elif event.key == K_F6:
                     self._control_main_camera_fixed(world)
+                elif event.key == K_F8:
+                    # 切换自动随机驾驶
+                    self._auto_drive_enabled = not self._auto_drive_enabled
+                    state = "ON" if self._auto_drive_enabled else "OFF"
+                    world.hud.notification(f"Auto-drive(random WASD): {state}")
+                    if self._auto_drive_enabled:
+                        self._auto_drive_next_change_ms = 0
+                elif event.key == K_F7:
+                    try:
+                        world.spawn_fleet_robots()
+                    except Exception as e:
+                        print(f"Failed to spawn fleet: {e}")
                 elif event.key == K_y:
                     try:
                         # 获取玩家当前位置作为参考点
@@ -731,31 +921,75 @@ class KeyboardControl(object):
 
     # 机器人移动 - W/S 用油门/刹车，A/D 用角速度控制
     def _parse_vehicle_keys(self, keys, milliseconds, world):
-        # 若没有任何相关按键被按下，则不触碰控制，避免覆盖外部（ROS）控制
-        if not (keys[K_w] or keys[K_s] or keys[K_a] or keys[K_d] or keys[K_SPACE]):
-            return
         # 可调参数
         max_angular_velocity_deg = 1
-        max_linear_velocity = 3.0  # 线速度
+        # 低于此速度才算"停稳"，可以安全换挡
+        brake_threshold_speed = 0.5  # m/s
 
-        # 获取车辆当前变换
-        transform = world.player.get_transform()
-        forward_vector = transform.get_forward_vector()
-
-        # 计算线速度（沿车辆前进方向）
-        linear_velocity_magnitude = 0.0
-        if keys[K_w]:
-            linear_velocity_magnitude = max_linear_velocity
-        elif keys[K_s]:
-            linear_velocity_magnitude = -max_linear_velocity  # 倒车
-
-        target_velocity = carla.Vector3D(
-            forward_vector.x * linear_velocity_magnitude,
-            forward_vector.y * linear_velocity_magnitude,
-            forward_vector.z * linear_velocity_magnitude
-        )
-        world.player.set_target_velocity(target_velocity)
+        # 若没有任何相关按键被按下，则不触碰控制，避免覆盖外部（ROS）控制
+        if not (keys[K_w] or keys[K_s] or keys[K_a] or keys[K_d] or keys[K_SPACE]):
+            # 没有手动按键时，如果开启自动驾驶则走自动逻辑
+            if self._auto_drive_enabled:
+                self._auto_drive_step(milliseconds, world)
+            return
+    
+        # --- 获取车辆当前速度 ---
+        controlled_actors = world.get_controlled_actors()
+        if not controlled_actors:
+            return
         
+        # 使用第一辆车的速度做换挡参考
+        velocity = controlled_actors[0].get_velocity()
+        current_speed = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
+    
+        # 空格：手刹（优先级最高）
+        if keys[K_SPACE]:
+            self._control.throttle = 0.0
+            self._control.brake = 1.0
+            self._control.hand_brake = True
+            for actor in controlled_actors:
+                actor.apply_control(self._control)
+                # 手刹时强制角速度归零
+                actor.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+            return
+    
+        # 初始化控制（手刹已处理，这里不再设置）
+        self._control.throttle = 0.0
+        self._control.brake = 0.0
+        self._control.steer = 0.0
+        self._control.hand_brake = False
+    
+        # W键按下
+        if keys[K_w]:
+            # 如果车辆当前处于倒车状态，并且还有速度，那就先刹停
+            if self._control.reverse and current_speed > brake_threshold_speed:
+                self._control.throttle = 0.0
+                self._control.brake = 1.0  # 刹车
+            else:
+                self._control.reverse = False
+                self._control.gear = 1
+                self._control.throttle = 1.0
+                self._control.brake = 0.0
+    
+        elif keys[K_s]:
+            if not self._control.reverse and current_speed > brake_threshold_speed:
+                self._control.throttle = 0.0
+                self._control.brake = 1.0  # 刹车
+            else:
+                self._control.reverse = True
+                self._control.gear = -1
+                self._control.throttle = 1.0
+                self._control.brake = 0.0
+    
+        else:
+            # W和S都没按，保持当前状态（不重置油门，让车辆自然减速）
+            # 如果需要立即停止，可以设置刹车
+            self._control.throttle = 0.0
+            self._control.brake = 0.0
+
+        for actor in controlled_actors:
+            actor.apply_control(self._control)
+
         # A/D 使用角速度控制（绕 Z 轴，CARLA API 使用度/秒）
         angular_velocity_rad = 0.0
         if keys[K_a]:
@@ -765,9 +999,46 @@ class KeyboardControl(object):
         if keys[K_s]:
             angular_velocity_rad = -angular_velocity_rad
 
-        world.player.set_target_angular_velocity(
-            carla.Vector3D(0.0, 0.0, angular_velocity_rad)
-        )
+        for actor in controlled_actors:
+            actor.set_target_angular_velocity(
+                carla.Vector3D(0.0, 0.0, angular_velocity_rad)
+            )
+
+    def _auto_drive_step(self, milliseconds, world):
+        """
+        自动随机WASD：定期随机生成 throttle/steer/reverse/角速度，并同时作用于所有受控车辆。
+        """
+        controlled_actors = world.get_controlled_actors()
+        if not controlled_actors:
+            return
+
+        # 每隔一段时间随机更新指令
+        if milliseconds >= self._auto_drive_next_change_ms:
+            # 随机方向与油门
+            throttle = random.uniform(0.3, 1.0)
+            brake = 0.0
+            reverse = random.choice([False, False, False, True])  # 低概率倒车
+            angular = random.uniform(-1.0, 1.0)  # rad/s
+            duration_ms = random.randint(800, 2000)
+
+            self._auto_drive_cmd["throttle"] = throttle
+            self._auto_drive_cmd["brake"] = brake
+            self._auto_drive_cmd["reverse"] = reverse
+            self._auto_drive_cmd["angular"] = angular
+            self._auto_drive_next_change_ms = milliseconds + duration_ms
+
+        # 应用当前自动指令
+        self._control.throttle = self._auto_drive_cmd["throttle"]
+        self._control.brake = self._auto_drive_cmd["brake"]
+        self._control.hand_brake = False
+        self._control.reverse = self._auto_drive_cmd["reverse"]
+        self._control.gear = -1 if self._auto_drive_cmd["reverse"] else 1
+
+        for actor in controlled_actors:
+            actor.apply_control(self._control)
+            actor.set_target_angular_velocity(
+                carla.Vector3D(0.0, 0.0, self._auto_drive_cmd["angular"])
+            )
                 
     def visualize_navigable_points(self, navigable_points):
         # 提取x,y坐标

@@ -28,10 +28,14 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# 获取当前打包时间（使用CMake内置函数，跨平台）
+string(TIMESTAMP PACKAGE_BUILD_TIME "%Y-%m-%d %H:%M:%S")
+
 file (
   WRITE
     ${CARLA_PACKAGE_VERSION_FILE}
     "Carla git hash:         ${CARLA_GIT_HASH}\n"
     "Content git hash:       ${CONTENT_GIT_HASH}\n"
     "UnrealEngine git hash:  ${UNREAL_ENGINE_GIT_HASH}\n"
+    "Package build time:     ${PACKAGE_BUILD_TIME}\n"
 )

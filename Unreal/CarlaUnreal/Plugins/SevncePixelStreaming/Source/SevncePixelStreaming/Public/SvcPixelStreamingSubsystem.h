@@ -29,14 +29,14 @@ public:
 	void SendResponse(const FString& Name, const FString& PayloadJson);
 
 private:
+	// 首次使用时的延迟初始化（确保 World 可用）
+	void PostInitialize();
+
 	void BindInputComponent();
 
   	// 发送消息到Web端
   	void SendMessageToWeb(const FString& JsonString);
 	
-  	// 延迟到世界初始化后再完成绑定
-  	FDelegateHandle m_InitHandle;
-		
 	// 处理从Web接收到的消息
   	UFUNCTION()
   	void HandleWebInputEvent(const FString& Descriptor);
@@ -46,4 +46,7 @@ private:
 	
   	UPROPERTY()
   	UPixelStreamingInput* m_PixelInputComponent = nullptr;
+
+	// 标记是否已完成延迟初始化
+	bool m_bHasInitialized = false;
 };
