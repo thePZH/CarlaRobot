@@ -63,12 +63,8 @@ public:
 	bool ClearDrawObjects(EGeometryDrawType Type = EGeometryDrawType::All);
 
 protected:
-	// 首次使用时的延迟初始化（确保 World 可用）
-	void PostInitialize();
-
 	UPROPERTY()
 	class USvcGeometryDrawerManager* m_DrawerManager;
 
-	// 标记是否已完成延迟初始化
-	bool m_bHasInitialized = false;
+	FDelegateHandle m_InitHandle;
 };

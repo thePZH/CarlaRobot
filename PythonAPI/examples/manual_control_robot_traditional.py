@@ -188,8 +188,6 @@ class World(object):
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
-        # 记录机器人ID，用于destroy_robot
-        self._robot_id = None
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.show_vehicle_telemetry = False
@@ -203,159 +201,120 @@ class World(object):
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
         
-        # 如果已有机器人，先停止监听，再销毁服务器端，最后清理Python引用
-        if self._robot_id is not None:
-            # 先标记正在销毁，然后停止正在监听的传感器（只停止当前激活的传感器）
-            # 注意：只停止正在监听的传感器，避免对未监听的传感器调用 stop() 产生警告
-            try:
-                if self.imu_sensor is not None:
-                    self.imu_sensor._is_destroying = True
-                    if self.imu_sensor.sensor is not None:
-                        if hasattr(self.imu_sensor.sensor, 'is_listening') and self.imu_sensor.sensor.is_listening:
-                            self.imu_sensor.sensor.stop()
-            except Exception:
-                pass
-            try:
-                if self.camera_manager is not None:
-                    self.camera_manager._is_destroying = True
-                    if self.camera_manager.sensor is not None:
-                        if hasattr(self.camera_manager.sensor, 'is_listening') and self.camera_manager.sensor.is_listening:
-                            self.camera_manager.sensor.stop()
-            except Exception:
-                pass
-            
-            # 先销毁服务器端的机器人（这会自动停止并销毁所有传感器）
-            try:
-                self.world.destroy_robot(self._robot_id)
-                # 等待一个tick，确保服务器端的传感器已经被完全销毁
-                if self.sync:
-                    self.world.tick()
-                else:
-                    self.world.wait_for_tick()
-            except Exception as e:
-                print(f"Failed to destroy existing robot: {e}")
-            self._robot_id = None
-            
-            # 服务器端已销毁，现在可以安全地清理Python引用
-            # 此时即使Python对象被清理，C++ 析构函数检查 IsAlive() 时已返回 false，不会触发警告
-            self._cleanup_sensors()
-            self.player = None
+        # 如果已有玩家，先销毁
+        if self.player is not None:
+            self.destroy()
         
-        # 使用 create_robot 创建机器人和传感器
+        # ========== 注释掉的 create_robot 方式 ==========
+        # # 使用 create_robot 创建机器人和传感器
+        # spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=1))
+        # json_params = {
+        #     "robot": {
+        #         "blueprint": "vehicle.robot.01",
+        #         "attributes": {
+        #             "role_name": self.actor_role_name,
+        #             "ros_name": "robot01"
+        #         },
+        #         "transform": {
+        #             "location": {"x": spawn_point.location.x, "y": spawn_point.location.y, "z": spawn_point.location.z},
+        #             "rotation": {"pitch": spawn_point.rotation.pitch, "yaw": spawn_point.rotation.yaw, "roll": spawn_point.rotation.roll}
+        #         }
+        #     },
+        #     "sensors": [
+        #         {
+        #             "name": "FrontRGB",
+        #             "blueprint": "sensor.camera.rgb",
+        #             "attributes": {
+        #                 "image_size_x": self.hud.dim[0],
+        #                 "image_size_y": self.hud.dim[1],
+        #                 "gamma": str(self._gamma),
+        #                 "sensor_tick": "0.05"
+        #             }
+        #         },
+        #         {
+        #             "name": "LidarRayCast",
+        #             "blueprint": "sensor.lidar.ray_cast",
+        #             "attributes": {
+        #                 "range": "200",
+        #                 "upper_fov": "15.0",
+        #                 "lower_fov": "-15.0",
+        #                 "horizontal_fov": "360",
+        #                 "points_per_second": "288000",
+        #                 "channels": "16",
+        #                 "ros_name": "sensor/lidar/points",
+        #                 "dropoff_general_rate": "0.0",
+        #                 "dropoff_intensity_limit": "0.0",
+        #                 "dropoff_zero_intensity": "0.0",
+        #                 "noise_stddev": "0.0"
+        #             }
+        #         },
+        #         {
+        #             "name": "IMUSensor",
+        #             "blueprint": "sensor.other.imu",
+        #             "attributes": {
+        #                 "ros_name": "imu/imu_data"
+        #             }
+        #         }
+        #     ]
+        # }
+        # json_str = self.world.create_robot(json.dumps(json_params))
+        # ... (后续处理代码已注释)
+        # ================================================
+        
+        # 使用传统方式创建车辆和传感器
         spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=1))
-        json_params = {
-            "robot": {
-                "blueprint": "vehicle.robot.01",
-                "attributes": {
-                    "role_name": self.actor_role_name,
-                    "ros_name": "robot01"
-                },
-                "transform": {
-                    "location": {"x": spawn_point.location.x, "y": spawn_point.location.y, "z": spawn_point.location.z},
-                    "rotation": {"pitch": spawn_point.rotation.pitch, "yaw": spawn_point.rotation.yaw, "roll": spawn_point.rotation.roll}
-                }
-            },
-            "sensors": [
-                {
-                    "name": "FrontRGB",
-                    "blueprint": "sensor.camera.rgb",
-                    "attributes": {
-                        "image_size_x": self.hud.dim[0],
-                        "image_size_y": self.hud.dim[1],
-                        "gamma": str(self._gamma),
-                        "sensor_tick": "0.05"
-                    }
-                },
-                {
-                    "name": "LidarRayCast",
-                    "blueprint": "sensor.lidar.ray_cast",
-                    "attributes": {
-                        "range": "200", # 距离
-                        "upper_fov": "15.0",
-                        "lower_fov": "-15.0",
-                        "horizontal_fov": "360",
-                        "points_per_second": "288000",
-                        "channels": "16",
-                        "ros_name": "sensor/lidar/points",
-                        "dropoff_general_rate": "0.0",
-                        "dropoff_intensity_limit": "0.0",
-                        "dropoff_zero_intensity": "0.0",
-                        "noise_stddev": "0.0",
-                        "sensor_tick": "0.1"
-                    }
-                },
-                {
-                    "name": "IMUSensor",
-                    "blueprint": "sensor.other.imu",
-                    "attributes": {
-                        "ros_name": "imu/imu_data"
-                    }
-                }
-            ]
-        }
         
-        json_str = self.world.create_robot(json.dumps(json_params))
-        try:
-            result = json.loads(json_str)
-        except Exception as e:
-            print(f"Failed to parse create_robot result: {e}")
-            raise ValueError(f"Failed to create robot: {json_str}")
+        # 获取车辆蓝图
+        bp_library = self.world.get_blueprint_library()
+        vehicle_bp = bp_library.find('vehicle.robot.01')
+        vehicle_bp.set_attribute('role_name', self.actor_role_name)
+        if vehicle_bp.has_attribute('ros_name'):
+            vehicle_bp.set_attribute('ros_name', 'robot01')
         
-        if not result.get("ok"):
-            error_msg = result.get("error", "Unknown error")
-            raise ValueError(f"Failed to create robot: {error_msg}")
-        
-        # 获取机器人ID和车辆actor
-        robot_id = int(result.get("robot_id", 0))
-        if not robot_id:
-            raise ValueError("Failed to get robot_id from create_robot result")
-        
-        self._robot_id = robot_id
-        self.player = self.world.get_actor(robot_id)
+        # 生成车辆
+        self.player = self.world.try_spawn_actor(vehicle_bp, spawn_point)
         if self.player is None:
-            raise ValueError("Failed to get player actor from robot_id")
+            raise ValueError("Failed to spawn vehicle")
         
         self.show_vehicle_telemetry = False
         self.modify_vehicle_physics(self.player)
         
-        # 从返回的传感器列表中获取传感器actor
-        sensor_dict = {}
-        for s in result.get("sensors", []):
-            sensor_name = s.get("name", "")
-            sensor_id = s.get("id")
-            if sensor_id is not None:
-                sensor_dict[sensor_name] = int(sensor_id)
+        # 创建RGB相机传感器
+        rgb_bp = bp_library.find('sensor.camera.rgb')
+        rgb_bp.set_attribute('image_size_x', str(self.hud.dim[0]))
+        rgb_bp.set_attribute('image_size_y', str(self.hud.dim[1]))
+        rgb_bp.set_attribute('gamma', str(self._gamma))
+        rgb_bp.set_attribute('sensor_tick', '0.05')
+        rgb_transform = carla.Transform(carla.Location(x=0.8, y=0.0, z=1.3))
+        rgb_sensor = self.world.spawn_actor(rgb_bp, rgb_transform, attach_to=self.player)
         
-        # 创建传感器包装类（从已存在的actor获取数据）
-        camera_sensors = []
-        if "FrontRGB" in sensor_dict:
-            rgb_actor = self.world.get_actor(sensor_dict["FrontRGB"])
-            if rgb_actor is not None:
-                camera_sensors.append(rgb_actor)
-        if "FrontDepthRaw" in sensor_dict:
-            depth_actor = self.world.get_actor(sensor_dict["FrontDepthRaw"])
-            if depth_actor is not None:
-                camera_sensors.append(depth_actor)
-        if "LidarRayCast" in sensor_dict:
-            lidar_actor = self.world.get_actor(sensor_dict["LidarRayCast"])
-            if lidar_actor is not None:
-                camera_sensors.append(lidar_actor)
+        # 创建Lidar传感器
+        lidar_bp = bp_library.find('sensor.lidar.ray_cast')
+        lidar_bp.set_attribute('range', '200')
+        lidar_bp.set_attribute('upper_fov', '15.0')
+        lidar_bp.set_attribute('lower_fov', '-15.0')
+        lidar_bp.set_attribute('horizontal_fov', '360')
+        lidar_bp.set_attribute('points_per_second', '288000')
+        lidar_bp.set_attribute('channels', '16')
+        if lidar_bp.has_attribute('ros_name'):
+            lidar_bp.set_attribute('ros_name', 'sensor/lidar/points')
+        lidar_bp.set_attribute('dropoff_general_rate', '0.0')
+        lidar_bp.set_attribute('dropoff_intensity_limit', '0.0')
+        lidar_bp.set_attribute('dropoff_zero_intensity', '0.0')
+        lidar_bp.set_attribute('noise_stddev', '0.0')
+        lidar_transform = carla.Transform(carla.Location(x=0.0, y=0.0, z=1.0))
+        lidar_sensor = self.world.spawn_actor(lidar_bp, lidar_transform, attach_to=self.player)
         
-        # 确保至少有一个相机传感器
-        if len(camera_sensors) == 0:
-            raise ValueError("No camera sensors found in create_robot result")
+        # 创建IMU传感器
+        imu_bp = bp_library.find('sensor.other.imu')
+        if imu_bp.has_attribute('ros_name'):
+            imu_bp.set_attribute('ros_name', 'imu/imu_data')
+        imu_transform = carla.Transform()
+        imu_sensor_actor = self.world.spawn_actor(imu_bp, imu_transform, attach_to=self.player)
         
-        # 初始化传感器包装（所有传感器都是可选的）
-        if "IMUSensor" in sensor_dict:
-            imu_actor = self.world.get_actor(sensor_dict["IMUSensor"])
-            if imu_actor is not None:
-                self.imu_sensor = IMUSensorWrapper(imu_actor)
-            else:
-                print("Warning: IMUSensor actor is None")
-                self.imu_sensor = None
-        else:
-            print("Info: IMUSensor not found in create_robot result, skipping")
-            self.imu_sensor = None
+        # 创建传感器包装类
+        camera_sensors = [rgb_sensor, lidar_sensor]
+        self.imu_sensor = IMUSensorWrapper(imu_sensor_actor)
         
         # 初始化CameraManager并设置为外部传感器模式
         if self.camera_manager is None:
@@ -406,8 +365,8 @@ class World(object):
             self.camera_manager.use_external = False
 
     def destroy(self):
-        # 先停止正在监听的传感器，再销毁服务器端，最后清理Python引用
-        if self._robot_id is not None:
+        # 先停止正在监听的传感器，再销毁，最后清理Python引用
+        if self.player is not None:
             # 先标记正在销毁，然后停止正在监听的传感器（只停止当前激活的传感器）
             try:
                 if self.imu_sensor is not None:
@@ -423,23 +382,40 @@ class World(object):
                     if self.camera_manager.sensor is not None:
                         if hasattr(self.camera_manager.sensor, 'is_listening') and self.camera_manager.sensor.is_listening:
                             self.camera_manager.sensor.stop()
+                    # 停止所有外部传感器
+                    if hasattr(self.camera_manager, 'external_sensors'):
+                        for sensor in self.camera_manager.external_sensors:
+                            try:
+                                if hasattr(sensor, 'is_listening') and sensor.is_listening:
+                                    sensor.stop()
+                            except Exception:
+                                pass
             except Exception:
                 pass
             
-            # 先销毁服务器端的机器人（这会自动停止并销毁所有传感器）
-            try:
-                self.world.destroy_robot(self._robot_id)
-                # 等待一个tick，确保服务器端的传感器已经被完全销毁
-                if self.sync:
-                    self.world.tick()
-                else:
-                    self.world.wait_for_tick()
-            except Exception as e:
-                print(f"Failed to destroy robot: {e}")
-            self._robot_id = None
+            # 销毁传感器
+            sensors_to_destroy = []
+            if self.imu_sensor is not None and self.imu_sensor.sensor is not None:
+                sensors_to_destroy.append(self.imu_sensor.sensor)
+            if self.camera_manager is not None:
+                if self.camera_manager.sensor is not None:
+                    sensors_to_destroy.append(self.camera_manager.sensor)
+                if hasattr(self.camera_manager, 'external_sensors'):
+                    sensors_to_destroy.extend(self.camera_manager.external_sensors)
             
-            # 服务器端已销毁，现在可以安全地清理Python引用
-            # 此时即使Python对象被清理，C++ 析构函数检查 IsAlive() 时已返回 false，不会触发警告
+            for sensor in sensors_to_destroy:
+                try:
+                    sensor.destroy()
+                except Exception:
+                    pass
+            
+            # 销毁车辆
+            try:
+                self.player.destroy()
+            except Exception as e:
+                print(f"Failed to destroy player: {e}")
+            
+            # 清理Python引用
             self._cleanup_sensors()
             self.player = None
 
@@ -1408,9 +1384,15 @@ class CameraManager(object):
                     self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
                 except Exception:
                     pass
+            # 处理完成，清除标记
+            self._is_processing = False
         except Exception:
             # 忽略所有异常，避免崩溃
-            pass
+            # 确保清除处理标记
+            try:
+                self._is_processing = False
+            except:
+                pass
 
 
 # ==============================================================================

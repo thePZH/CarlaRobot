@@ -8,14 +8,39 @@
 
 void USvcPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	Super::Initialize(Collection);
-	m_bHasInitialized = false;
+    Super::Initialize(Collection);
+	
+	TWeakObjectPtr<USvcPixelStreamingSubsystem> WeakThis(this);
+	
+    m_InitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda(
+        [WeakThis](UWorld* World, const UWorld::InitializationValues)
+        {
+        	if (!WeakThis.IsValid() || !World || (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE))
+				return;
+        	
+            FWorldDelegates::OnPostWorldInitialization.Remove(WeakThis->m_InitHandle);
+
+            FActorSpawnParameters spawnParams;
+            spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+            WeakThis->m_PixelStreamingActor = World->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, spawnParams);
+            if (!WeakThis->m_PixelStreamingActor)
+                return;
+
+            WeakThis->m_PixelInputComponent = NewObject<UPixelStreamingInput>(WeakThis->m_PixelStreamingActor);
+            if (!WeakThis->m_PixelInputComponent)
+                return;
+
+            WeakThis->m_PixelInputComponent->RegisterComponent();
+            WeakThis->m_PixelStreamingActor->AddInstanceComponent(WeakThis->m_PixelInputComponent);
+        	
+            WeakThis->BindInputComponent();
+        }
+    );
 }
 
 void USvcPixelStreamingSubsystem::Deinitialize()
 {
-	m_bHasInitialized = false;
-
     if (m_PixelStreamingActor)
     {
         m_PixelStreamingActor->Destroy();
@@ -25,53 +50,8 @@ void USvcPixelStreamingSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
-void USvcPixelStreamingSubsystem::PostInitialize()
-{
-	if (m_bHasInitialized)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World || (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE))
-	{
-		// 世界还不可用时，不做初始化，等待下次使用再尝试
-		return;
-	}
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	m_PixelStreamingActor = World->SpawnActor<AActor>(
-		AActor::StaticClass(),
-		FVector::ZeroVector,
-		FRotator::ZeroRotator,
-		SpawnParams);
-	if (!m_PixelStreamingActor)
-	{
-		return;
-	}
-
-	m_PixelInputComponent = NewObject<UPixelStreamingInput>(m_PixelStreamingActor);
-	if (!m_PixelInputComponent)
-	{
-		m_PixelStreamingActor->Destroy();
-		m_PixelStreamingActor = nullptr;
-		return;
-	}
-
-	m_PixelInputComponent->RegisterComponent();
-	m_PixelStreamingActor->AddInstanceComponent(m_PixelInputComponent);
-
-	BindInputComponent();
-
-	m_bHasInitialized = true;
-}
-
 void USvcPixelStreamingSubsystem::SendNotify(const FString& name, const FString& payloadJson)
 {
-	PostInitialize();
-
 	FString payload = payloadJson.IsEmpty() ? TEXT("{}") : payloadJson;
 
 	FString jsonString = FString::Format(
@@ -84,8 +64,6 @@ void USvcPixelStreamingSubsystem::SendNotify(const FString& name, const FString&
 
 void USvcPixelStreamingSubsystem::SendResponse(const FString& name, const FString& payloadJson)
 {
-	PostInitialize();
-
 	FString payload = payloadJson.IsEmpty() ? TEXT("{}") : payloadJson;
 	FString jsonString = FString::Format(
 		TEXT("{\"type\":\"response\",\"name\":\"{0}\",\"payload\":{1}}"),

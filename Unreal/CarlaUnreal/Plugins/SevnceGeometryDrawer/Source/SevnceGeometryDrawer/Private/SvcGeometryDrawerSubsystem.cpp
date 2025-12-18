@@ -11,13 +11,27 @@
 void USvcGeometryDrawerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	m_bHasInitialized = false;
+	
+	TWeakObjectPtr<USvcGeometryDrawerSubsystem> WeakThis(this);
+	m_InitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda(
+		[WeakThis](UWorld* World, const UWorld::InitializationValues)
+		{
+			if (!WeakThis.IsValid() || !World || (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE))
+				return;
+			
+			USvcGeometryDrawerManager* NewDrawerManager = NewObject<USvcGeometryDrawerManager>();
+			if (!NewDrawerManager)
+				return;
+			
+			WeakThis->m_DrawerManager = NewDrawerManager;
+			FWorldDelegates::OnPostWorldInitialization.Remove(WeakThis->m_InitHandle);
+			WeakThis->m_DrawerManager->InitializeManager(World);
+		}
+	);
 }
 
 void USvcGeometryDrawerSubsystem::Deinitialize()
 {
-	m_bHasInitialized = false;
-
 	if (m_DrawerManager)
 	{
 		m_DrawerManager->DeinitializeManager();
@@ -26,54 +40,23 @@ void USvcGeometryDrawerSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void USvcGeometryDrawerSubsystem::PostInitialize()
-{
-	if (m_bHasInitialized)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World || (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE))
-	{
-		// 世界还不可用时，不做初始化，等待下次使用再尝试
-		return;
-	}
-
-	if (!m_DrawerManager)
-	{
-		m_DrawerManager = NewObject<USvcGeometryDrawerManager>(this);
-	}
-
-	if (m_DrawerManager)
-	{
-		m_DrawerManager->InitializeManager(World);
-		m_bHasInitialized = true;
-	}
-}
-
 FString USvcGeometryDrawerSubsystem::DrawLine(const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
-	PostInitialize();
 	return m_DrawerManager ? m_DrawerManager->DrawLine(Positions, Color, Thickness) : TEXT("");
 }
 
 FString USvcGeometryDrawerSubsystem::DrawPoint(const FVector& Location, const FLinearColor& Color, float Size)
 {
-	PostInitialize();
 	return m_DrawerManager ? m_DrawerManager->DrawPoint(Location, Color, Size) : TEXT("");
 }
 
 FString USvcGeometryDrawerSubsystem::DrawCube(const FVector& Center, const FVector& Scale, const FLinearColor& Color)
 {
-	PostInitialize();
 	return m_DrawerManager ? m_DrawerManager->DrawCube(Center, Scale, Color) : TEXT("");
 }
 
 bool USvcGeometryDrawerSubsystem::RemoveDrawObject(FString ObjectId)
 {
-	PostInitialize();
-
 	if (!m_DrawerManager)
 		return false;
 	
@@ -83,8 +66,6 @@ bool USvcGeometryDrawerSubsystem::RemoveDrawObject(FString ObjectId)
 
 bool USvcGeometryDrawerSubsystem::ClearDrawObjects(EGeometryDrawType Type)
 {
-	PostInitialize();
-
 	if (!m_DrawerManager)
 		return false;
 	
