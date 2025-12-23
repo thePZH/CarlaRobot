@@ -54,7 +54,7 @@ namespace carla
 
 
 class UBoxComponent;
-
+class FCarlaActor;
 UENUM()
 enum class EVehicleWheelLocation : uint8 {
 
@@ -374,6 +374,8 @@ private:
   float m_Ros2ControlTimeoutSeconds = 0.5f;
   double m_LastRos2LinearTimestamp = -1.0;
   double m_LastRos2AngularTimestamp = -1.0;
+  
+  FCarlaActor* m_CachedCarlaActor = nullptr;
 
   float RolloverBehaviorForce = 0.35;
   int RolloverBehaviorTracker = 0;

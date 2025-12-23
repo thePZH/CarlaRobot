@@ -180,13 +180,41 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
 
   WorldTransformedPose = pose;
 
+  // ROS2 控制逻辑：只在收到过 ROS2 消息时才执行
+  // 早期退出检查：如果从未收到过ROS2消息（时间戳为 -1.0），直接跳过ROS2控制逻辑
+  if (m_LastRos2AngularTimestamp < 0.0 || m_LastRos2LinearTimestamp < 0.0)
+  {
+    return;
+  }
+  
+  // 延迟初始化：如果缓存未初始化，尝试初始化
+  if (!m_CachedCarlaActor)
+  {
+    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
+    if (!Episode)
+    {
+      return;
+    }
+      m_CachedCarlaActor = Episode->FindCarlaActor(this);
+  }
+    
+  // 只有在缓存已初始化时才执行控制逻辑
+  if (!m_CachedCarlaActor )
+  {
+    return;
+  }
+  
   const double CurrentTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-
+    
   // 每帧应用ROS2角速度，确保即使话题发布频率低也能持续旋转；超时自动停止
   if (m_bRos2AngularVelocityActive)
   {
-    const bool bRos2AngularTimedOut = (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+    // 修复时间戳检查：确保时间戳已初始化（>= 0.0）
+    const bool bRos2AngularTimedOut = 
+      (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+      (m_LastRos2AngularTimestamp >= 0.0) &&
       ((CurrentTimeSeconds - m_LastRos2AngularTimestamp) > static_cast<double>(m_Ros2ControlTimeoutSeconds));
+  
     if (bRos2AngularTimedOut)
     {
       m_bRos2AngularVelocityActive = false;
@@ -195,20 +223,15 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
   }
   if (m_bRos2AngularVelocityActive)
   {
-    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
-    if (Episode)
-    {
-      FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
-      if (CarlaActor)
-      {
-        CarlaActor->SetActorTargetAngularVelocity(m_Ros2AngularVelocityRadps);
-      }
-    }
+    m_CachedCarlaActor->SetActorTargetAngularVelocity(m_Ros2AngularVelocityRadps);
   }
+  
   // 每帧应用ROS2线速度，确保低频发布也能持续生效；超时自动停止
   if (m_bRos2LinearVelocityActive)
   {
+    // 修复时间戳检查：确保时间戳已初始化（>= 0.0）
     const bool bRos2LinearTimedOut = (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+      (m_LastRos2LinearTimestamp >= 0.0) &&
       ((CurrentTimeSeconds - m_LastRos2LinearTimestamp) > static_cast<double>(m_Ros2ControlTimeoutSeconds));
     if (bRos2LinearTimedOut)
     {
@@ -218,17 +241,9 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
   }
   if (m_bRos2LinearVelocityActive)
   {
-    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
-    if (Episode)
-    {
-      FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
-      if (CarlaActor)
-      {
-        CarlaActor->SetActorTargetVelocity(m_Ros2LinearVelocityCmps);
-      }
-    }
+    m_CachedCarlaActor->SetActorTargetVelocity(m_Ros2LinearVelocityCmps);
   }
-
+  
 #if defined(WITH_ROS2)
   PublishRos2Odometry();
 #endif
@@ -914,6 +929,8 @@ void ACarlaWheeledVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 #if defined(WITH_ROS2)
   Ros2OdometryPublisherInstance.reset();
 #endif
+  // 清理缓存的 CarlaActor
+  m_CachedCarlaActor = nullptr;
   RemoveReferenceToManager();
 }
 
