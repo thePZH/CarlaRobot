@@ -10,7 +10,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Logging/LogMacros.h"
 
-const FString FStaticObjectRegistry::DefaultDataAssetPath = TEXT("/Game/Carla/StaticObjectRegistry.StaticObjectRegistry");
+const FString FStaticObjectRegistry::DefaultDataAssetPath = TEXT("/Script/Carla.StaticObjectRegistryDataAsset'/Game/Sevnce/DA_CreatorsRegister.DA_CreatorsRegister'");
 
 FStaticObjectRegistry& FStaticObjectRegistry::Get()
 {
@@ -76,7 +76,7 @@ void FStaticObjectRegistry::LoadFromDataAsset(UStaticObjectRegistryDataAsset* Da
 	{
 		if (Entry.ActorClass)
 		{
-			RegisterClass(Entry.Type, Entry.Category, Entry.ActorClass);
+			RegisterClass(Entry.Type, Entry.Name, Entry.ActorClass);
 		}
 	}
 
@@ -91,22 +91,84 @@ void FStaticObjectRegistry::LoadFromDataAssetPath(const FString& DataAssetPath)
 	}
 
 	FString PathToLoad = DataAssetPath.IsEmpty() ? DefaultDataAssetPath : DataAssetPath;
-	UStaticObjectRegistryDataAsset* DataAsset = LoadObject<UStaticObjectRegistryDataAsset>(nullptr, *PathToLoad);
 	
-	if (DataAsset)
+	// 清理路径，只要包部分
+	// 输入可能是：/Script/Carla.StaticObjectRegistryDataAsset'/Game/Sevnce/DA_CreatorsRegister.DA_CreatorsRegister'
+	FString PackagePath = PathToLoad;
+
+	// 去掉开头的类名引用部分（如果有）
+	int32 QuoteIdx = PackagePath.Find(TEXT("'"));
+	if (QuoteIdx != INDEX_NONE)
 	{
-		LoadFromDataAsset(DataAsset);
-		UE_LOG(LogTemp, Log, TEXT("StaticObjectRegistry: Loaded DataAsset from %s"), *PathToLoad);
+		PackagePath = PackagePath.Mid(QuoteIdx + 1);
 	}
-	else
+	// 去掉结尾的单引号（如果有）
+	PackagePath.RemoveFromEnd(TEXT("'"));
+	// 去掉结尾的对象名（.DA_CreatorsRegister），只保留包路径
+	int32 DotIdx = PackagePath.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	if (DotIdx != INDEX_NONE)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("StaticObjectRegistry: DataAsset not found at %s, using defaults only"), *PathToLoad);
+		PackagePath = PackagePath.Left(DotIdx);
 	}
+
+	//Game/Sevnce/DA_CreatorsRegister
+
+	// 强制加载所在的包
+	// 如果包没在内存里，StaticFindObject 永远返回 nullptr
+	UPackage* Package = LoadPackage(nullptr, *PackagePath, LOAD_None);
+	if (!Package)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("StaticObjectRegistry: Failed to load package at %s"), *PackagePath);
+		return;
+	}
+	if (Package)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("--- Debug: Dumping Package Contents ---"));
+        for (TObjectIterator<UObject> It; It; ++It)
+        {
+            if (It->GetPackage() == Package)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Found Object: %s (Class: %s)"), *It->GetName(), *It->GetClass()->GetName());
+            }
+        }
+        UE_LOG(LogTemp, Warning, TEXT("----------------------------------------"));
+    }
+	// 在包里，只需要对象的名字
+	// 原始字符串: ...'...DA_CreatorsRegister.DA_CreatorsRegister'
+	FString ObjectName = PathToLoad;
+	// 去掉前面的垃圾字符
+	int32 LastDot = ObjectName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	if (LastDot != INDEX_NONE)
+	{
+		ObjectName = ObjectName.Mid(LastDot + 1);
+	}
+	// 去掉最后的单引号
+	ObjectName.RemoveFromEnd(TEXT("'"));
+
+	UE_LOG(LogTemp, Warning, TEXT("Looking for object name: %s in package: %s"), *ObjectName, *PackagePath);
+
+	// 直接在包里找：指定 InOuter=Package，只查名字
+	UObject* LoadedObj = StaticFindObject(UStaticObjectRegistryDataAsset::StaticClass(), Package, *ObjectName);
+
+	if (LoadedObj)
+	{
+		UStaticObjectRegistryDataAsset* DataAsset = Cast<UStaticObjectRegistryDataAsset>(LoadedObj);
+		if (DataAsset)
+		{
+			LoadFromDataAsset(DataAsset);
+			m_bDataAssetLoaded = true;
+			UE_LOG(LogTemp, Log, TEXT("StaticObjectRegistry: Successfully loaded DataAsset %s"), *ObjectName);
+			return;
+		}
+	}
+
+	UE_LOG(LogTemp, Error, TEXT("StaticObjectRegistry: Package loaded, but object '%s' not found!"), *ObjectName);
+
 }
 
 bool FStaticObjectRegistry::ResolveClass(const FString& Type, const FString& Category, TSubclassOf<AActor>& OutClass)
 {
-	EnsureDefaults();
+	LoadAssetDataOnce();
 
 	const FString NormalizedType = Type.ToLower();
 	const FString NormalizedCategory = Category.ToLower();
@@ -152,7 +214,7 @@ bool FStaticObjectRegistry::ResolveClass(const FString& Type, const FString& Cat
 
 void FStaticObjectRegistry::GetClassesByType(const FString& Type, TArray<TSubclassOf<AActor>>& OutClasses)
 {
-	EnsureDefaults();
+	LoadAssetDataOnce();
 
 	const FString NormalizedType = Type.ToLower();
 	OutClasses.Reset();
@@ -191,26 +253,13 @@ void FStaticObjectRegistry::GetClassesByType(const FString& Type, TArray<TSubcla
 	}
 }
 
-void FStaticObjectRegistry::EnsureDefaults()
+void FStaticObjectRegistry::LoadAssetDataOnce()
 {
 	if (m_bDefaultsRegistered)
 	{
 		return;
 	}
 
-	// 首先尝试从 DataAsset 加载（编辑器配置优先）
 	LoadFromDataAssetPath();
-
-	// 如果 DataAsset 中没有注册，则使用默认的硬编码资源
-	// 这些作为后备，确保即使没有配置 DataAsset 也能工作
-	if (!m_bDataAssetLoaded || m_Entries.Num() == 0)
-	{
-		RegisterAsset(TEXT("effect"), TEXT("fire"), TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C"));
-		RegisterAsset(TEXT("effect"), TEXT("smoke01"), TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C"));
-		RegisterAsset(TEXT("effect"), TEXT("smoke02"), TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C"));
-		RegisterAsset(TEXT("effect"), TEXT("smoke03"), TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C"));
-	}
-
-	m_bDefaultsRegistered = true;
 }
 

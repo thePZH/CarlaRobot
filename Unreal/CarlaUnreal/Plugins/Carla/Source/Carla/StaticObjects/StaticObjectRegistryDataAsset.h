@@ -21,7 +21,7 @@ struct CARLA_API FStaticObjectRegistryEntry
 
 	/** 类别名称（如 "fire", "smoke01" 等） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Object Registry")
-	FString Category;
+	FString Name;
 
 	/** 蓝图类引用（可直接在编辑器中拖拽选择） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Object Registry")
@@ -29,7 +29,7 @@ struct CARLA_API FStaticObjectRegistryEntry
 
 	FStaticObjectRegistryEntry()
 		: Type(TEXT("effect"))
-		, Category(TEXT(""))
+		, Name(TEXT(""))
 		, ActorClass(nullptr)
 	{
 	}

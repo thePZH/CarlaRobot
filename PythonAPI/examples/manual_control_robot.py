@@ -195,8 +195,6 @@ class World(object):
         self.show_vehicle_telemetry = False
 
     def restart(self):
-        path = '/media/sevnce/30CC6D4ACC6D0C02/3dgs/MapData/ljgc_01/LCC_Results/ljgc_01.lcc'
-        self.world.load_map(path)
         self.player_max_speed = 1.589
         self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
@@ -624,9 +622,9 @@ class KeyboardControl(object):
                             )
                             
                             effect_json = {
-                                "type": "effect",
+                                "type": "Prop",
                                 "params": {
-                                    "category": "fire",
+                                    "category": "KoreanFireExtinguisher",
                                     "transform": {
                                         "location": {"x": fire_location[0], "y": fire_location[1], "z": fire_location[2]},
                                         "rotation": {"pitch": 0, "yaw": 0, "roll": 0},
@@ -639,21 +637,21 @@ class KeyboardControl(object):
                             if uuid:
                                 self.uuids.append(uuid)
                                 created_count += 1
-                                print(f"[K_y] Created fire #{i+1} at ({fire_location[0]:.2f}, {fire_location[1]:.2f}, {fire_location[2]:.2f}), uuid: {uuid}")
+                                print(f"[K_y] Created Object #{i+1} at ({fire_location[0]:.2f}, {fire_location[1]:.2f}, {fire_location[2]:.2f}), uuid: {uuid}")
                             else:
-                                print(f"[K_y] Failed to create fire #{i+1}")
+                                print(f"[K_y] Failed to create Object #{i+1}")
                         
-                        world.hud.notification(f'Created {created_count}/5 fire effects')
-                        print(f"[K_y] Total created: {created_count}/5 fires")
+                        world.hud.notification(f'Created {created_count}/5 Object')
+                        print(f"[K_y] Total created: {created_count}/5 Object")
                     except Exception as e:
-                        print(f"[K_y] Failed to create fire effects: {e}")
-                        world.hud.error(f'Failed to create fires: {e}')
+                        print(f"[K_y] Failed to create Object: {e}")
+                        world.hud.error(f'Failed to create Object: {e}')
                 elif event.key == K_u:
                 # 批量销毁所有 effect 类型的对象
                     try:
                         # 使用新的 JSON 格式的 destroy_objects 接口
                         destroy_json = {
-                            "type": "effect"
+                            "type": "Prop"
                         }
                         json_str = json.dumps(destroy_json)
                         result_str = world.world.destroy_objects(json_str)
@@ -663,8 +661,8 @@ class KeyboardControl(object):
                             result = json.loads(result_str)
                             if result.get("ok", False):
                                 destroyed_count = result.get("destroyed_count", 0)
-                                world.hud.notification(f'Destroyed {destroyed_count} effect objects')
-                                print(f"[K_u] Successfully destroyed {destroyed_count} effect objects")
+                                world.hud.notification(f'Destroyed {destroyed_count} objects')
+                                print(f"[K_u] Successfully destroyed {destroyed_count} objects")
                                 # 清空本地 UUID 列表（因为服务器端已经删除了）
                                 self.uuids = []
                             else:
@@ -675,7 +673,7 @@ class KeyboardControl(object):
                             print(f"[K_u] Failed to parse destroy_objects result: {e}, raw: {result_str}")
                             world.hud.error('Failed to parse destroy result')
                     except Exception as e:
-                        print(f"[K_u] Failed to destroy effects: {e}")
+                        print(f"[K_u] Failed to destroy Object: {e}")
                         world.hud.error(f'Failed to destroy: {e}')
                 
                 if isinstance(self._control, carla.VehicleControl):

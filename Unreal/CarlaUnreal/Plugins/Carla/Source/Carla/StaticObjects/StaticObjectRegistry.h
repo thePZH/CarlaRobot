@@ -39,7 +39,7 @@ public:
 	void GetClassesByType(const FString& Type, TArray<TSubclassOf<AActor>>& OutClasses);
 
 	/** 确保默认的内置资产完成注册（仅调用一次）。会尝试加载DataAsset。 */
-	void EnsureDefaults();
+	void LoadAssetDataOnce();
 
 private:
 	FStaticObjectRegistry() = default;
@@ -55,7 +55,7 @@ private:
 		TSubclassOf<AActor> LoadedClass;
 	};
 
-	/** key: Type -> (Category -> Entry) */
+	/** key: Type -> (Name -> Entry) */
 	TMap<FString, TMap<FString, FEntry>> m_Entries;
 
 	bool m_bDefaultsRegistered = false;

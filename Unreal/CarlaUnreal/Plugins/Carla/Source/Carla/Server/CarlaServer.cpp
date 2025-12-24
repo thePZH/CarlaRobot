@@ -8,6 +8,7 @@
 #include "Carla.h"
 #include "Carla/PzhTest/WheeledRobotAnimationInstance.h"
 #include "Robot/RobotBoneControlIn.h"
+#include "StaticObjects/StaticObjectRegistry.h"
 #include "Carla/Server/CarlaServerResponse.h"
 #include "Carla/Traffic/TrafficLightGroup.h"
 #include "Carla/OpenDrive/OpenDrive.h"
@@ -874,7 +875,7 @@ void FCarlaServer::FPimpl::BindActions()
 		TSharedPtr<FJsonObject> JsonObject;
 		FString ErrorMessage;
 		if (!ParseJsonString(json, JsonObject, ErrorMessage))
-		{
+		{ 
 			return MakeJsonResponse(false, ErrorMessage);
 		}
 		
@@ -882,10 +883,6 @@ void FCarlaServer::FPimpl::BindActions()
 		if (!JsonObject->TryGetStringField(TEXT("type"), type))
 		{
 			return MakeJsonResponse(false, TEXT("Missing type field"));
-		}
-		if (!type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
-		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid type"));
 		}
 		
 		const TSharedPtr<FJsonObject>* paramsObj;
@@ -910,18 +907,9 @@ void FCarlaServer::FPimpl::BindActions()
 			if ((*transformObj)->TryGetObjectField(TEXT("location"), locObj))
 			{
 				double x, y, z;
-				if ((*locObj)->TryGetNumberField(TEXT("x"), x))
-				{
-					location.X = x * 100.0;
-				}
-				if ((*locObj)->TryGetNumberField(TEXT("y"), y))
-				{
-					location.Y = y * 100.0;
-				}
-				if ((*locObj)->TryGetNumberField(TEXT("z"), z))
-				{
-					location.Z = z * 100.0;
-				}
+				if ((*locObj)->TryGetNumberField(TEXT("x"), x)) location.X = x * 100.0;
+				if ((*locObj)->TryGetNumberField(TEXT("y"), y)) location.Y = y * 100.0;
+				if ((*locObj)->TryGetNumberField(TEXT("z"), z)) location.Z = z * 100.0;
 			}
 
 			const TSharedPtr<FJsonObject>* rotObj;
@@ -943,21 +931,19 @@ void FCarlaServer::FPimpl::BindActions()
 			}
 		}
 		
-		TMap<FString, TSubclassOf<AActor>> effectMap;
-		effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C")));
-		effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C")));
-		effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C")));
-		effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+		// 确保默认资源已注册
+		FStaticObjectRegistry::Get().LoadAssetDataOnce();
 
-		if (!effectMap.Contains(category))
+		TSubclassOf<AActor> ActorClass;
+
+		if (!FStaticObjectRegistry::Get().ResolveClass(type, category, ActorClass))
 		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid category"));
+			return MakeJsonResponse(false, FString::Printf(TEXT("Asset not found in registry: Type=%s, Category=%s"), *type, *category));
 		}
 
-		TSubclassOf<AActor> effectClass = effectMap[category];
-		if (!effectClass)
+		if (!ActorClass)
 		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid category"));
+			return MakeJsonResponse(false, TEXT("Failed to load actor class from registry"));
 		}
 
 		UWorld* world = GEngine->GetWorldFromContextObjectChecked(GEngine->GetCurrentPlayWorld());
@@ -968,26 +954,29 @@ void FCarlaServer::FPimpl::BindActions()
 		}
 
 		FActorSpawnParameters spawnParams;
-		AActor* spawnedActor = world->SpawnActor<AActor>(effectClass, location, rotation, spawnParams);
+		AActor* spawnedActor = world->SpawnActor<AActor>(ActorClass, location, rotation, spawnParams);
 		if (!spawnedActor)
 		{
 			return MakeJsonResponse(false, TEXT("Failed to spawn actor"));
 		}
 
 		spawnedActor->SetActorScale3D(scale);
-		TSet<UActorComponent*> componentsSet = spawnedActor->GetComponents();
-
-		for (auto& comp : componentsSet)
+		// 半透明写死
+		if (type.Equals(TEXT("effect")))
 		{
-			if (auto niagaraComp = Cast<UNiagaraComponent>(comp))
+			TSet<UActorComponent*> componentsSet = spawnedActor->GetComponents();
+			for (auto& comp : componentsSet)
 			{
-				niagaraComp->TranslucencySortPriority = 50;
+				if (auto niagaraComp = Cast<UNiagaraComponent>(comp))
+				{
+					niagaraComp->TranslucencySortPriority = 50;
+				}
 			}
 		}
 
+
 		FString uuidFStr = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 		Episode->CreatedActorMap.Add(uuidFStr, spawnedActor);
-
 
 		return MakeJsonResponse(true, FString(), [uuidFStr](TSharedPtr<FJsonObject> JsonResponse)
 		{
@@ -1045,44 +1034,26 @@ void FCarlaServer::FPimpl::BindActions()
 			return MakeJsonResponse(false, TEXT("Missing type field"));
 		}
 
-		int32 destroyedCount = 0;
+		// --- 修改开始：使用 FStaticObjectRegistry ---
 
-		// 根据类型构建需要匹配的类集合
+		// 确保默认资源已注册
+		FStaticObjectRegistry::Get().LoadAssetDataOnce();
+
+		// 根据类型（如 "effect"）获取所有已注册的类
 		TArray<TSubclassOf<AActor>> targetClasses;
-		
-		if (type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
-		{
-			// effect 类型包含的所有 category 对应的类
-			TMap<FString, TSubclassOf<AActor>> effectMap;
-			// 与 create_object 中保持一致的资源路径（/Game/Sevnce/CarVFX/...）
-			effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C")));
-			effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C")));
-			effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C")));
-			effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C")));
-			
-			for (const auto& pair : effectMap)
-			{
-				if (pair.Value)
-				{
-					targetClasses.Add(pair.Value);
-				}
-			}
-		}
-		// 如果以后有其他类型，可以在这里添加
-		// else if (type.Equals(TEXT("static"), ESearchCase::IgnoreCase))
-		// {
-		//     // 静态模型的类
-		// }
+		FStaticObjectRegistry::Get().GetClassesByType(type, targetClasses);
 
 		if (targetClasses.Num() == 0)
 		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid type"), [](TSharedPtr<FJsonObject> JsonResponse)
+			return MakeJsonResponse(false, FString::Printf(TEXT("No registered classes found for type: %s"), *type), [](TSharedPtr<FJsonObject> JsonResponse)
 			{
 				JsonResponse->SetNumberField(TEXT("destroyed_count"), 0);
 			});
 		}
 
-		// 收集需要删除的 UUID
+		// --- 修改结束 ---
+
+		int32 destroyedCount = 0;
 		TArray<FString> uuidsToRemove;
 		
 		for (auto& pair : Episode->CreatedActorMap)
@@ -1090,7 +1061,7 @@ void FCarlaServer::FPimpl::BindActions()
 			FString uuid = pair.Key;
 			TWeakObjectPtr<AActor> actorPtr = pair.Value;
 
-			// 跳过无效的 Actor
+			// 跳过无效的 Actor（可能已经被销毁或PendingKill）
 			if (!actorPtr.IsValid())
 			{
 				uuidsToRemove.Add(uuid);
@@ -1104,12 +1075,14 @@ void FCarlaServer::FPimpl::BindActions()
 				continue;
 			}
 
-			// 检查 Actor 的类是否匹配目标类型
+			// 检查 Actor 的类是否在目标集合中
 			bool bMatches = false;
 			UClass* actorClass = actor->GetClass();
 			
+			// 遍历 Registry 返回的所有目标类
 			for (TSubclassOf<AActor> targetClass : targetClasses)
 			{
+				// 使用 IsChildOf 可以支持蓝图子类的判断
 				if (actorClass == targetClass || actorClass->IsChildOf(targetClass))
 				{
 					bMatches = true;
@@ -1128,13 +1101,12 @@ void FCarlaServer::FPimpl::BindActions()
 			}
 		}
 
-		// 从 Map 中移除已删除的 UUID
+		// 从 Map 中移除已删除（或无效）的 UUID
 		for (const FString& uuid : uuidsToRemove)
 		{
 			Episode->CreatedActorMap.Remove(uuid);
 		}
 
-		// 构建返回 JSON
 		return MakeJsonResponse(true, FString(), [destroyedCount](TSharedPtr<FJsonObject> JsonResponse)
 		{
 			JsonResponse->SetNumberField(TEXT("destroyed_count"), destroyedCount);
