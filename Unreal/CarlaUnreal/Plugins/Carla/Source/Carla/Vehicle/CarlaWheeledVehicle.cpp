@@ -179,7 +179,11 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
   }
 
   WorldTransformedPose = pose;
-
+	
+#if defined(WITH_ROS2)
+	PublishRos2Odometry();
+#endif
+	
   // ROS2 控制逻辑：只在收到过 ROS2 消息时才执行
   // 早期退出检查：如果从未收到过ROS2消息（时间戳为 -1.0），直接跳过ROS2控制逻辑
   if (m_LastRos2AngularTimestamp < 0.0 || m_LastRos2LinearTimestamp < 0.0)
@@ -244,9 +248,7 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
     m_CachedCarlaActor->SetActorTargetVelocity(m_Ros2LinearVelocityCmps);
   }
   
-#if defined(WITH_ROS2)
-  PublishRos2Odometry();
-#endif
+
 }
 
 bool ACarlaWheeledVehicle::IsInVehicleRange(const FVector& Location) const
