@@ -310,7 +310,7 @@ void CarlaLidarPublisher::SetDataWithRingAndTimeFromUE(int32_t seconds, uint32_t
 
     std_msgs::msg::Header header;
     header.stamp(std::move(time));
-    header.frame_id(_frame_id);
+    header.frame_id(std::string("rslidar"));
 
     sensor_msgs::msg::PointField descriptor1;
     descriptor1.name("x");
@@ -353,7 +353,7 @@ void CarlaLidarPublisher::SetDataWithRingAndTimeFromUE(int32_t seconds, uint32_t
 
     std_msgs::msg::Header header;
     header.stamp(std::move(time));
-    header.frame_id(_frame_id);
+    header.frame_id(std::string("rslidar"));
 
     // 定义6个字段：x, y, z, intensity, ring, time
     sensor_msgs::msg::PointField descriptor1;
