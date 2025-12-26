@@ -167,7 +167,7 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
 
   const float IntRec = AbsAtm;
 
-  Detection.intensity = IntRec;
+  Detection.intensity = IntRec * 255.0f;
 
   return Detection;
 }
