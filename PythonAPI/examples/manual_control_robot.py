@@ -73,7 +73,7 @@ try:
     from pygame.locals import K_w
     from pygame.locals import K_c
     from pygame.locals import K_e
-    
+
     from pygame.locals import K_r
     from pygame.locals import K_q
     from pygame.locals import K_f
@@ -87,7 +87,7 @@ try:
     from pygame.locals import K_o
     from pygame.locals import K_t
     from pygame.locals import K_v
-    
+
     from pygame.locals import K_t
     from pygame.locals import K_g
     from pygame.locals import K_b
@@ -200,7 +200,7 @@ class World(object):
         # Keep same camera config if the camera manager exists.
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
-        
+
         # 如果已有机器人，先停止监听，再销毁服务器端，最后清理Python引用
         if self._robot_id is not None:
             # 先标记正在销毁，然后停止正在监听的传感器（只停止当前激活的传感器）
@@ -221,7 +221,7 @@ class World(object):
                             self.camera_manager.sensor.stop()
             except Exception:
                 pass
-            
+
             # 先销毁服务器端的机器人（这会自动停止并销毁所有传感器）
             try:
                 self.world.destroy_robot(self._robot_id)
@@ -233,12 +233,12 @@ class World(object):
             except Exception as e:
                 print(f"Failed to destroy existing robot: {e}")
             self._robot_id = None
-            
+
             # 服务器端已销毁，现在可以安全地清理Python引用
             # 此时即使Python对象被清理，C++ 析构函数检查 IsAlive() 时已返回 false，不会触发警告
             self._cleanup_sensors()
             self.player = None
-        
+
         # 使用 create_robot 创建机器人和传感器
         spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=1))
         json_params = {
@@ -271,7 +271,7 @@ class World(object):
                         "range": "200", # 距离
                         "upper_fov": "15.0",
                         "lower_fov": "-15.0",
-                        "horizontal_fov": "360",
+                        "horizontal_fov": "180",
                         "points_per_second": "288000",
                         "channels": "16",
                         "ros_name": "sensor/lidar/points",
@@ -291,31 +291,31 @@ class World(object):
                 }
             ]
         }
-        
+
         json_str = self.world.create_robot(json.dumps(json_params))
         try:
             result = json.loads(json_str)
         except Exception as e:
             print(f"Failed to parse create_robot result: {e}")
             raise ValueError(f"Failed to create robot: {json_str}")
-        
+
         if not result.get("ok"):
             error_msg = result.get("error", "Unknown error")
             raise ValueError(f"Failed to create robot: {error_msg}")
-        
+
         # 获取机器人ID和车辆actor
         robot_id = int(result.get("robot_id", 0))
         if not robot_id:
             raise ValueError("Failed to get robot_id from create_robot result")
-        
+
         self._robot_id = robot_id
         self.player = self.world.get_actor(robot_id)
         if self.player is None:
             raise ValueError("Failed to get player actor from robot_id")
-        
+
         self.show_vehicle_telemetry = False
         self.modify_vehicle_physics(self.player)
-        
+
         # 从返回的传感器列表中获取传感器actor
         sensor_dict = {}
         for s in result.get("sensors", []):
@@ -323,7 +323,7 @@ class World(object):
             sensor_id = s.get("id")
             if sensor_id is not None:
                 sensor_dict[sensor_name] = int(sensor_id)
-        
+
         # 创建传感器包装类（从已存在的actor获取数据）
         camera_sensors = []
         if "FrontRGB" in sensor_dict:
@@ -338,11 +338,11 @@ class World(object):
             lidar_actor = self.world.get_actor(sensor_dict["LidarRayCast"])
             if lidar_actor is not None:
                 camera_sensors.append(lidar_actor)
-        
+
         # 确保至少有一个相机传感器
         if len(camera_sensors) == 0:
             raise ValueError("No camera sensors found in create_robot result")
-        
+
         # 初始化传感器包装（所有传感器都是可选的）
         if "IMUSensor" in sensor_dict:
             imu_actor = self.world.get_actor(sensor_dict["IMUSensor"])
@@ -354,7 +354,7 @@ class World(object):
         else:
             print("Info: IMUSensor not found in create_robot result, skipping")
             self.imu_sensor = None
-        
+
         # 初始化CameraManager并设置为外部传感器模式
         if self.camera_manager is None:
             self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
@@ -363,7 +363,7 @@ class World(object):
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager._is_destroying = False  # 重置销毁标志
         self.camera_manager.set_external_sensors(camera_sensors)
-        
+
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
 
@@ -371,7 +371,7 @@ class World(object):
             self.world.tick()
         else:
             self.world.wait_for_tick()
-        
+
     def modify_vehicle_physics(self, actor):
         #If actor is not a vehicle, we cannot use the physics control
         try:
@@ -423,7 +423,7 @@ class World(object):
                             self.camera_manager.sensor.stop()
             except Exception:
                 pass
-            
+
             # 先销毁服务器端的机器人（这会自动停止并销毁所有传感器）
             try:
                 self.world.destroy_robot(self._robot_id)
@@ -435,7 +435,7 @@ class World(object):
             except Exception as e:
                 print(f"Failed to destroy robot: {e}")
             self._robot_id = None
-            
+
             # 服务器端已销毁，现在可以安全地清理Python引用
             # 此时即使Python对象被清理，C++ 析构函数检查 IsAlive() 时已返回 false，不会触发警告
             self._cleanup_sensors()
@@ -549,12 +549,12 @@ class KeyboardControl(object):
                     #     print("Cleared all drawn geometries")
                     # except Exception as e:
                     #     print("clear geometry failed:", e)
-                    
+
                     world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
                     path = '/mnt/ssd1t/3DGSData/nmh/LCC_Results/nmh_01.lcc'
                     world.world.load_map(path)
-                    
+
                 elif event.key == K_n:
                     if world.camera_manager is not None:
                         world.camera_manager.next_sensor()
@@ -576,7 +576,7 @@ class KeyboardControl(object):
                     }
                     return_value = world.world.line_trace_single(json.dumps(json_params))
                     print(f"line_trace_single return_value: {return_value}")
-                
+
                     json_params = {
                         "sensor_id": world.camera_manager.sensor.id,
                         "uvs": [
@@ -602,7 +602,7 @@ class KeyboardControl(object):
                         # 获取玩家当前位置作为参考点
                         player_transform = world.player.get_transform()
                         player_location = player_transform.location
-                        
+
                         # 定义5个相对位置（相对于玩家位置）
                         fire_locations = [
                             (0.0, 0.0, 0.0),      # 玩家位置
@@ -611,7 +611,7 @@ class KeyboardControl(object):
                             (0.0, 2.0, 0.0),      # 右侧2米
                             (0.0, -2.0, 0.0),     # 左侧2米
                         ]
-                        
+
                         created_count = 0
                         for i, (dx, dy, dz) in enumerate(fire_locations):
                             # 计算世界坐标位置
@@ -620,7 +620,7 @@ class KeyboardControl(object):
                                 player_location.y + dy,
                                 player_location.z + dz
                             )
-                            
+
                             effect_json = {
                                 "type": "Prop",
                                 "params": {
@@ -640,14 +640,14 @@ class KeyboardControl(object):
                                 print(f"[K_y] Created Object #{i+1} at ({fire_location[0]:.2f}, {fire_location[1]:.2f}, {fire_location[2]:.2f}), uuid: {uuid}")
                             else:
                                 print(f"[K_y] Failed to create Object #{i+1}")
-                        
+
                         world.hud.notification(f'Created {created_count}/5 Object')
                         print(f"[K_y] Total created: {created_count}/5 Object")
                     except Exception as e:
                         print(f"[K_y] Failed to create Object: {e}")
                         world.hud.error(f'Failed to create Object: {e}')
                 elif event.key == K_u:
-                # 批量销毁所有 effect 类型的对象
+                    # 批量销毁所有 effect 类型的对象
                     try:
                         # 使用新的 JSON 格式的 destroy_objects 接口
                         destroy_json = {
@@ -655,7 +655,7 @@ class KeyboardControl(object):
                         }
                         json_str = json.dumps(destroy_json)
                         result_str = world.world.destroy_objects(json_str)
-                        
+
                         # 解析返回的 JSON 结果
                         try:
                             result = json.loads(result_str)
@@ -675,10 +675,10 @@ class KeyboardControl(object):
                     except Exception as e:
                         print(f"[K_u] Failed to destroy Object: {e}")
                         world.hud.error(f'Failed to destroy: {e}')
-                
+
                 if isinstance(self._control, carla.VehicleControl):
                     pass #车辆事件
-            
+
         if isinstance(self._control, carla.VehicleControl):
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time(), world)
             self._parse_sensor_keys(pygame.key.get_pressed(), clock.get_time(), world)
@@ -713,11 +713,11 @@ class KeyboardControl(object):
             forward_vector.z * linear_velocity_magnitude
         )
         world.player.set_target_velocity(target_velocity)
-        
+
         # A/D 使用角速度控制（绕 Z 轴，CARLA API 使用度/秒）
         angular_velocity_rad = 0.0
         if keys[K_a]:
-            angular_velocity_rad = -max_angular_velocity_deg 
+            angular_velocity_rad = -max_angular_velocity_deg
         elif keys[K_d]:
             angular_velocity_rad = max_angular_velocity_deg
         if keys[K_s]:
@@ -726,18 +726,18 @@ class KeyboardControl(object):
         world.player.set_target_angular_velocity(
             carla.Vector3D(0.0, 0.0, angular_velocity_rad)
         )
-                
+
     def visualize_navigable_points(self, navigable_points):
         # 提取x,y坐标
         x_coords = [pt.x for pt in navigable_points]
         y_coords = [pt.y for pt in navigable_points]
-    
+
         # 创建图形
         plt.figure(figsize=(12, 10), dpi=100)
-    
+
         # 绘制散点图
         plt.scatter(x_coords, y_coords, s=10, c='blue', alpha=0.6, label='Navigation Points')
-    
+
         # 添加标题和标签
         plt.title('Carla Navigable Area Points', fontsize=15)
         plt.xlabel('X Coordinate (meters)', fontsize=12)
@@ -767,29 +767,29 @@ class KeyboardControl(object):
         # 更新骨骼旋转状态
         self._bone_rotations[bone_name] = new_rotation
 
-    
+
     def _parse_sensor_keys(self, keys, milliseconds, world, angle=1):
         if world.camera_manager is None or world.camera_manager.sensor is None:
             return
         sensor = world.camera_manager.sensor
-        
+
         if keys[K_r]:# 重置所有骨骼到初始状态
             bones_ctrl = carla.RobotBoneControlIn()
             bone_transforms = []
-    
+
             for bone_name, initial_transform in self._bones_cache.items():
                 bone_transform = carla.bone_transform()
                 bone_transform.name = bone_name
-                bone_transform.transform = initial_transform 
+                bone_transform.transform = initial_transform
                 bone_transforms.append(bone_transform)
-    
+
             bones_ctrl.bone_transforms = bone_transforms
             self._world.player.set_bones_transform(bones_ctrl)
-    
+
             for bone_name in self._bone_rotations:
                 if bone_name in self._bones_cache:
                     self._bone_rotations[bone_name] = self._bones_cache[bone_name].rotation
-    
+
             world.hud.notification('All bones reset to initial state.')
 
         if keys[K_UP]:
@@ -836,7 +836,7 @@ class KeyboardControl(object):
             )
             self._apply_bone_rotation("Gimbal", new_rotation)
             world.hud.notification('Gimbal Bone Yaw: %.1f°' % new_yaw)
-    
+
         # FOV 控制
         if keys[K_i]:
             self.current_fov = max(10, self.current_fov - 1.0)
@@ -854,7 +854,7 @@ class KeyboardControl(object):
             transforms = world.world.get_gauges_transform()
             print(f"tatal gauges: {len(transforms)}")
             print(f"First gauge pos: {transforms[0].location.x, transforms[0].location.y, transforms[0].location.z}")
-            
+
 
     def _control_main_camera_free(self, world):
         player = world.player
@@ -876,7 +876,7 @@ class KeyboardControl(object):
             }
         }
         world.world.control_main_camera(json.dumps(payload))
-        
+
     def _control_main_camera_fixed(self, world):
         player = world.player
         if player is None:
@@ -891,8 +891,8 @@ class KeyboardControl(object):
                 "rotation": {"pitch": -30.0, "yaw": 0.0, "roll": 0.0}
             }
         }
-        world.world.control_main_camera(json.dumps(payload))          
-        
+        world.world.control_main_camera(json.dumps(payload))
+
     @staticmethod
     def _is_quit_shortcut(key):
         return (key == K_ESCAPE)
@@ -1318,7 +1318,7 @@ class CameraManager(object):
     @staticmethod
     def _parse_image(weak_self, image):
         self = weak_self()
-        
+
         if not self:
             return
         # 检查是否正在销毁
@@ -1361,13 +1361,7 @@ class CameraManager(object):
                         points = np.reshape(points, (int(points.shape[0] / 4), 4))
                         lidar_xy = points[:, :2]
 
-                    # 自适应缩放：优先根据本帧点云的最大半径填充视窗，缩放至窗口的 90%；若数据异常再回退用 range。
-                    max_radius = np.max(np.abs(lidar_xy)) if lidar_xy.size > 0 else 1.0
-                    base_scale = min(self.hud.dim) / (2.0 * max(1e-3, float(self.lidar_range)))
-                    if np.isfinite(max_radius) and max_radius > 1e-3:
-                        scale = 0.9 * min(self.hud.dim) / (2.0 * max_radius)
-                    else:
-                        scale = base_scale
+                    scale = min(self.hud.dim) / float(self.lidar_range * 0.5)
 
                     lidar_xy = lidar_xy * scale
                     center = np.array([0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1]], dtype=np.float32)
@@ -1377,9 +1371,8 @@ class CameraManager(object):
                     idx = np.clip(lidar_xy.astype(np.int32), [0, 0], [self.hud.dim[0]-1, self.hud.dim[1]-1])
                     lidar_img = np.zeros((self.hud.dim[0], self.hud.dim[1], 3), dtype=np.uint8)
                     if idx.size > 0:
-                        # 提高可见度：绘制 3x3 点块
-                        for dx in (-1, 0, 1):
-                            for dy in (-1, 0, 1):
+                        for dx in (0,):
+                            for dy in (0,):
                                 px = np.clip(idx[:, 0] + dx, 0, self.hud.dim[0]-1)
                                 py = np.clip(idx[:, 1] + dy, 0, self.hud.dim[1]-1)
                                 lidar_img[px, py] = (255, 255, 255)
