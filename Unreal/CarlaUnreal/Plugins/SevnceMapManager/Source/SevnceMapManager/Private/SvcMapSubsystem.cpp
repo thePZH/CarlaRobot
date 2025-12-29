@@ -304,7 +304,7 @@ void USvcMapSubsystem::LoadAndAttachNaviMesh(const FString& DataSetFileName)
 	naviMeshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Ignore);
     naviMeshComp->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     naviMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    naviMeshComp->SetMobility(EComponentMobility::Movable); // 导航网格通常是静态的
+    naviMeshComp->SetMobility(EComponentMobility::Movable);
     naviMeshComp->SetVisibility(false);
     naviMeshComp->SetHiddenInGame(true);
     naviMeshComp->RegisterComponent();
