@@ -1,32 +1,3 @@
-"""
-
-    W            : 油门
-    S            : 刹车
-    A/D          : 左右旋转
-
-    Q            : 切换前进/倒档
-    Space        : 手刹
-    
-    LEFT/RIGHT   : 云台旋转
-    UP/DOWN      : 相机旋转
-    R            : 重置云台、相机旋转
-    T            ：重置相机倍率
-    N            : 可巡检区域点云
-    G            : 获取表计坐标
-    
-    I            : 放大
-    O            ：缩小
-    
-    ` or N       : next sensor
-    [1-9]        : change to sensor [1-9]
-
-    F1           : toggle HUD
-    H/?          : toggle help
-    ESC          : quit
-    
-
-"""
-
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
@@ -84,6 +55,7 @@ try:
     from pygame.locals import K_u
     from pygame.locals import K_F8
     from pygame.locals import K_i
+    from pygame.locals import K_j
     from pygame.locals import K_o
     from pygame.locals import K_t
     from pygame.locals import K_v
@@ -450,6 +422,9 @@ class KeyboardControl(object):
     def __init__(self, world):
         self._world = world
         self.uuids = []
+        self.bulk_objects_created = False  # 标记是否已创建100个object
+        self.bulk_object_uuids = []  # 存储100个object的UUID
+        self.flipMap = True
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
             self._lights = carla.VehicleLightState.NONE
@@ -553,7 +528,13 @@ class KeyboardControl(object):
                     world.world.clear_draw_objects(json.dumps({"type": "all"}))
                 elif event.key == K_h:
                     path = '/mnt/ssd1t/3DGSData/nmh/LCC_Results/nmh_01.lcc'
-                    world.world.load_map(path)
+                    path1 = '/mnt/ssd1t/3DGSData/lijia/LCC_Results/ljgc_01.lcc'
+                    if self.flipMap:
+                        world.world.load_map(path)
+                        self.flipMap = False
+                    else:
+                        world.world.load_map(path1)
+                        self.flipMap = True
 
                 elif event.key == K_n:
                     if world.camera_manager is not None:
@@ -597,84 +578,86 @@ class KeyboardControl(object):
                     self._control_main_camera_free(world)
                 elif event.key == K_F6:
                     self._control_main_camera_fixed(world)
-                elif event.key == K_y:
+                elif event.key == K_j:
+                    # 创建/销毁100个object的循环
                     try:
-                        # 获取玩家当前位置作为参考点
-                        player_transform = world.player.get_transform()
-                        player_location = player_transform.location
+                        if not self.bulk_objects_created:
+                            # 创建100个object
+                            print("[K_j] Creating objects...")
+                            
+                            # 获取玩家当前位置作为参考点
+                            player_transform = world.player.get_transform()
+                            player_location = player_transform.location
 
-                        # 定义5个相对位置（相对于玩家位置）
-                        fire_locations = [
-                            (0.0, 0.0, 0.0),      # 玩家位置
-                            (2.0, 0.0, 0.0),      # 前方2米
-                            (-2.0, 0.0, 0.0),     # 后方2米
-                            (0.0, 2.0, 0.0),      # 右侧2米
-                            (0.0, -2.0, 0.0),     # 左侧2米
-                        ]
+                            created_count = 0
+                            # 创建100个object，围绕玩家排列成10x10网格
+                            for i in range(5):
+                                # 计算网格位置 (10x10)
+                                grid_x = (i % 10) - 4.5  # -4.5 到 4.5
+                                grid_y = (i // 10) - 4.5  # -4.5 到 4.5
+                                
+                                # 计算世界坐标位置，间距2米
+                                object_location = (
+                                    player_location.x + grid_x * 2.0,
+                                    player_location.y + grid_y * 2.0,
+                                    player_location.z
+                                )
 
-                        created_count = 0
-                        for i, (dx, dy, dz) in enumerate(fire_locations):
-                            # 计算世界坐标位置
-                            fire_location = (
-                                player_location.x + dx,
-                                player_location.y + dy,
-                                player_location.z + dz
-                            )
-
-                            effect_json = {
-                                "type": "Prop",
-                                "params": {
-                                    "category": "KoreanFireExtinguisher",
-                                    "transform": {
-                                        "location": {"x": fire_location[0], "y": fire_location[1], "z": fire_location[2]},
-                                        "rotation": {"pitch": 0, "yaw": 0, "roll": 0},
-                                        "scale": {"x": 1, "y": 1, "z": 1}
+                                effect_json = {
+                                    "type": "Prop",
+                                    "params": {
+                                        "category": "KoreanFireExtinguisher",
+                                        "transform": {
+                                            "location": {"x": object_location[0], "y": object_location[1], "z": object_location[2]},
+                                            "rotation": {"pitch": 0, "yaw": 0, "roll": 0},
+                                            "scale": {"x": 1, "y": 1, "z": 1}
+                                        }
                                     }
                                 }
+                                json_str = json.dumps(effect_json)
+                                uuid = world.world.create_object(json_str)
+                                if uuid:
+                                    self.bulk_object_uuids.append(uuid)
+                                    created_count += 1
+                                else:
+                                    print(f"[K_j] Failed to create object #{i+1}")
+
+                            self.bulk_objects_created = True
+                            world.hud.notification(f'Created {created_count}/100 objects')
+                            print(f"[K_j] Total created: {created_count}/100 objects")
+                            
+                        else:
+                            # 销毁所有100个object
+                            print("[K_j] Destroying 20 objects...")
+                            
+                            destroy_json = {
+                                "type": "Prop"
                             }
-                            json_str = json.dumps(effect_json)
-                            uuid = world.world.create_object(json_str)
-                            if uuid:
-                                self.uuids.append(uuid)
-                                created_count += 1
-                                print(f"[K_y] Created Object #{i+1} at ({fire_location[0]:.2f}, {fire_location[1]:.2f}, {fire_location[2]:.2f}), uuid: {uuid}")
-                            else:
-                                print(f"[K_y] Failed to create Object #{i+1}")
+                            json_str = json.dumps(destroy_json)
+                            result_str = world.world.destroy_objects(json_str)
 
-                        world.hud.notification(f'Created {created_count}/5 Object')
-                        print(f"[K_y] Total created: {created_count}/5 Object")
+                            # 解析返回的 JSON 结果
+                            try:
+                                result = json.loads(result_str)
+                                if result.get("ok", False):
+                                    destroyed_count = result.get("destroyed_count", 0)
+                                    world.hud.notification(f'Destroyed {destroyed_count} objects')
+                                    print(f"[K_j] Successfully destroyed {destroyed_count} objects")
+                                else:
+                                    error_msg = result.get("error", "Unknown error")
+                                    world.hud.error(f'Destroy failed: {error_msg}')
+                                    print(f"[K_j] Destroy failed: {error_msg}")
+                            except json.JSONDecodeError as e:
+                                print(f"[K_j] Failed to parse destroy_objects result: {e}, raw: {result_str}")
+                                world.hud.error('Failed to parse destroy result')
+                            
+                            # 重置状态
+                            self.bulk_objects_created = False
+                            self.bulk_object_uuids = []
+                            
                     except Exception as e:
-                        print(f"[K_y] Failed to create Object: {e}")
-                        world.hud.error(f'Failed to create Object: {e}')
-                elif event.key == K_u:
-                    # 批量销毁所有 effect 类型的对象
-                    try:
-                        # 使用新的 JSON 格式的 destroy_objects 接口
-                        destroy_json = {
-                            "type": "Prop"
-                        }
-                        json_str = json.dumps(destroy_json)
-                        result_str = world.world.destroy_objects(json_str)
-
-                        # 解析返回的 JSON 结果
-                        try:
-                            result = json.loads(result_str)
-                            if result.get("ok", False):
-                                destroyed_count = result.get("destroyed_count", 0)
-                                world.hud.notification(f'Destroyed {destroyed_count} objects')
-                                print(f"[K_u] Successfully destroyed {destroyed_count} objects")
-                                # 清空本地 UUID 列表（因为服务器端已经删除了）
-                                self.uuids = []
-                            else:
-                                error_msg = result.get("error", "Unknown error")
-                                world.hud.error(f'Destroy failed: {error_msg}')
-                                print(f"[K_u] Destroy failed: {error_msg}")
-                        except json.JSONDecodeError as e:
-                            print(f"[K_u] Failed to parse destroy_objects result: {e}, raw: {result_str}")
-                            world.hud.error('Failed to parse destroy result')
-                    except Exception as e:
-                        print(f"[K_u] Failed to destroy Object: {e}")
-                        world.hud.error(f'Failed to destroy: {e}')
+                        print(f"[K_j] Failed to create/destroy objects: {e}")
+                        world.hud.error(f'Failed to create/destroy: {e}')
 
                 if isinstance(self._control, carla.VehicleControl):
                     pass #车辆事件
@@ -914,7 +897,6 @@ class HUD(object):
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 12 if os.name == 'nt' else 14)
         self._notifications = FadingText(font, (width, 40), (0, height - 40))
-        self.help = HelpText(pygame.font.Font(mono, 16), width, height)
         self.server_fps = 0
         self.frame = 0
         self.simulation_time = 0
@@ -1031,7 +1013,6 @@ class HUD(object):
                     display.blit(surface, (8, v_offset))
                 v_offset += 18
         self._notifications.render(display)
-        self.help.render(display)
 
 
 # ==============================================================================
@@ -1061,38 +1042,6 @@ class FadingText(object):
 
     def render(self, display):
         display.blit(self.surface, self.pos)
-
-
-# ==============================================================================
-# -- HelpText ------------------------------------------------------------------
-# ==============================================================================
-
-
-class HelpText(object):
-    """Helper class to handle text output using pygame"""
-    def __init__(self, font, width, height):
-        lines = __doc__.split('\n')
-        self.font = font
-        self.line_space = 18
-        self.dim = (780, len(lines) * self.line_space + 12)
-        self.pos = (0.5 * width - 0.5 * self.dim[0], 0.5 * height - 0.5 * self.dim[1])
-        self.seconds_left = 0
-        self.surface = pygame.Surface(self.dim)
-        self.surface.fill((0, 0, 0, 0))
-        for n, line in enumerate(lines):
-            text_texture = self.font.render(line, True, (255, 255, 255))
-            self.surface.blit(text_texture, (22, n * self.line_space))
-            self._render = False
-        self.surface.set_alpha(220)
-
-    def toggle(self):
-        self._render = not self._render
-
-    def render(self, display):
-        if self._render:
-            display.blit(self.surface, self.pos)
-
-
 # ==============================================================================
 # -- IMUSensorWrapper ----------------------------------------------------------
 # ==============================================================================

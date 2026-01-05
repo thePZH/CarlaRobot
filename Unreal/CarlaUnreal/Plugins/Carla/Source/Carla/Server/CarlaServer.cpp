@@ -83,6 +83,7 @@
 #include "NiagaraComponent.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
+#include "HAL/CriticalSection.h"
 
 #include <util/ue-header-guard-end.h>
 
@@ -161,6 +162,67 @@ static std::string MakeJsonResponse(bool bOk, const FString& ErrorMessage = FStr
   return std::string(TCHAR_TO_UTF8(*OutputString));
 }
 
+static TMap<FString, FString>& GetResourcePathMap()
+{
+    // 使用双重检查锁定模式
+    static TMap<FString, FString>* ResourcePathMap = nullptr;
+    static FCriticalSection InitCriticalSection;
+    
+    if (!ResourcePathMap)
+    {
+        FScopeLock Lock(&InitCriticalSection);
+        if (!ResourcePathMap)
+        {
+            static TMap<FString, FString> LocalResourcePathMap = []()
+            {
+                TMap<FString, FString> Map;
+                
+                // --- 特效 ---
+                Map.Add(TEXT("Effect.Fire"), TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C"));
+                Map.Add(TEXT("Effect.Smoke01"), TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C"));
+                Map.Add(TEXT("Effect.Smoke02"), TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C"));
+                Map.Add(TEXT("Effect.Smoke03"), TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C"));
+                
+                // --- 角色与网格体 ---
+                Map.Add(TEXT("Human.Worker01"), TEXT("/Game/Sevnce/Worker/BP_Worker01.BP_Worker01_C"));
+                
+                // --- 道具
+                Map.Add(TEXT("Prop.Gauge01"), TEXT("/Game/Sevnce/Props/BP_Gauge01.BP_Gauge01_C"));
+                Map.Add(TEXT("Prop.Barrel01"), TEXT("/Game/Sevnce/Props/BP_Barrel01.BP_Barrel01_C"));
+                Map.Add(TEXT("Prop.KoreanFireExtinguisher"), TEXT("/Game/Sevnce/Props/BP_KoreanFireExtinguisher.BP_KoreanFireExtinguisher_C"));
+                Map.Add(TEXT("Prop.RoadBarrier"), TEXT("/Game/Sevnce/Props/BP_RoadBarrier.BP_RoadBarrier_C"));
+                Map.Add(TEXT("Prop.WetFloorSign"), TEXT("/Game/Sevnce/Props/BP_WetFloorSign.BP_WetFloorSign_C"));
+
+                return Map;
+            }();
+            ResourcePathMap = &LocalResourcePathMap;
+        }
+    }
+    return *ResourcePathMap;
+}
+
+// 辅助函数：根据key加载对应的Actor类
+static TSubclassOf<AActor> LoadActorClass(const FString& Key)
+{
+    const TMap<FString, FString>& ResourcePathMap = GetResourcePathMap();
+    const FString* AssetPathPtr = ResourcePathMap.Find(Key);
+    
+    if (!AssetPathPtr || AssetPathPtr->IsEmpty())
+    {
+        UE_LOG(LogTemp, Error, TEXT("Asset path not found for key: %s"), *Key);
+        return nullptr;
+    }
+    
+    // 每次都重新加载，避免野指针问题
+    TSubclassOf<AActor> ActorClass = LoadClass<AActor>(nullptr, **AssetPathPtr);
+    if (!ActorClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load actor class for key: %s, path: %s"), *Key, **AssetPathPtr);
+    }
+    
+    return ActorClass;
+}
+
 // =============================================================================
 // -- FCarlaServer::FPimpl -----------------------------------------------
 // =============================================================================
@@ -199,6 +261,9 @@ public:
 
   std::atomic_size_t TickCuesReceived { 0u };
 
+
+	FCriticalSection ActorMapCriticalSection;  // 用于保护 CreatedActorMap 的访问
+	FCriticalSection ResourceMapCriticalSection; // 用于保护 ResourceMap 的访问（如果需要）
 private:
 
   void BindActions();
@@ -871,6 +936,10 @@ void FCarlaServer::FPimpl::BindActions()
 	
 	BIND_SYNC(create_object) << [this](std::string json) -> R<std::string>
 	{
+		REQUIRE_CARLA_EPISODE();
+
+		FScopeLock Lock(&ActorMapCriticalSection);  // 加锁
+		
 		TSharedPtr<FJsonObject> JsonObject;
 		FString ErrorMessage;
 		if (!ParseJsonString(json, JsonObject, ErrorMessage))
@@ -939,21 +1008,17 @@ void FCarlaServer::FPimpl::BindActions()
 			}
 		}
 		
-		TMap<FString, TSubclassOf<AActor>> effectMap;
-		effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C")));
-		effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C")));
-		effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C")));
-		effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C")));
+		// 3. 拼接 Key 并查找
+		FString lookupKey = FString::Printf(TEXT("%s.%s"), *type, *category);
+		UE_LOG(LogTemp, Warning, TEXT("Looking for resource with key: %s"), *lookupKey);
+    
+		// 使用新的加载方式，每次都重新加载
+		TSubclassOf<AActor> actorClass = LoadActorClass(lookupKey);
 
-		if (!effectMap.Contains(category))
+		if (!actorClass)
 		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid category"));
-		}
-
-		TSubclassOf<AActor> effectClass = effectMap[category];
-		if (!effectClass)
-		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid category"));
+			UE_LOG(LogTemp, Error, TEXT("Failed to load actor class for key: %s"), *lookupKey);
+			return MakeJsonResponse(false, FString::Printf(TEXT("Resource '%s' not found"), *lookupKey));
 		}
 
 		UWorld* world = GEngine->GetWorldFromContextObjectChecked(GEngine->GetCurrentPlayWorld());
@@ -964,27 +1029,30 @@ void FCarlaServer::FPimpl::BindActions()
 		}
 
 		FActorSpawnParameters spawnParams;
-		AActor* spawnedActor = world->SpawnActor<AActor>(effectClass, location, rotation, spawnParams);
+		AActor* spawnedActor = world->SpawnActor<AActor>(actorClass, location, rotation, spawnParams);
 		if (!spawnedActor)
 		{
 			return MakeJsonResponse(false, TEXT("Failed to spawn actor"));
 		}
 
 		spawnedActor->SetActorScale3D(scale);
-		TSet<UActorComponent*> componentsSet = spawnedActor->GetComponents();
-
-		for (auto& comp : componentsSet)
+		if (UNiagaraComponent* niagaraComp = spawnedActor->FindComponentByClass<UNiagaraComponent>())
 		{
-			if (auto niagaraComp = Cast<UNiagaraComponent>(comp))
-			{
-				niagaraComp->TranslucencySortPriority = 50;
-			}
+			niagaraComp->TranslucencySortPriority = 50;
+		}
+		if (UPrimitiveComponent* meshComp = spawnedActor->FindComponentByClass<UPrimitiveComponent>())
+		{
+			// 1. 把物体设为世界静态物体（车肯定会撞它）
+			meshComp->SetCollisionObjectType(ECC_WorldStatic);
+			meshComp->SetCollisionEnabled(ECollisionEnabled::Type::QueryAndPhysics);
+			meshComp->SetCollisionResponseToAllChannels(ECR_Block);
+			meshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel4, ECR_Block);
+			meshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);
 		}
 
 		FString uuidFStr = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 		Episode->CreatedActorMap.Add(uuidFStr, spawnedActor);
-
-
+		
 		return MakeJsonResponse(true, FString(), [uuidFStr](TSharedPtr<FJsonObject> JsonResponse)
 		{
 			JsonResponse->SetStringField(TEXT("uuid"), uuidFStr);
@@ -993,6 +1061,10 @@ void FCarlaServer::FPimpl::BindActions()
 	
 	BIND_SYNC(destroy_object) << [this](std::string uuidStr) -> R<bool>
 	{
+		REQUIRE_CARLA_EPISODE();
+
+		FScopeLock Lock(&ActorMapCriticalSection);  // 加锁
+
 		FString uuid = UTF8_TO_TCHAR(uuidStr.c_str());
 		
 		TWeakObjectPtr<AActor>* actorPtr = Episode->CreatedActorMap.Find(uuid);
@@ -1027,7 +1099,7 @@ void FCarlaServer::FPimpl::BindActions()
 	BIND_SYNC(destroy_objects) << [this](std::string jsonStr) -> R<std::string>
 	{
 		REQUIRE_CARLA_EPISODE();
-		
+		FScopeLock Lock(&ActorMapCriticalSection);  // 加锁
 		TSharedPtr<FJsonObject> JsonObject;
 		FString ErrorMessage;
 		if (!ParseJsonString(jsonStr, JsonObject, ErrorMessage))
@@ -1035,102 +1107,183 @@ void FCarlaServer::FPimpl::BindActions()
 			return MakeJsonResponse(false, ErrorMessage);
 		}
 
-		FString type;
+		FString type; // 例如 "Effect", "Prop"
 		if (!JsonObject->TryGetStringField(TEXT("type"), type))
 		{
 			return MakeJsonResponse(false, TEXT("Missing type field"));
 		}
 
-		int32 destroyedCount = 0;
-
-		// 根据类型构建需要匹配的类集合
-		TArray<TSubclassOf<AActor>> targetClasses;
-		
-		if (type.Equals(TEXT("effect"), ESearchCase::IgnoreCase))
+		// --- 准备阶段：解析目标类型 ---
+		const TMap<FString, FString>& ResourcePathMap = GetResourcePathMap();
+		if (ResourcePathMap.Num() == 0)
 		{
-			// effect 类型包含的所有 category 对应的类
-			TMap<FString, TSubclassOf<AActor>> effectMap;
-			// 与 create_object 中保持一致的资源路径（/Game/Sevnce/CarVFX/...）
-			effectMap.Add(TEXT("fire"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Fire.BP_Fire_C")));
-			effectMap.Add(TEXT("smoke01"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke01.BP_Smoke01_C")));
-			effectMap.Add(TEXT("smoke02"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke02.BP_Smoke02_C")));
-			effectMap.Add(TEXT("smoke03"), LoadClass<AActor>(nullptr, TEXT("/Game/Sevnce/CarVFX/BP_Smoke03.BP_Smoke03_C")));
-			
-			for (const auto& pair : effectMap)
+			UE_LOG(LogTemp, Error, TEXT("ResourcePathMap is empty!"));
+			return MakeJsonResponse(false, TEXT("ResourcePathMap not initialized"));
+		}
+		
+		TArray<FString> targetKeys;
+		
+		// 1. 构造前缀 (例如 "Prop.")
+		FString prefix = FString::Printf(TEXT("%s."), *type);
+		UE_LOG(LogTemp, Warning, TEXT("Looking for objects with prefix: %s"), *prefix);
+
+		// 收集所有匹配的key
+		for (const auto& pair : ResourcePathMap)
+		{
+			if (pair.Key.StartsWith(prefix, ESearchCase::IgnoreCase))
 			{
-				if (pair.Value)
+				if (!pair.Value.IsEmpty())
 				{
-					targetClasses.Add(pair.Value);
+					targetKeys.Add(pair.Key);
+					UE_LOG(LogTemp, Warning, TEXT("Found target key: %s -> %s"), *pair.Key, *pair.Value);
 				}
 			}
 		}
 
-		if (targetClasses.Num() == 0)
+		if (targetKeys.Num() == 0)
 		{
-			return MakeJsonResponse(false, TEXT("Unsupported or invalid type"), [](TSharedPtr<FJsonObject> JsonResponse)
+			UE_LOG(LogTemp, Error, TEXT("No matching keys found for prefix: %s"), *prefix);
+			return MakeJsonResponse(false, TEXT("No matching classes found for this type"), [](TSharedPtr<FJsonObject> JsonResponse)
 			{
 				JsonResponse->SetNumberField(TEXT("destroyed_count"), 0);
 			});
 		}
 
-		// 收集需要删除的 UUID
+		// --- 收集阶段：只查找，不销毁 ---
+		
+		// 用于存储待清理的 UUID (用于更新 Map)
 		TArray<FString> uuidsToRemove;
+		// 用于存储待销毁的 Actor 指针 (用于执行销毁)
+		TArray<AActor*> actorsToDestroy;
+
+		// 2. 遍历当前所有已创建的 Actor
+		UE_LOG(LogTemp, Warning, TEXT("Starting to iterate through %d actors in CreatedActorMap"), Episode->CreatedActorMap.Num());
 		
 		for (auto& pair : Episode->CreatedActorMap)
 		{
-			FString uuid = pair.Key;
-			TWeakObjectPtr<AActor> actorPtr = pair.Value;
+			const FString& uuid = pair.Key;
+			const TWeakObjectPtr<AActor>& actorPtr = pair.Value;
 
-			// 跳过无效的 Actor
+			// 2.1 清理已失效的弱引用
 			if (!actorPtr.IsValid())
 			{
+				UE_LOG(LogTemp, Warning, TEXT("Found invalid actor pointer for uuid: %s"), *uuid);
 				uuidsToRemove.Add(uuid);
 				continue;
 			}
 
 			AActor* actor = actorPtr.Get();
-			if (!actor)
+			
+			// 增强安全检查：确保Actor完全有效
+			if (!actor || !actor->IsValidLowLevelFast() || actor->IsPendingKillPending())
 			{
+				UE_LOG(LogTemp, Warning, TEXT("Found invalid actor for uuid: %s"), *uuid);
 				uuidsToRemove.Add(uuid);
 				continue;
 			}
 
-			// 检查 Actor 的类是否匹配目标类型
-			bool bMatches = false;
+			// 2.2 检查该 Actor 是否属于目标类别
+			bool bShouldDestroy = false;
 			UClass* actorClass = actor->GetClass();
 			
-			for (TSubclassOf<AActor> targetClass : targetClasses)
+			// 安全检查：防止 Class 指针无效
+			if (!actorClass || !actorClass->IsValidLowLevel())
 			{
-				if (actorClass == targetClass || actorClass->IsChildOf(targetClass))
+				UE_LOG(LogTemp, Warning, TEXT("Found invalid actor class for uuid: %s"), *uuid);
+				uuidsToRemove.Add(uuid);
+				continue;
+			}
+
+			// 检查Actor类是否匹配目标类型
+			FString actorClassName = actorClass->GetName();
+			UE_LOG(LogTemp, VeryVerbose, TEXT("Checking actor: %s (class: %s)"), *actor->GetName(), *actorClassName);
+			
+			// 对每个目标key都重新加载类进行比较
+			for (const FString& targetKey : targetKeys)
+			{
+				TSubclassOf<AActor> targetClass = LoadActorClass(targetKey);
+				if (targetClass && actorClass->IsChildOf(targetClass))
 				{
-					bMatches = true;
+					bShouldDestroy = true;
+					UE_LOG(LogTemp, Warning, TEXT("Marked actor for destruction: %s (class: %s, targetKey: %s)"), *actor->GetName(), *actorClassName, *targetKey);
 					break;
 				}
 			}
 
-			if (bMatches)
+			if (bShouldDestroy)
 			{
-				UWorld* world = actor->GetWorld();
-				if (world && world->DestroyActor(actor))
-				{
-					destroyedCount++;
-				}
+				// 只做标记，不调用 DestroyActor
 				uuidsToRemove.Add(uuid);
+				actorsToDestroy.Add(actor);
 			}
 		}
 
-		// 从 Map 中移除已删除的 UUID
-		for (const FString& uuid : uuidsToRemove)
+		// --- 执行阶段：先销毁对象，后清理引用 ---
+
+		// 3. 第一步：执行物理销毁
+		int32 destroyedCount = 0;
+		TArray<FString> successfullyRemovedUuids;
+		
+		UE_LOG(LogTemp, Warning, TEXT("Starting to destroy %d actors"), actorsToDestroy.Num());
+		
+		for (int32 i = 0; i < actorsToDestroy.Num(); ++i)
+		{
+			AActor* actor = actorsToDestroy[i];
+			const FString& uuid = uuidsToRemove[i];
+			
+			// 增强安全检查
+			if (!actor || !actor->IsValidLowLevelFast() || actor->IsPendingKillPending())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Actor already invalid during destruction: %s"), *uuid);
+				// Actor已经无效，直接清理引用
+				successfullyRemovedUuids.Add(uuid);
+				continue;
+			}
+			
+			UWorld* world = actor->GetWorld();
+			if (!world)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("World invalid during actor destruction: %s"), *uuid);
+				// World无效，直接清理引用
+				successfullyRemovedUuids.Add(uuid);
+				continue;
+			}
+			
+			// 执行销毁前再次检查
+			FString actorName = actor->GetName();
+			UE_LOG(LogTemp, Warning, TEXT("Attempting to destroy actor: %s (uuid: %s)"), *actorName, *uuid);
+			
+			// 执行销毁
+			if (world->DestroyActor(actor))
+			{
+				destroyedCount++;
+				successfullyRemovedUuids.Add(uuid);
+				UE_LOG(LogTemp, Warning, TEXT("Successfully destroyed actor: %s"), *actorName);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("Failed to destroy actor: %s"), *actorName);
+				// 销毁失败也清理引用，避免内存泄漏
+				successfullyRemovedUuids.Add(uuid);
+			}
+		}
+
+		// 4. 第二步：从 Map 中移除所有已处理的引用
+		UE_LOG(LogTemp, Warning, TEXT("Cleaning up %d UUID references from CreatedActorMap"), successfullyRemovedUuids.Num());
+		
+		for (const FString& uuid : successfullyRemovedUuids)
 		{
 			Episode->CreatedActorMap.Remove(uuid);
 		}
+		
+		UE_LOG(LogTemp, Warning, TEXT("Destruction completed. Successfully destroyed %d actors"), destroyedCount);
 
-		// 构建返回 JSON
 		return MakeJsonResponse(true, FString(), [destroyedCount](TSharedPtr<FJsonObject> JsonResponse)
 		{
 			JsonResponse->SetNumberField(TEXT("destroyed_count"), destroyedCount);
 		});
 	};
+
 
 	BIND_SYNC(destroy_actor) << [this](cr::ActorId ActorId) -> R<bool>
 	{
