@@ -205,66 +205,47 @@ namespace ros2
 		int32_t seconds,
 		uint32_t nanoseconds,
 		const float *location,
-		const float *rotation,
+		const float *orientation,
 		const float *linear_velocity,
 		const float *angular_velocity)
 	{
-		if (!location || !rotation || !linear_velocity || !angular_velocity)
+		if (!location || !orientation || !linear_velocity || !angular_velocity)
 		{
 			return;
 		}
 
-		// 1. 时间戳与 Header
+		// 1. Header
 		builtin_interfaces::msg::Time time;
 		time.sec(seconds);
 		time.nanosec(nanoseconds);
 
 		std_msgs::msg::Header header;
 		header.stamp(std::move(time));
-		header.frame_id(_header_frame_id.empty() ? _parent : _header_frame_id);   // 上层坐标系
+		header.frame_id(_header_frame_id.empty() ? _parent : _header_frame_id);
 
-		// 2. 位姿（Pose）——从 UE 的位置和欧拉角计算
-		const float tx = location[0];
-		const float ty = location[1];
-		const float tz = location[2];
-
-		// UE 的旋转：roll/pitch 需要符号翻转，单位从度转为弧度
-		const float rx = (-rotation[0]) * (static_cast<float>(M_PI) / 180.0f);
-		const float ry = (-rotation[1]) * (static_cast<float>(M_PI) / 180.0f);
-		const float rz = (rotation[2]) * (static_cast<float>(M_PI) / 180.0f);
-
-		const float cr = std::cos(rz * 0.5f);
-		const float sr = std::sin(rz * 0.5f);
-		const float cp = std::cos(rx * 0.5f);
-		const float sp = std::sin(rx * 0.5f);
-		const float cy = std::cos(ry * 0.5f);
-		const float sy = std::sin(ry * 0.5f);
-
-		geometry_msgs::msg::Vector3 translation;
-		translation.x(tx);
-		translation.y(-ty);  // 与 TF 中的转换保持一致
-		translation.z(tz);
-
-		geometry_msgs::msg::Quaternion rotationQuat;
-		rotationQuat.w(cr * cp * cy + sr * sp * sy);
-		rotationQuat.x(sr * cp * cy - cr * sp * sy);
-		rotationQuat.y(cr * sp * cy + sr * cp * sy);
-		rotationQuat.z(cr * cp * sy - sr * sp * cy);
-
+		// 2. Pose - 直接赋值
 		geometry_msgs::msg::Pose pose;
-		pose.position().x(translation.x());
-		pose.position().y(translation.y());
-		pose.position().z(translation.z());
-		pose.orientation(rotationQuat);
+		
+		// 位置
+		pose.position().x(location[0]);
+		pose.position().y(location[1]); // 假设在 UE 端已经处理好了 -Y
+		pose.position().z(location[2]);
+
+		// 姿态 - 直接使用 UE 传过来的四元数 (w, x, y, z)
+		// 假设 orientation[0]=w, [1]=x, [2]=y, [3]=z
+		pose.orientation().w(orientation[0]);
+		pose.orientation().x(orientation[1]);
+		pose.orientation().y(orientation[2]);
+		pose.orientation().z(orientation[3]);
 
 		geometry_msgs::msg::PoseWithCovariance poseWithCov;
 		poseWithCov.pose(pose);
-		// 协方差这里先全部置零，后续如果需要可以在 UE 侧计算并填充
-		geometry_msgs::msg::geometry_msgs__PoseWithCovariance__double_array_36 poseCov {};
+		// ... Covariance 置零代码保持不变 ...
+        geometry_msgs::msg::geometry_msgs__PoseWithCovariance__double_array_36 poseCov {};
 		std::memset(&poseCov, 0, sizeof(poseCov));
 		poseWithCov.covariance(poseCov);
 
-		// 3. 速度（Twist）：线速度、角速度
+		// 3. Twist - 保持原样，或者根据 UE 端传过来的速度单位调整
 		geometry_msgs::msg::Vector3 linearVel;
 		linearVel.x(linear_velocity[0]);
 		linearVel.y(linear_velocity[1]);
@@ -278,14 +259,14 @@ namespace ros2
 		geometry_msgs::msg::Twist twist;
 		twist.linear(linearVel);
 		twist.angular(angularVel);
-
+        
 		geometry_msgs::msg::TwistWithCovariance twistWithCov;
 		twistWithCov.twist(twist);
 		geometry_msgs::msg::geometry_msgs__TwistWithCovariance__double_array_36 twistCov {};
 		std::memset(&twistCov, 0, sizeof(twistCov));
 		twistWithCov.covariance(twistCov);
 
-		// 4. 写入 Odometry 消息
+		// 4. Publish
 		_impl->m_Odometry.header(std::move(header));
 		_impl->m_Odometry.child_frame_id(_frame_id);
 		_impl->m_Odometry.pose(poseWithCov);
