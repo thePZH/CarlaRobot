@@ -399,7 +399,12 @@ namespace detail {
 		return _pimpl->CallAndWait<std::string>("destroy_objects", json);
 	}
 
-std::string Client::ControlMainCamera(const std::string &json)
+	std::string Client::ToggleSpray(rpc::ActorId actor_id, const std::string& json_params)
+	{
+		return _pimpl->CallAndWait<std::string>("toggle_spray", actor_id, json_params);
+	}
+
+	std::string Client::ControlMainCamera(const std::string& json)
 {
   return _pimpl->CallAndWait<std::string>("control_main_camera", json);
 }

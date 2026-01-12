@@ -56,6 +56,7 @@ try:
     from pygame.locals import K_F8
     from pygame.locals import K_i
     from pygame.locals import K_j
+    from pygame.locals import K_k
     from pygame.locals import K_o
     from pygame.locals import K_t
     from pygame.locals import K_v
@@ -215,7 +216,7 @@ class World(object):
         spawn_point = carla.Transform(carla.Location(x=5.0, y=2.0, z=1))
         json_params = {
             "robot": {
-                "blueprint": "vehicle.robot.01",
+                "blueprint": "vehicle.Robot.01",
                 "attributes": {
                     "role_name": self.actor_role_name,
                     "ros_name": "robot01"
@@ -627,15 +628,15 @@ class KeyboardControl(object):
                             print(f"[K_j] Total created: {created_count}/100 objects")
                             
                         else:
-                            # 销毁所有100个object
-                            print("[K_j] Destroying 20 objects...")
+                            # 销毁所有创建的objects
+                            print("[K_j] Destroying objects...")
                             
                             destroy_json = {
-                                "type": "Prop"
+                                "type": "all"
                             }
                             json_str = json.dumps(destroy_json)
                             result_str = world.world.destroy_objects(json_str)
-
+                            
                             # 解析返回的 JSON 结果
                             try:
                                 result = json.loads(result_str)
@@ -658,6 +659,74 @@ class KeyboardControl(object):
                     except Exception as e:
                         print(f"[K_j] Failed to create/destroy objects: {e}")
                         world.hud.error(f'Failed to create/destroy: {e}')
+                elif event.key == K_k:
+                    # 测试toggle_spray功能
+                    try:
+                        # 检查玩家是否有toggle_spray方法
+                        if hasattr(world.player, 'toggle_spray'):
+                            if not hasattr(self, '_spray_active'):
+                                self._spray_active = False
+                            
+                            # 切换喷射状态
+                            self._spray_active = not self._spray_active
+                            
+                            if self._spray_active:
+                                # 激活喷射
+                                spray_json = {
+                                    "Distance": 500,
+                                    "transform": {
+                                        "location": {"x": 500, "y": 0.0, "z": 1.0},
+                                        "rotation": {"pitch": 45, "yaw": 45, "roll": 45},
+                                        "scale": {"x": 1, "y": 1, "z": 1}
+                                    }
+                                }
+                                json_str = json.dumps(spray_json)
+                                result_str = world.player.toggle_spray(json_str)
+                                
+                                # 解析返回结果
+                                try:
+                                    result = json.loads(result_str)
+                                    if result.get("ok", False):
+                                        message = result.get("message", "Spray activated")
+                                        distance = result.get("distance", 0)
+                                        world.hud.notification(f'Spray ON: {message}')
+                                        print(f"[K_k] Spray activated: {message}, Distance: {distance}")
+                                    else:
+                                        error_msg = result.get("message", "Unknown error")
+                                        world.hud.error(f'Spray failed: {error_msg}')
+                                        print(f"[K_k] Spray failed: {error_msg}")
+                                except json.JSONDecodeError as e:
+                                    print(f"[K_k] Failed to parse toggle_spray result: {e}, raw: {result_str}")
+                                    world.hud.error('Failed to parse spray result')
+                            else:
+                                # 关闭喷射
+                                spray_json = {
+                                    "Distance": 0.0
+                                }
+                                json_str = json.dumps(spray_json)
+                                result_str = world.player.toggle_spray(json_str)
+                                
+                                # 解析返回结果
+                                try:
+                                    result = json.loads(result_str)
+                                    if result.get("ok", False):
+                                        message = result.get("message", "Spray deactivated")
+                                        world.hud.notification(f'Spray OFF: {message}')
+                                        print(f"[K_k] Spray deactivated: {message}")
+                                    else:
+                                        error_msg = result.get("message", "Unknown error")
+                                        world.hud.error(f'Spray failed: {error_msg}')
+                                        print(f"[K_k] Spray failed: {error_msg}")
+                                except json.JSONDecodeError as e:
+                                    print(f"[K_k] Failed to parse toggle_spray result: {e}, raw: {result_str}")
+                                    world.hud.error('Failed to parse spray result')
+                        else:
+                            world.hud.error('Player does not support spray functionality')
+                            print("[K_k] Player does not have toggle_spray method")
+                            
+                    except Exception as e:
+                        print(f"[K_k] Failed to toggle spray: {e}")
+                        world.hud.error(f'Failed to toggle spray: {e}')
 
                 if isinstance(self._control, carla.VehicleControl):
                     pass #车辆事件
@@ -675,6 +744,7 @@ class KeyboardControl(object):
         # 若没有任何相关按键被按下，则不触碰控制，避免覆盖外部（ROS）控制
         if not (keys[K_w] or keys[K_s] or keys[K_a] or keys[K_d] or keys[K_SPACE]):
             return
+        
         # 可调参数
         max_angular_velocity_deg = 1
         max_linear_velocity = 3.0  # 线速度
@@ -684,12 +754,12 @@ class KeyboardControl(object):
         forward_vector = transform.get_forward_vector()
 
         # 计算线速度（沿车辆前进方向）
-        linear_velocity_magnitude = 0.0
+        linear_velocity_magnitude = 0.0            
         if keys[K_w]:
             linear_velocity_magnitude = max_linear_velocity
         elif keys[K_s]:
             linear_velocity_magnitude = -max_linear_velocity  # 倒车
-
+        
         target_velocity = carla.Vector3D(
             forward_vector.x * linear_velocity_magnitude,
             forward_vector.y * linear_velocity_magnitude,

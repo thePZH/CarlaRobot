@@ -60,6 +60,11 @@ namespace client {
   		return GetEpisode().Lock()->GetRobotBonesTransform(*this);
 	}
 
+	std::string Vehicle::ToggleSpray(const std::string& json_params)
+	{
+		return GetEpisode().Lock()->ToggleSpray(*this, json_params);
+	}
+
   void Vehicle::ApplyControl(const Control &control) {
     if (!_is_control_sticky || (control != _control)) {
       GetEpisode().Lock()->ApplyControlToVehicle(*this, control);

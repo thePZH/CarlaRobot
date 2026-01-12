@@ -51,8 +51,11 @@ namespace client {
 	void SetBonesTransform(const BoneControlIn &bones);
 
 	BoneControlOut GetBonesTransform() const;
+
+	/// Toggle spray effect on/off with parameters
+    std::string ToggleSpray(const std::string& json_params);
     
-	/// Switch on/off this vehicle's autopilot.
+    /// Switch on/off this vehicle's autopilot.
     void SetAutopilot(bool enabled = true, uint16_t tm_port = TM_DEFAULT_PORT);
 
     /// Switch on/off this vehicle's autopilot.

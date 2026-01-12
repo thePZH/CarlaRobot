@@ -392,6 +392,11 @@ namespace detail {
 		return _client.DestroyObjects(json);
 	}
 
+	std::string ToggleSpray(Vehicle &vehicle, const std::string& json_params)
+	{
+		return _client.ToggleSpray(vehicle.GetId(), json_params);
+	}
+
 	std::string ControlMainCamera(const std::string& json)
 	{
 		return _client.ControlMainCamera(json);

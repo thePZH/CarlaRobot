@@ -498,7 +498,6 @@ EpisodeProxy Simulator::GetCurrentEpisode() {
     return _client.LineTraceSingleFromPlayerCamera(json_params);
   }
 
-
 } // namespace detail
 } // namespace client
 } // namespace carla

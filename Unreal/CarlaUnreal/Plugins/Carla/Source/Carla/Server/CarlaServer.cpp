@@ -81,6 +81,8 @@
 #include "Animation/PoseSnapshot.h"
 #include "Animation/AnimInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "HAL/CriticalSection.h"
@@ -1107,10 +1109,67 @@ void FCarlaServer::FPimpl::BindActions()
 			return MakeJsonResponse(false, ErrorMessage);
 		}
 
-		FString type; // 例如 "Effect", "Prop"
+		FString type; // 例如 "Effect", "Prop", "all"
 		if (!JsonObject->TryGetStringField(TEXT("type"), type))
 		{
 			return MakeJsonResponse(false, TEXT("Missing type field"));
+		}
+
+		// 特殊处理：如果type是"all"，则删除所有actor
+		if (type.Equals(TEXT("all"), ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Destroying ALL actors in CreatedActorMap"));
+			
+			TArray<FString> allUuids;
+			TArray<AActor*> allActors;
+			
+			// 收集所有actor
+			for (auto& pair : Episode->CreatedActorMap)
+			{
+				const FString& uuid = pair.Key;
+				const TWeakObjectPtr<AActor>& actorPtr = pair.Value;
+				
+				allUuids.Add(uuid);
+				
+				if (actorPtr.IsValid())
+				{
+					AActor* actor = actorPtr.Get();
+					if (actor && actor->IsValidLowLevelFast() && !actor->IsPendingKillPending())
+					{
+						allActors.Add(actor);
+					}
+				}
+			}
+			
+			// 销毁所有actor
+			int32 destroyedCount = 0;
+			for (int32 i = 0; i < allActors.Num(); ++i)
+			{
+				AActor* actor = allActors[i];
+				const FString& uuid = allUuids[i];
+				
+				if (!actor || !actor->IsValidLowLevelFast() || actor->IsPendingKillPending())
+				{
+					continue;
+				}
+				
+				UWorld* world = actor->GetWorld();
+				if (world && world->DestroyActor(actor))
+				{
+					destroyedCount++;
+					UE_LOG(LogTemp, Warning, TEXT("Destroyed actor: %s (uuid: %s)"), *actor->GetName(), *uuid);
+				}
+			}
+			
+			// 清空整个map
+			Episode->CreatedActorMap.Empty();
+			
+			UE_LOG(LogTemp, Warning, TEXT("Destroyed ALL actors. Total destroyed: %d"), destroyedCount);
+			
+			return MakeJsonResponse(true, FString(), [destroyedCount](TSharedPtr<FJsonObject> JsonResponse)
+			{
+				JsonResponse->SetNumberField(TEXT("destroyed_count"), destroyedCount);
+			});
 		}
 
 		// --- 准备阶段：解析目标类型 ---
@@ -2200,6 +2259,130 @@ void FCarlaServer::FPimpl::BindActions()
 	};
 
 	// ~~ Apply control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	BIND_SYNC(toggle_spray) << [this](cr::ActorId ActorId, const std::string& json_params) -> R<std::string>
+	{
+		REQUIRE_CARLA_EPISODE();
+		
+		// 解析JSON参数
+		TSharedPtr<FJsonObject> JsonObject;
+		FString ErrorMessage;
+		if (!ParseJsonString(json_params, JsonObject, ErrorMessage))
+		{
+			return MakeJsonResponse(false, TEXT("Failed to parse JSON: ") + ErrorMessage);
+		}
+
+		// 获取CarlaActor
+		FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+		if (!CarlaActor)
+		{
+			return MakeJsonResponse(false, TEXT("Actor not found: ") + FString::FromInt(ActorId));
+		}
+
+		// 获取Actor
+		AActor* Actor = CarlaActor->GetActor();
+		if (!Actor)
+		{
+			return MakeJsonResponse(false, TEXT("Invalid Actor pointer for Id: ") + FString::FromInt(ActorId));
+		}
+
+		// 查找Niagara组件
+		UNiagaraComponent* NiagaraComp = Actor->FindComponentByClass<UNiagaraComponent>();
+		if (!NiagaraComp)
+		{
+			return MakeJsonResponse(false, TEXT("Actor does not have Niagara component"));
+		}
+
+		// 检查是否是NS_Sprayer_Frost资产
+		FString AssetName = NiagaraComp->GetAsset()->GetName();
+		if (!AssetName.Contains(TEXT("NS_Sprayer_Frost")))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Found Niagara component: %s"), *AssetName);
+			return MakeJsonResponse(false, TEXT("Actor does not have NS_Sprayer_Frost asset"));
+		}
+
+		// 解析Distance参数
+		double Distance = 0.0;
+		if (JsonObject->HasField(TEXT("Distance")))
+		{
+			if (!JsonObject->TryGetNumberField(TEXT("Distance"), Distance))
+			{
+				return MakeJsonResponse(false, TEXT("Invalid Distance parameter"));
+			}
+		}
+
+		// 解析Transform参数（可选）
+		FTransform NewTransform = Actor->GetActorTransform();
+		if (JsonObject->HasField(TEXT("transform")))
+		{
+			const TSharedPtr<FJsonObject>* TransformObj;
+			if (!JsonObject->TryGetObjectField(TEXT("transform"), TransformObj))
+			{
+				return MakeJsonResponse(false, TEXT("Invalid transform parameter"));
+			}
+
+			// 解析location
+			const TSharedPtr<FJsonObject>* LocObj;
+			if ((*TransformObj)->TryGetObjectField(TEXT("location"), LocObj))
+			{
+				FVector Location = NewTransform.GetLocation();
+				double x, y, z;
+				if ((*LocObj)->TryGetNumberField(TEXT("x"), x)) Location.X = x * 100.0;
+				if ((*LocObj)->TryGetNumberField(TEXT("y"), y)) Location.Y = y * 100.0;
+				if ((*LocObj)->TryGetNumberField(TEXT("z"), z)) Location.Z = z * 100.0;
+				NewTransform.SetLocation(Location);
+			}
+
+			// 解析rotation
+			const TSharedPtr<FJsonObject>* RotObj;
+			if ((*TransformObj)->TryGetObjectField(TEXT("rotation"), RotObj))
+			{
+				FRotator Rotation = NewTransform.Rotator();
+				double pitch, yaw, roll;
+				if ((*RotObj)->TryGetNumberField(TEXT("pitch"), pitch)) Rotation.Pitch = pitch;
+				if ((*RotObj)->TryGetNumberField(TEXT("yaw"), yaw)) Rotation.Yaw = yaw;
+				if ((*RotObj)->TryGetNumberField(TEXT("roll"), roll)) Rotation.Roll = roll;
+				NewTransform.SetRotation(Rotation.Quaternion());
+			}
+
+			// 解析scale
+			const TSharedPtr<FJsonObject>* ScaleObj;
+			if ((*TransformObj)->TryGetObjectField(TEXT("scale"), ScaleObj))
+			{
+				FVector Scale = NewTransform.GetScale3D();
+				double x, y, z;
+				if ((*ScaleObj)->TryGetNumberField(TEXT("x"), x)) Scale.X = x;
+				if ((*ScaleObj)->TryGetNumberField(TEXT("y"), y)) Scale.Y = y;
+				if ((*ScaleObj)->TryGetNumberField(TEXT("z"), z)) Scale.Z = z;
+				NewTransform.SetScale3D(Scale);
+			}
+
+			// 应用新的transform
+			Actor->SetActorTransform(NewTransform);
+		}
+
+		// 控制Niagara系统
+		FString ResultMessage;
+		if (Distance > 0.0)
+		{
+			// 激活喷射
+			NiagaraComp->Activate();
+			NiagaraComp->SetFloatParameter(TEXT("Distance"), Distance);
+			ResultMessage = FString::Printf(TEXT("Spray activated with Distance: %f"), Distance);
+			UE_LOG(LogTemp, Warning, TEXT("Activated spray with Distance: %f for Actor %d"), Distance, ActorId);
+		}
+		else
+		{
+			// 关闭喷射
+			NiagaraComp->Deactivate();
+			NiagaraComp->SetFloatParameter(TEXT("Distance"), 0.0);
+			ResultMessage = TEXT("Spray deactivated");
+			UE_LOG(LogTemp, Warning, TEXT("Deactivated spray for Actor %d"), ActorId);
+		}
+
+		return MakeJsonResponse(true, ResultMessage, [](TSharedPtr<FJsonObject> JsonResponse)
+		{
+		});
+	};
 	BIND_SYNC(get_robot_bones_transform) << [this](cr::ActorId ActorId) -> R<cr::RobotBoneControlOut>
 	{
 		REQUIRE_CARLA_EPISODE();
@@ -2370,7 +2553,7 @@ void FCarlaServer::FPimpl::BindActions()
 		
 		return R<void>::Success();
 	};
-	
+
 	BIND_SYNC(apply_control_to_vehicle) << [this](
 		cr::ActorId ActorId,
 		cr::VehicleControl Control) -> R<void>
