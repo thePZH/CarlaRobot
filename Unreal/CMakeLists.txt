@@ -377,15 +377,9 @@ function (
   PACKAGE_CONFIGURATION
   UE_BUILD_CONFIGURATION)
 
-  # 生成基于当前时间的打包名称时间戳（格式：月日时，例如 121814 表示 12月18日14时）
-  string (
-    TIMESTAMP CARLA_PACKAGE_TIME
-    "%m%d%H"
-  )
-
   set (
     CARLA_PACKAGE_NAME
-    Carla-${CARLA_PACKAGE_TIME}-${UE_SYSTEM_NAME}-${UE_BUILD_CONFIGURATION}
+    Carla-${CARLA_VERSION}-${UE_SYSTEM_NAME}-${UE_BUILD_CONFIGURATION}
   )
 
   set (
