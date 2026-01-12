@@ -238,6 +238,7 @@ void USvcMapSubsystem::LoadAndAttachQueryMesh(const FString& DataSetFileName)
     meshComp->SetCollisionObjectType(ECC_GameTraceChannel4); // GSSceneObject
     meshComp->SetCollisionResponseToAllChannels(ECR_Ignore);
     meshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);// GSLidarChannel
+    meshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel4, ECR_Block);// GSSceneLineTraceObject
     meshComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	
     meshComp->SetMobility(EComponentMobility::Movable);
@@ -300,11 +301,11 @@ void USvcMapSubsystem::LoadAndAttachNaviMesh(const FString& DataSetFileName)
     naviMeshComp->SetStaticMesh(mesh);
     naviMeshComp->SetCollisionObjectType(ECC_WorldStatic); 
 	naviMeshComp->SetCollisionResponseToAllChannels(ECR_Block);
-    naviMeshComp->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+    naviMeshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel4, ECR_Ignore);
 	naviMeshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Ignore);
     naviMeshComp->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     naviMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    naviMeshComp->SetMobility(EComponentMobility::Movable); // 导航网格通常是静态的
+    naviMeshComp->SetMobility(EComponentMobility::Movable);
     naviMeshComp->SetVisibility(false);
     naviMeshComp->SetHiddenInGame(true);
     naviMeshComp->RegisterComponent();

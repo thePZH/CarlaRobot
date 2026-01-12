@@ -369,7 +369,13 @@ private:
     #if defined(WITH_ROS2)
     auto ROS2 = carla::ros2::ROS2::GetInstance();
     if (ROS2->IsEnabled())
-      ROS2->SetTimestamp(GetElapsedGameTime());
+    // ROS2->SetTimestamp(GetElapsedGameTime()); // 应导航需要
+    {
+	    auto now = std::chrono::system_clock::now();
+		auto timestamp = std::chrono::duration<double>(now.time_since_epoch()).count();
+		ROS2->SetTimestamp(timestamp);
+    }
+   
     #endif
 
   }
@@ -378,6 +384,8 @@ private:
 
   // simulation time
   double ElapsedGameTime = 0.0;
+
+	double BeijingTime = 0.0;
 
   // visual time (used by clounds and other FX that need to be deterministic)
   double VisualGameTime = 0.0;

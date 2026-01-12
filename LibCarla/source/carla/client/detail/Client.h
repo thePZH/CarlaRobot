@@ -207,6 +207,8 @@ namespace detail {
 
 	std::string DestroyObjects(const std::string& json);
 
+	std::string ToggleSpray(rpc::ActorId actor_id, const std::string& json_params);
+
 	std::string ControlMainCamera(const std::string& json);
 
     bool DestroyActor(rpc::ActorId actor);

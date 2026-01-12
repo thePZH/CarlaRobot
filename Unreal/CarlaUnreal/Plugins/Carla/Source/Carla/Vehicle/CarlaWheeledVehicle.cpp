@@ -179,14 +179,46 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
   }
 
   WorldTransformedPose = pose;
-
+	
+#if defined(WITH_ROS2)
+	PublishRos2Odometry();
+#endif
+	
+  // ROS2 控制逻辑：只在收到过 ROS2 消息时才执行
+  // 早期退出检查：如果从未收到过ROS2消息（时间戳为 -1.0），直接跳过ROS2控制逻辑
+  if (m_LastRos2AngularTimestamp < 0.0 || m_LastRos2LinearTimestamp < 0.0)
+  {
+    return;
+  }
+  
+  // 延迟初始化：如果缓存未初始化，尝试初始化
+  if (!m_CachedCarlaActor)
+  {
+    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
+    if (!Episode)
+    {
+      return;
+    }
+      m_CachedCarlaActor = Episode->FindCarlaActor(this);
+  }
+    
+  // 只有在缓存已初始化时才执行控制逻辑
+  if (!m_CachedCarlaActor )
+  {
+    return;
+  }
+  
   const double CurrentTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-
+    
   // 每帧应用ROS2角速度，确保即使话题发布频率低也能持续旋转；超时自动停止
   if (m_bRos2AngularVelocityActive)
   {
-    const bool bRos2AngularTimedOut = (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+    // 修复时间戳检查：确保时间戳已初始化（>= 0.0）
+    const bool bRos2AngularTimedOut = 
+      (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+      (m_LastRos2AngularTimestamp >= 0.0) &&
       ((CurrentTimeSeconds - m_LastRos2AngularTimestamp) > static_cast<double>(m_Ros2ControlTimeoutSeconds));
+  
     if (bRos2AngularTimedOut)
     {
       m_bRos2AngularVelocityActive = false;
@@ -195,20 +227,15 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
   }
   if (m_bRos2AngularVelocityActive)
   {
-    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
-    if (Episode)
-    {
-      FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
-      if (CarlaActor)
-      {
-        CarlaActor->SetActorTargetAngularVelocity(m_Ros2AngularVelocityRadps);
-      }
-    }
+    m_CachedCarlaActor->SetActorTargetAngularVelocity(m_Ros2AngularVelocityRadps);
   }
+  
   // 每帧应用ROS2线速度，确保低频发布也能持续生效；超时自动停止
   if (m_bRos2LinearVelocityActive)
   {
+    // 修复时间戳检查：确保时间戳已初始化（>= 0.0）
     const bool bRos2LinearTimedOut = (m_Ros2ControlTimeoutSeconds > 0.0f) &&
+      (m_LastRos2LinearTimestamp >= 0.0) &&
       ((CurrentTimeSeconds - m_LastRos2LinearTimestamp) > static_cast<double>(m_Ros2ControlTimeoutSeconds));
     if (bRos2LinearTimedOut)
     {
@@ -218,20 +245,10 @@ void ACarlaWheeledVehicle::TickActor(float DeltaTime, enum ELevelTick TickType, 
   }
   if (m_bRos2LinearVelocityActive)
   {
-    UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
-    if (Episode)
-    {
-      FCarlaActor* CarlaActor = Episode->FindCarlaActor(this);
-      if (CarlaActor)
-      {
-        CarlaActor->SetActorTargetVelocity(m_Ros2LinearVelocityCmps);
-      }
-    }
+    m_CachedCarlaActor->SetActorTargetVelocity(m_Ros2LinearVelocityCmps);
   }
+  
 
-#if defined(WITH_ROS2)
-  PublishRos2Odometry();
-#endif
 }
 
 bool ACarlaWheeledVehicle::IsInVehicleRange(const FVector& Location) const
@@ -914,6 +931,8 @@ void ACarlaWheeledVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 #if defined(WITH_ROS2)
   Ros2OdometryPublisherInstance.reset();
 #endif
+  // 清理缓存的 CarlaActor
+  m_CachedCarlaActor = nullptr;
   RemoveReferenceToManager();
 }
 
@@ -1063,7 +1082,7 @@ void ACarlaWheeledVehicle::PublishRos2Odometry()
   if (!Ros2OdometryPublisherInstance)
   {
     static int32_t warnCount = 0;
-    if (warnCount++ % 300 == 0) // 每5秒警告一次（假设60fps）
+    if (warnCount++ % 300 == 0)
     {
       UE_LOG(LogCarla, Warning, TEXT("PublishRos2Odometry: Publisher instance is null"));
     }
@@ -1084,7 +1103,6 @@ void ACarlaWheeledVehicle::PublishRos2Odometry()
   }
   Ros2LastOdometryTimestamp = currentTime;
 
-  // 保护：仅对已在 Episode 注册的车辆发布里程计
   UCarlaEpisode* Episode = UCarlaStatics::GetCurrentEpisode(this);
   if (!Episode)
   {
@@ -1101,51 +1119,56 @@ void ACarlaWheeledVehicle::PublishRos2Odometry()
   ROS2->GetCurrentTime(seconds, nanoseconds);
 
   constexpr float CM_TO_M = 0.01f;
+	
   const FVector actorLocationM = GetActorLocation() * CM_TO_M;
   float location[3] = {
     static_cast<float>(actorLocationM.X),
-    static_cast<float>(actorLocationM.Y),
+    static_cast<float>(-actorLocationM.Y), // Y轴取反
     static_cast<float>(actorLocationM.Z)
   };
-
-  const FRotator actorRotationDeg = GetActorRotation();
-  float rotation[3] = {
-    static_cast<float>(actorRotationDeg.Roll),
-    static_cast<float>(actorRotationDeg.Pitch),
-    static_cast<float>(actorRotationDeg.Yaw)
-  };
-
-  // 线速度：先获取世界空间速度，再转换到车辆本地空间（车体坐标系）
+	
+	FQuat UEQuat = GetActorQuat();
+	// 变换逻辑：从左手系转右手系并反转旋转方向
+	FQuat ROSQuat(UEQuat.X, -UEQuat.Y, -UEQuat.Z, UEQuat.W);
+	float orientation[4] = {
+		static_cast<float>(ROSQuat.W),
+		static_cast<float>(ROSQuat.X),
+		static_cast<float>(ROSQuat.Y),
+		static_cast<float>(ROSQuat.Z)
+	};
+	
   FVector worldLinearVelocityMs = GetVelocity() * CM_TO_M;
-  FVector angularVelocity = FVector::ZeroVector;
+  FVector worldAngularVelocityRad = FVector::ZeroVector;
+  
   if (auto* rootComponent = Cast<UPrimitiveComponent>(GetRootComponent()))
   {
-    // 优先使用物理组件的速度，保证 set_target_velocity 等直接物理接口能反映到里程计
     worldLinearVelocityMs = rootComponent->GetPhysicsLinearVelocity() * CM_TO_M;
-    angularVelocity = rootComponent->GetPhysicsAngularVelocityInRadians();
+    worldAngularVelocityRad = rootComponent->GetPhysicsAngularVelocityInRadians();
   }
-
-  // Unreal 默认速度在世界坐标系，这里转换到车辆本地坐标系：
-  // X：车头方向前为正；Y：车体左为正；Z：车体上为正。
-  const FVector localLinearVelocityMs = actorRotationDeg.UnrotateVector(worldLinearVelocityMs);
-
+	
+  // 使用 ROSQuat 将世界速度转到本地坐标系，确保符合 ROS 的 X前/Y左/Z上
+  // 或者直接使用原生的 UnrotateVector 后手动修正 Y
+  const FVector localLinearVelocityMs = GetActorRotation().UnrotateVector(worldLinearVelocityMs);
   float linearVelocity[3] = {
     static_cast<float>(localLinearVelocityMs.X),
-    static_cast<float>(localLinearVelocityMs.Y),
+    static_cast<float>(-localLinearVelocityMs.Y), // 修正为 Y向左为正
     static_cast<float>(localLinearVelocityMs.Z)
   };
-
+	
+  // 先转到本地坐标系
+  const FVector localAngularVel = GetActorRotation().UnrotateVector(worldAngularVelocityRad);
+  // 修正旋转正负号符合右手定则 (逆时针为正)
   float angularVelocityData[3] = {
-    static_cast<float>(angularVelocity.X),
-    static_cast<float>(angularVelocity.Y),
-    static_cast<float>(angularVelocity.Z)
+    static_cast<float>(-localAngularVel.X), // UE Roll(CW+) -> ROS Roll(CCW+)
+    static_cast<float>(localAngularVel.Y),  // UE Pitch在Y翻转后保持
+    static_cast<float>(-localAngularVel.Z)  // UE Yaw(CW+) -> ROS Yaw(CCW+)
   };
 
   Ros2OdometryPublisherInstance->SetData(
     seconds,
     nanoseconds,
     location,
-    rotation,
+    orientation,
     linearVelocity,
     angularVelocityData);
   Ros2OdometryPublisherInstance->Publish();

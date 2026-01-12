@@ -168,7 +168,7 @@ namespace ros2 {
 
     std_msgs::msg::Header header;
     header.stamp(std::move(time));
-    header.frame_id(_frame_id);
+    header.frame_id(std::string("imu_link"));
 
     geometry_msgs::msg::Quaternion orientation;
 

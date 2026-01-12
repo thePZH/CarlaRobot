@@ -213,6 +213,12 @@ FTransform FCarlaActor::GetActorGlobalTransform() const
   }
   else
   {
+  	if (GetActor() == nullptr || GetActor()->IsPendingKillPending())
+  	{
+  		UE_LOG(LogCarla, Warning, TEXT("FCarlaActor::GetActorGlobalTransform: TheActor is null or pending kill!"));
+  		return FTransform::Identity;
+  	}
+  	
     FTransform Transform = GetActor()->GetActorTransform();
     ALargeMapManager* LargeMap =
         UCarlaStatics::GetLargeMapManager(World);

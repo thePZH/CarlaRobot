@@ -143,7 +143,7 @@ carla::geom::Vector3D AInertialMeasurementUnit::ComputeAccelerometer(
 	return carla::geom::Vector3D
 	{
 		static_cast<float>(FVectorAccelerometer.X),
-		static_cast<float>(FVectorAccelerometer.Y),
+		-static_cast<float>(FVectorAccelerometer.Y), // rhs
 		static_cast<float>(FVectorAccelerometer.Z)
 	};
 }
@@ -171,9 +171,9 @@ carla::geom::Vector3D AInertialMeasurementUnit::ComputeGyroscope()
 	// 关闭噪声与偏置：直接返回原始角速度
 	return carla::geom::Vector3D
 	{
-		static_cast<float>(FVectorGyroscope.X),
+		-static_cast<float>(FVectorGyroscope.X),
 		static_cast<float>(FVectorGyroscope.Y),
-		static_cast<float>(FVectorGyroscope.Z)
+		-static_cast<float>(FVectorGyroscope.Z)
 	};
 }
 
@@ -190,9 +190,9 @@ float AInertialMeasurementUnit::ComputeCompass()
   const float Compass = std::acos(DotProd);
   // Keep the angle between [0, 2pi)
   if (FVector::CrossProduct(CarlaNorthVector, ForwVect).Z < 0.0f)
-    return carla::geom::Math::Pi2<float>() - Compass;
+    return Compass;
 
-  return Compass;
+  return carla::geom::Math::Pi2<float>() - Compass;
 }
 
 void AInertialMeasurementUnit::PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime)
