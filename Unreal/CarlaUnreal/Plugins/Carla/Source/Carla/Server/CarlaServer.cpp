@@ -2366,7 +2366,7 @@ void FCarlaServer::FPimpl::BindActions()
 		{
 			// 激活喷射
 			NiagaraComp->Activate();
-			NiagaraComp->SetFloatParameter(TEXT("Distance"), Distance);
+			NiagaraComp->SetFloatParameter(TEXT("Distance"), Distance * 100);
 			ResultMessage = FString::Printf(TEXT("Spray activated with Distance: %f"), Distance);
 			UE_LOG(LogTemp, Warning, TEXT("Activated spray with Distance: %f for Actor %d"), Distance, ActorId);
 		}
