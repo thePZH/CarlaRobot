@@ -2291,9 +2291,14 @@ void FCarlaServer::FPimpl::BindActions()
 		{
 			return MakeJsonResponse(false, TEXT("Actor does not have Niagara component"));
 		}
+		UNiagaraSystem* SprayAsset = NiagaraComp->GetAsset();
+		if (!SprayAsset)
+		{
+			return MakeJsonResponse(false, TEXT("NiagaraComponent has no asset assigned"));
+		}
 
 		// 检查是否是NS_Sprayer_Frost资产
-		FString AssetName = NiagaraComp->GetAsset()->GetName();
+		FString AssetName = SprayAsset->GetName();
 		if (!AssetName.Contains(TEXT("NS_Sprayer_Frost")))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Found Niagara component: %s"), *AssetName);
@@ -2357,7 +2362,7 @@ void FCarlaServer::FPimpl::BindActions()
 			}
 
 			// 应用新的transform
-			Actor->SetActorTransform(NewTransform);
+			NiagaraComp->SetRelativeTransform(NewTransform);
 		}
 
 		// 控制Niagara系统
@@ -2366,7 +2371,7 @@ void FCarlaServer::FPimpl::BindActions()
 		{
 			// 激活喷射
 			NiagaraComp->Activate();
-			NiagaraComp->SetFloatParameter(TEXT("Distance"), Distance);
+			NiagaraComp->SetFloatParameter(TEXT("Distance"), Distance * 100);
 			ResultMessage = FString::Printf(TEXT("Spray activated with Distance: %f"), Distance);
 			UE_LOG(LogTemp, Warning, TEXT("Activated spray with Distance: %f for Actor %d"), Distance, ActorId);
 		}
@@ -2379,9 +2384,7 @@ void FCarlaServer::FPimpl::BindActions()
 			UE_LOG(LogTemp, Warning, TEXT("Deactivated spray for Actor %d"), ActorId);
 		}
 
-		return MakeJsonResponse(true, ResultMessage, [](TSharedPtr<FJsonObject> JsonResponse)
-		{
-		});
+		return MakeJsonResponse(true, ResultMessage, nullptr);
 	};
 	BIND_SYNC(get_robot_bones_transform) << [this](cr::ActorId ActorId) -> R<cr::RobotBoneControlOut>
 	{

@@ -673,10 +673,10 @@ class KeyboardControl(object):
                             if self._spray_active:
                                 # 激活喷射
                                 spray_json = {
-                                    "Distance": 500,
+                                    "distance": 5,
                                     "transform": {
-                                        "location": {"x": 500, "y": 0.0, "z": 1.0},
-                                        "rotation": {"pitch": 45, "yaw": 45, "roll": 45},
+                                        "location": {"x": 0.6, "y": 0.0, "z": 0.6},
+                                        "rotation": {"pitch": 0, "yaw": 0, "roll": 0},
                                         "scale": {"x": 1, "y": 1, "z": 1}
                                     }
                                 }
@@ -687,9 +687,6 @@ class KeyboardControl(object):
                                 try:
                                     result = json.loads(result_str)
                                     if result.get("ok", False):
-                                        message = result.get("message", "Spray activated")
-                                        distance = result.get("distance", 0)
-                                        world.hud.notification(f'Spray ON: {message}')
                                         print(f"[K_k] Spray activated: {message}, Distance: {distance}")
                                     else:
                                         error_msg = result.get("message", "Unknown error")
