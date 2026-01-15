@@ -78,6 +78,16 @@ protected:
 	uint32_t SamplesPerChannelThisFrame {0u};
 	float SecondsPerSample {0.0f};
 
+	// ROS2: 跟踪HorizontalFov扫描完成状态
+	float PreviousHorizontalAngle {0.0f};
+	float AccumulatedAngleDistance {0.0f};
+	bool HasCompletedFullScan {false};
+
+	// 累积扫描数据缓冲区
+	FSemanticLidarData AccumulatedLidarData;
+	std::vector<std::vector<FHitResult>> AccumulatedHits;
+	std::vector<std::vector<uint32_t>> AccumulatedHitSampleIndices;
+
 private:
   FSemanticLidarData SemanticLidarData;
 
