@@ -55,12 +55,11 @@ try:
     from pygame.locals import K_u
     from pygame.locals import K_F8
     from pygame.locals import K_i
-    from pygame.locals import K_j
-    from pygame.locals import K_k
+
     from pygame.locals import K_o
     from pygame.locals import K_t
-    from pygame.locals import K_v
-
+    from pygame.locals import K_j
+    from pygame.locals import K_k
     from pygame.locals import K_t
     from pygame.locals import K_g
     from pygame.locals import K_b
@@ -168,8 +167,6 @@ class World(object):
         self.show_vehicle_telemetry = False
 
     def restart(self):
-        self.player_max_speed = 1.589
-        self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
@@ -455,6 +452,8 @@ class KeyboardControl(object):
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, client, world, clock, sync_mode):
+        print("=== DEBUG ===", "K_j:", K_j, "K_k:", K_k, "F5:", K_F5)
+
         if isinstance(self._control, carla.VehicleControl):
             current_lights = self._lights
         for event in pygame.event.get():
@@ -580,6 +579,7 @@ class KeyboardControl(object):
                 elif event.key == K_F6:
                     self._control_main_camera_fixed(world)
                 elif event.key == K_j:
+                    print("[K_j] Creating objects...")
                     # 创建/销毁100个object的循环
                     try:
                         if not self.bulk_objects_created:
@@ -897,9 +897,6 @@ class KeyboardControl(object):
         elif keys[K_t]:
             self.current_fov = 90
             sensor.set_fov(self.current_fov)
-        if keys[K_v]:
-            navigable_points = world.world.get_navigable_area_points(world.player.id, 50)
-            self.visualize_navigable_points(navigable_points)
         if keys[K_g]:
             transforms = world.world.get_gauges_transform()
             print(f"tatal gauges: {len(transforms)}")
