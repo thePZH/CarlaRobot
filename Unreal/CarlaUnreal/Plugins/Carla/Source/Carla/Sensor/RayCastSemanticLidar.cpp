@@ -74,128 +74,31 @@ void ARayCastSemanticLidar::PostPhysTick(UWorld *World, ELevelTick TickType, flo
   TRACE_CPUPROFILER_EVENT_SCOPE(ARayCastSemanticLidar::PostPhysTick);
   SimulateLidar(DeltaTime);
 
-  // 只在扫描完完整HorizontalFov时发布数据
-  const float CurrentHorizontalAngle = carla::geom::Math::ToDegrees(SemanticLidarData.GetHorizontalAngle());
-  
-  // 计算本次tick的角度变化量
-  float AngleDelta = 0.0f;
-  if (HasCompletedFullScan)
+  auto DataStream = GetDataStream(*this);
+  auto SensorTransform = DataStream.GetSensorTransform();
   {
-    // 计算与上一个角度的差值（考虑回绕）
-    float Diff = CurrentHorizontalAngle - PreviousHorizontalAngle;
-    if (Diff < 0.0f)
-    {
-      // 发生回绕，加上完整范围
-      Diff += Description.HorizontalFov;
-    }
-    AngleDelta = Diff;
+    TRACE_CPUPROFILER_EVENT_SCOPE_STR("Send Stream");
+    DataStream.SerializeAndSend(*this, SemanticLidarData, DataStream.PopBufferFromPool());
   }
-  else
+  // ROS2
+  #if defined(WITH_ROS2)
+  auto ROS2 = carla::ros2::ROS2::GetInstance();
+  if (ROS2->IsEnabled())
   {
-    // 第一次扫描，从0开始累积
-    AngleDelta = CurrentHorizontalAngle;
-    // 初始化累积缓冲区
-    if (AccumulatedHits.empty())
+    TRACE_CPUPROFILER_EVENT_SCOPE_STR("ROS2 Send");
+    auto StreamId = carla::streaming::detail::token_type(GetToken()).get_stream_id();
+    AActor* ParentActor = GetAttachParentActor();
+    if (ParentActor)
     {
-      AccumulatedHits.resize(Description.Channels);
-      AccumulatedHitSampleIndices.resize(Description.Channels);
-      for (uint32_t i = 0; i < Description.Channels; ++i)
-      {
-        AccumulatedHits[i].reserve(1000);  // 预分配空间
-        AccumulatedHitSampleIndices[i].reserve(1000);
-      }
+      FTransform LocalTransformRelativeToParent = GetActorTransform().GetRelativeTransform(ParentActor->GetActorTransform());
+      ROS2->ProcessDataFromSemanticLidar(DataStream.GetSensorType(), StreamId, LocalTransformRelativeToParent, SemanticLidarData, this);
+    }
+    else
+    {
+      ROS2->ProcessDataFromSemanticLidar(DataStream.GetSensorType(), StreamId, SensorTransform, SemanticLidarData, this);
     }
   }
-  
-  // 累积当前帧的数据到缓冲区
-  for (uint32_t channel = 0; channel < Description.Channels; ++channel)
-  {
-    AccumulatedHits[channel].insert(AccumulatedHits[channel].end(), 
-                                   RecordedHits[channel].begin(), 
-                                   RecordedHits[channel].end());
-    AccumulatedHitSampleIndices[channel].insert(AccumulatedHitSampleIndices[channel].end(), 
-                                               RecordedHitSampleIndices[channel].begin(), 
-                                               RecordedHitSampleIndices[channel].end());
-  }
-  
-  // 累积角度距离
-  AccumulatedAngleDistance += AngleDelta;
-  
-  // 检查是否完成了一个完整的HorizontalFov扫描
-  bool ShouldPublish = false;
-  if (AccumulatedAngleDistance >= Description.HorizontalFov)
-  {
-    ShouldPublish = true;
-    // 重置累积距离，为下一次扫描做准备
-    AccumulatedAngleDistance = std::fmod(AccumulatedAngleDistance, Description.HorizontalFov);
-  }
-  
-  if (ShouldPublish)
-  {
-    // 构建完整的扫描数据
-    std::vector<uint32_t> AccumulatedPointsPerChannel;
-    AccumulatedPointsPerChannel.reserve(Description.Channels);
-    for (uint32_t channel = 0; channel < Description.Channels; ++channel)
-    {
-      AccumulatedPointsPerChannel.push_back(AccumulatedHits[channel].size());
-    }
-    
-    // 重置累积数据并填充完整扫描数据
-    SemanticLidarData.ResetMemory(AccumulatedPointsPerChannel);
-    
-    // 将累积的检测结果写入SemanticLidarData
-    FTransform ActorTransf = GetTransform();
-    for (uint32_t channel = 0; channel < Description.Channels; ++channel)
-    {
-      for (size_t i = 0; i < AccumulatedHits[channel].size(); ++i)
-      {
-        FSemanticDetection Detection;
-        ComputeRawDetection(AccumulatedHits[channel][i], ActorTransf, Detection);
-        SemanticLidarData.WritePointSync(Detection);
-      }
-    }
-    
-    // 设置最终的水平角度
-    SemanticLidarData.SetHorizontalAngle(SemanticLidarData.GetHorizontalAngle());
-    
-    auto DataStream = GetDataStream(*this);
-    auto SensorTransform = DataStream.GetSensorTransform();
-    {
-      TRACE_CPUPROFILER_EVENT_SCOPE_STR("Send Stream");
-      DataStream.SerializeAndSend(*this, SemanticLidarData, DataStream.PopBufferFromPool());
-    }
-    
-    // ROS2: 只在扫描完完整HorizontalFov时发布
-    #if defined(WITH_ROS2)
-    auto ROS2 = carla::ros2::ROS2::GetInstance();
-    if (ROS2->IsEnabled())
-    {
-      TRACE_CPUPROFILER_EVENT_SCOPE_STR("ROS2 Send");
-      auto StreamId = carla::streaming::detail::token_type(GetToken()).get_stream_id();
-      AActor* ParentActor = GetAttachParentActor();
-      if (ParentActor)
-      {
-        FTransform LocalTransformRelativeToParent = GetActorTransform().GetRelativeTransform(ParentActor->GetActorTransform());
-          ROS2->ProcessDataFromSemanticLidar(DataStream.GetSensorType(), StreamId, LocalTransformRelativeToParent, SemanticLidarData, this);
-      }
-      else
-      {
-        ROS2->ProcessDataFromSemanticLidar(DataStream.GetSensorType(), StreamId, SensorTransform, SemanticLidarData, this);
-      }
-    }
-    #endif
-    
-    // 清空累积缓冲区，为下一次扫描做准备
-    for (uint32_t channel = 0; channel < Description.Channels; ++channel)
-    {
-      AccumulatedHits[channel].clear();
-      AccumulatedHitSampleIndices[channel].clear();
-    }
-  }
-  
-  // 更新状态
-  PreviousHorizontalAngle = CurrentHorizontalAngle;
-  HasCompletedFullScan = true;
+  #endif
 }
 
 void ARayCastSemanticLidar::SimulateLidar(const float DeltaTime)
