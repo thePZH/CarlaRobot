@@ -60,83 +60,75 @@ void ARayCastLidar::Set(const FLidarDescription &LidarDescription)
 void ARayCastLidar::PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime)
 {
   TRACE_CPUPROFILER_EVENT_SCOPE(ARayCastLidar::PostPhysTick);
+  
+  // 1. 执行仿真，获取当前帧的数据
   SimulateLidar(DeltaTime);
-// 	int MaxPoiontsNum = FMath::RoundHalfFromZero(Description.PointsPerSecond * DeltaTime);
-// 	FRandomStream RandomStream(FMath::Rand());
-// #if WITH_EDITOR
-// 	PointsCloudPos.Empty();
-// 	PointsCloudPos.Reserve(MaxPoiontsNum);
-// 	
-// 	for (const auto& channelhits : RecordedHits)
-// 	{
-// 		for	(const auto& hit : channelhits)
-// 		{
-//
-// 			FLidarPointCloudPoint point;
-// 			point.Location = {static_cast<float>(hit.Location.X), static_cast<float>(hit.Location.Y), static_cast<float>(hit.Location.Z)};
-// 			point.Color = {0, 100, 255, 255};
-// 			PointsCloudPos.Emplace(point);
-// 			
-// 			if (!bDrawDebugLine && !bDrawDebugPlane)
-// 				continue;
-// 			if (FMath::FRand() > Threshold)
-// 				continue;
-// 			
-// 			double dist = FVector::Dist(hit.Location, GetActorLocation());
-// 			float clampedDist = FMath::Clamp(static_cast<float>(dist), 0.0f, MaxDist);
-// 			float hue = FMath::Loge(1.0f + clampedDist * LogFactor) / FMath::Loge(1.0f + MaxDist * LogFactor) * MaxHue;
-// 			FLinearColor hsvColor(hue, 1.0f, 1.0f, 1.0f);
-// 			FLinearColor linearColor = hsvColor.HSVToLinearRGB();
-//
-// 			if (bDrawDebugLine)
-// 			{
-// 				DrawDebugLine(GetWorld(), GetActorLocation(), hit.Location, linearColor.ToFColor(false), false, -1, 0, 0);
-// 			}
-// 			if (bDrawDebugPlane)
-// 			{
-// 				FPlane plane(hit.Location, hit.Normal);
-// 				DrawDebugSolidPlane(
-// 					GetWorld(),
-// 					plane,				
-// 					hit.Location,                               
-// 					FVector2D(DebugPointSize, DebugPointSize),
-// 					 linearColor.ToFColor(false),
-// 					false,                                      
-// 					-1,
-// 					0
-// 				);
-// 			}
-// 		}
-// 	}
-// #endif
-  auto DataStream = GetDataStream(*this);
-  auto SensorTransform = DataStream.GetSensorTransform();
 
+  // 2. 获取当前角度（从基类的 SemanticLidarData）
+  const float CurrentHorizontalAngle = carla::geom::Math::ToDegrees(SemanticLidarData.GetHorizontalAngle());
+  
+  // 3. 计算角度增量
+  float AngleDelta = 0.0f;
+  if (HasCompletedFullScan)
   {
-    TRACE_CPUPROFILER_EVENT_SCOPE_STR("Send Stream");
-    DataStream.SerializeAndSend(*this, LidarData, DataStream.PopBufferFromPool());
-  }
-  // ROS2
-  #if defined(WITH_ROS2)
-  auto ROS2 = carla::ros2::ROS2::GetInstance();
-  if (ROS2->IsEnabled())
-  {
-    TRACE_CPUPROFILER_EVENT_SCOPE_STR("ROS2 Send");
-    auto StreamId = carla::streaming::detail::token_type(GetToken()).get_stream_id();
-    AActor* ParentActor = GetAttachParentActor();
-    if (ParentActor)
+    AngleDelta = CurrentHorizontalAngle - PreviousHorizontalAngle;
+    // 处理回绕
+    if (AngleDelta < 0.0f)
     {
-      FTransform LocalTransformRelativeToParent = GetActorTransform().GetRelativeTransform(ParentActor->GetActorTransform());
-      ROS2->ProcessDataFromLidar(DataStream.GetSensorType(), StreamId, LocalTransformRelativeToParent, LidarData, this);
-    }
-    else
-    {
-      ROS2->ProcessDataFromLidar(DataStream.GetSensorType(), StreamId, SensorTransform, LidarData, this);
+      AngleDelta += Description.HorizontalFov;
     }
   }
-  #endif
-
-
+  else
+  {
+    // 第一次扫描
+    AngleDelta = CurrentHorizontalAngle;
+    // 初始化累积缓冲区
+    if (AccumulatedHits.empty())
+    {
+      AccumulatedHits.resize(Description.Channels);
+      AccumulatedHitSampleIndices.resize(Description.Channels);
+      for (uint32_t i = 0; i < Description.Channels; ++i)
+      {
+        AccumulatedHits[i].reserve(2000);
+        AccumulatedHitSampleIndices[i].reserve(2000);
+      }
+    }
+  }
+  
+  // 4. 累积当前帧的数据
+  for (uint32_t channel = 0; channel < Description.Channels; ++channel)
+  {
+    AccumulatedHits[channel].insert(AccumulatedHits[channel].end(), 
+                                   RecordedHits[channel].begin(), 
+                                   RecordedHits[channel].end());
+    AccumulatedHitSampleIndices[channel].insert(AccumulatedHitSampleIndices[channel].end(), 
+                                               RecordedHitSampleIndices[channel].begin(), 
+                                               RecordedHitSampleIndices[channel].end());
+  }
+  
+  // 5. 累积角度距离
+  AccumulatedAngleDistance += AngleDelta;
+  
+  // 6. 检查是否完成了一个完整的HorizontalFov扫描
+  if (AccumulatedAngleDistance >= Description.HorizontalFov)
+  {
+    // 7. 处理累积的数据
+    ProcessAndPublishAccumulatedData();
+    
+    // 8. 重置累积距离，为下一轮完整扫描做准备
+    AccumulatedAngleDistance = 0.0f;
+    
+    // 9. 清空累积缓冲区
+    for (uint32_t channel = 0; channel < Description.Channels; ++channel)
+    {
+      AccumulatedHits[channel].clear();
+      AccumulatedHitSampleIndices[channel].clear();
+    }
+  }
+  
+  // 10. 更新状态
+  PreviousHorizontalAngle = CurrentHorizontalAngle;
+  HasCompletedFullScan = true;
 }
 
 float ARayCastLidar::ComputeIntensity(const FSemanticDetection& RawDetection) const
@@ -253,4 +245,80 @@ void ARayCastLidar::PointCloudWritePointSync(const FDetection& Detection)
   PointCloudLidarData.Emplace(Detection.y);
   PointCloudLidarData.Emplace(Detection.z);
   PointCloudLidarData.Emplace(Detection.intensity);
+}
+
+void ARayCastLidar::ProcessAndPublishAccumulatedData()
+{
+  // 1. 计算每通道的点数
+  std::vector<uint32_t> AccumulatedPointsPerChannel;
+  AccumulatedPointsPerChannel.reserve(Description.Channels);
+  for (uint32_t channel = 0; channel < Description.Channels; ++channel)
+  {
+    AccumulatedPointsPerChannel.push_back(AccumulatedHits[channel].size());
+  }
+
+  // 2. 重置LidarData
+  LidarData.ResetMemory(AccumulatedPointsPerChannel);
+
+  // 3. 处理累积的检测数据
+  FTransform ActorTransf = GetTransform();
+  for (uint32_t channel = 0; channel < Description.Channels; ++channel)
+  {
+    for (size_t i = 0; i < AccumulatedHits[channel].size(); ++i)
+    {
+      // 从FHitResult计算FDetection
+      FDetection Detection = ComputeDetection(AccumulatedHits[channel][i], ActorTransf);
+      Detection.ring = static_cast<uint16_t>(channel);
+      
+      // 设置时间信息
+      const uint32_t sampleIndex = i < AccumulatedHitSampleIndices[channel].size() ? 
+                                  AccumulatedHitSampleIndices[channel][i] : 0u;
+      Detection.time = SecondsPerSample > 0.0f ? 
+                     static_cast<float>(sampleIndex) * SecondsPerSample : 0.0f;
+      
+      // 后处理
+      if (PostprocessDetection(Detection))
+      {
+        LidarData.WritePointSync(Detection);
+      }
+      else
+      {
+        AccumulatedPointsPerChannel[channel]--;
+      }
+    }
+  }
+
+  // 4. 写入通道计数
+  LidarData.WriteChannelCount(AccumulatedPointsPerChannel);
+
+  // 5. 设置水平角度
+  LidarData.SetHorizontalAngle(SemanticLidarData.GetHorizontalAngle());
+
+  // 6. 发送数据流
+  auto DataStream = GetDataStream(*this);
+  auto SensorTransform = DataStream.GetSensorTransform();
+  {
+    TRACE_CPUPROFILER_EVENT_SCOPE_STR("Send Stream");
+    DataStream.SerializeAndSend(*this, LidarData, DataStream.PopBufferFromPool());
+  }
+
+  // 7. ROS2发送
+  #if defined(WITH_ROS2)
+  auto ROS2 = carla::ros2::ROS2::GetInstance();
+  if (ROS2->IsEnabled())
+  {
+    TRACE_CPUPROFILER_EVENT_SCOPE_STR("ROS2 Send");
+    auto StreamId = carla::streaming::detail::token_type(GetToken()).get_stream_id();
+    AActor* ParentActor = GetAttachParentActor();
+    if (ParentActor)
+    {
+      FTransform LocalTransformRelativeToParent = GetActorTransform().GetRelativeTransform(ParentActor->GetActorTransform());
+      ROS2->ProcessDataFromLidar(DataStream.GetSensorType(), StreamId, LocalTransformRelativeToParent, LidarData, this);
+    }
+    else
+    {
+      ROS2->ProcessDataFromLidar(DataStream.GetSensorType(), StreamId, SensorTransform, LidarData, this);
+    }
+  }
+  #endif
 }

@@ -60,7 +60,7 @@ public:
 	// bool bDrawDebugPlane = false;
 	
 private:
-  /// Compute the received intensity of the point
+  /// Compute received intensity of point
   float ComputeIntensity(const FSemanticDetection& RawDetection) const;
   FDetection ComputeDetection(const FHitResult& HitInfo, const FTransform& SensorTransf) const;
 
@@ -68,6 +68,16 @@ private:
   bool PostprocessDetection(FDetection& Detection) const;
 
   void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
+
+  // 处理和发布累积的数据
+  void ProcessAndPublishAccumulatedData();
+
+  // 累积相关成员变量
+  float AccumulatedAngleDistance {0.0f};
+  float PreviousHorizontalAngle {0.0f};
+  bool HasCompletedFullScan {false};
+  std::vector<std::vector<FHitResult>> AccumulatedHits;
+  std::vector<std::vector<uint32_t>> AccumulatedHitSampleIndices;
 
   FLidarData LidarData;
 

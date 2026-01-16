@@ -78,7 +78,7 @@ protected:
 	uint32_t SamplesPerChannelThisFrame {0u};
 	float SecondsPerSample {0.0f};
 
-private:
+protected:
   FSemanticLidarData SemanticLidarData;
 
 };
