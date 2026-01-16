@@ -55,11 +55,12 @@ try:
     from pygame.locals import K_u
     from pygame.locals import K_F8
     from pygame.locals import K_i
-
-    from pygame.locals import K_o
-    from pygame.locals import K_t
     from pygame.locals import K_j
     from pygame.locals import K_k
+    from pygame.locals import K_o
+    from pygame.locals import K_t
+    from pygame.locals import K_v
+
     from pygame.locals import K_t
     from pygame.locals import K_g
     from pygame.locals import K_b
@@ -167,6 +168,8 @@ class World(object):
         self.show_vehicle_telemetry = False
 
     def restart(self):
+        self.player_max_speed = 1.589
+        self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
@@ -248,8 +251,7 @@ class World(object):
                         "dropoff_general_rate": "0.0",
                         "dropoff_intensity_limit": "0.0",
                         "dropoff_zero_intensity": "0.0",
-                        "noise_stddev": "0.0",
-                        "sensor_tick": "0.1"
+                        "noise_stddev": "0.0"
                     }
                 },
                 {
@@ -452,8 +454,6 @@ class KeyboardControl(object):
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, client, world, clock, sync_mode):
-        print("=== DEBUG ===", "K_j:", K_j, "K_k:", K_k, "F5:", K_F5)
-
         if isinstance(self._control, carla.VehicleControl):
             current_lights = self._lights
         for event in pygame.event.get():
@@ -579,7 +579,6 @@ class KeyboardControl(object):
                 elif event.key == K_F6:
                     self._control_main_camera_fixed(world)
                 elif event.key == K_j:
-                    print("[K_j] Creating objects...")
                     # 创建/销毁100个object的循环
                     try:
                         if not self.bulk_objects_created:
@@ -660,6 +659,7 @@ class KeyboardControl(object):
                         print(f"[K_j] Failed to create/destroy objects: {e}")
                         world.hud.error(f'Failed to create/destroy: {e}')
                 elif event.key == K_k:
+                    print(f"[K_k]")
                     # 测试toggle_spray功能
                     try:
                         # 检查玩家是否有toggle_spray方法
@@ -673,10 +673,10 @@ class KeyboardControl(object):
                             if self._spray_active:
                                 # 激活喷射
                                 spray_json = {
-                                    "distance": 5,
+                                    "Distance": 500,
                                     "transform": {
-                                        "location": {"x": 0.6, "y": 0.0, "z": 0.6},
-                                        "rotation": {"pitch": 0, "yaw": 0, "roll": 0},
+                                        "location": {"x": 500, "y": 0.0, "z": 1.0},
+                                        "rotation": {"pitch": 45, "yaw": 45, "roll": 45},
                                         "scale": {"x": 1, "y": 1, "z": 1}
                                     }
                                 }
@@ -687,6 +687,9 @@ class KeyboardControl(object):
                                 try:
                                     result = json.loads(result_str)
                                     if result.get("ok", False):
+                                        message = result.get("message", "Spray activated")
+                                        distance = result.get("distance", 0)
+                                        world.hud.notification(f'Spray ON: {message}')
                                         print(f"[K_k] Spray activated: {message}, Distance: {distance}")
                                     else:
                                         error_msg = result.get("message", "Unknown error")
@@ -1360,9 +1363,6 @@ class CameraManager(object):
                     # 旧格式：16 字节/点 (x,y,z,intensity float32)
                     # 新格式：24 字节/点 (x,y,z,intensity float32 + ring uint16 + padding uint16 + time float32)
                     stride24 = 24
-                    points_count = 0
-                    angle_range = 0.0
-                    
                     if len(raw) % stride24 == 0 and len(raw) >= stride24:
                         dtype24 = np.dtype([
                             ("x", "f4"), ("y", "f4"), ("z", "f4"),
@@ -1371,36 +1371,11 @@ class CameraManager(object):
                             ("time", "f4"),
                         ])
                         points = np.frombuffer(raw, dtype=dtype24)
-                        points_count = len(points)
                         lidar_xy = np.stack([points["x"], points["y"]], axis=1)
-                        
-                        # 调试：分析角度范围
-                        if points_count > 0:
-                            angles = np.arctan2(points["y"], points["x"]) * 180.0 / np.pi
-                            angles = np.mod(angles + 180, 360) - 180  # 转换到[-180, 180]
-                            angle_range = np.max(angles) - np.min(angles)
-                            
-                            # 调试输出
-                            print(f"[LIDAR DEBUG] Points: {points_count}, Angle range: {angle_range:.1f}°, Min: {np.min(angles):.1f}°, Max: {np.max(angles):.1f}°")
-                            
-                            # 检查是否为完整扫描（根据传感器配置）
-                            if hasattr(self.sensor, 'horizontal_fov'):
-                                expected_range = self.sensor.horizontal_fov
-                                coverage = angle_range / expected_range * 100
-                                print(f"[LIDAR DEBUG] Expected FOV: {expected_range}°, Coverage: {coverage:.1f}%")
-                                
-                                if coverage >= 95.0:  # 95%以上认为是完整扫描
-                                    print(f"[LIDAR DEBUG] ✓ COMPLETE SCAN detected! ({coverage:.1f}% coverage)")
-                                else:
-                                    print(f"[LIDAR DEBUG] ✗ Incomplete scan ({coverage:.1f}% coverage)")
                     else:
                         points = np.frombuffer(raw, dtype=np.dtype('f4'))
                         points = np.reshape(points, (int(points.shape[0] / 4), 4))
-                        points_count = points.shape[0]
                         lidar_xy = points[:, :2]
-                        
-                        # 调试输出（旧格式）
-                        print(f"[LIDAR DEBUG] Old format - Points: {points_count}")
 
                     scale = min(self.hud.dim) / float(self.lidar_range * 0.5)
 
