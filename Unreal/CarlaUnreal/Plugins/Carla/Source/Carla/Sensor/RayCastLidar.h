@@ -37,6 +37,12 @@ public:
 
   virtual void PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime);
 
+  // 初始化固定步长和扫描参数
+  void InitializeFixedStepParameters();
+
+  // 执行完整FOV扫描
+  void SimulateFullFOVScan(const float DeltaTime, const uint32 PointsToScanWithOneLaser);
+
   const TArray<float>& GetTestPointCloud() const { return PointCloudLidarData; };
 	
 	// UPROPERTY(BlueprintReadOnly) // TODO:Delete ,只作为可视化点云数据用
@@ -69,15 +75,9 @@ private:
 
   void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
 
-  // 处理和发布累积的数据
-  void ProcessAndPublishAccumulatedData();
-
-  // 累积相关成员变量
-  float AccumulatedAngleDistance {0.0f};
-  float PreviousHorizontalAngle {0.0f};
-  bool HasCompletedFullScan {false};
-  std::vector<std::vector<FHitResult>> AccumulatedHits;
-  std::vector<std::vector<uint32_t>> AccumulatedHitSampleIndices;
+  // 固定步长相关成员变量
+  float FixedAngleStep {0.0f};
+  bool IsInitialized {false};
 
   FLidarData LidarData;
 
