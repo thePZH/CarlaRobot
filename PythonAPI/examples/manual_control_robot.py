@@ -251,7 +251,8 @@ class World(object):
                         "dropoff_general_rate": "0.0",
                         "dropoff_intensity_limit": "0.0",
                         "dropoff_zero_intensity": "0.0",
-                        "noise_stddev": "0.0"
+                        "noise_stddev": "0.0",
+                        "sensor_tick": "0.1"
                     }
                 },
                 {

@@ -18,3 +18,5 @@ Help.md
 
 # Ignore SevnceMapManager static collision assets
 Unreal/CarlaUnreal/Plugins/SevnceMapManager/Content/Statics/*.uasset
+.rabbvcsignore
+.svn/
